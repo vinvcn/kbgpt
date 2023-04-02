@@ -9,11 +9,17 @@ readme = "README.md"
 python = "^3.09"
 langchain = "^0.0.129"
 openai = "^0.27.2"
+bs4 = "^0.0.1"
+lxml = "^4.9.2"
+tiktoken = "^0.3.3"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"
 pylint = "*"
 
+
+[tool.poetry.group.dev.dependencies]
+pyramid = "^2.0.1"
 
 [build-system]
 requires = ["poetry-core"]
