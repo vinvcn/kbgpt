@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "kbgpt"
+version = "0.1.0"
+description = ""
+authors = ["Vince <vince@surfin.sg>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.09"
+langchain = "^0.0.129"
+openai = "^0.27.2"
+
+[tool.poetry.dev-dependencies]
+flake8 = "*"
+pylint = "*"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
