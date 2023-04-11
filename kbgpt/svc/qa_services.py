@@ -19,7 +19,7 @@ RULES = (
     "- You should provide super details that you found from the context, only if it's related to the question.\n"
     "- Be friendly and considerable.\n"
     "- Find all the valid URLs, embed it in the relavent part in your answer as links. [<description>](url)\n"
-    "- Find all the valid image URLs, embed it in the relatent part in your answer as  image. e.g. ![<image description>](url)\n"
+    '- Find all the valid image URLs which is the url ending in ".png" or ".jpg", embed it in the relatent part in your answer as image. e.g. ![<image description>](url)\n'
     "- The answer is in markdown format.\n"
 )
 
