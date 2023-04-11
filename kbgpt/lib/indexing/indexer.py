@@ -90,7 +90,7 @@ class CustomerServiceFilesIndexer(AbstractIndexer):
         """
         loader = self._get_loader_for_file(path)
         documents = loader.load_and_split(PondAstonPondSplitter(encoding_model=self.tokenize_model, **kwargs))
-        return [d for d in documents if len(d.page_content) > 0]
+        return [d for d in documents if len(d.page_content.strip()) > 0]
 
 
 # def create_redis_retriever(

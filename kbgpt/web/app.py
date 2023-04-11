@@ -10,7 +10,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS, cross_origin
 
 from kbgpt.svc.file_services import add_file_to_customer_service
-from kbgpt.svc.qa_services import answer_question_as_a_customer_service_agent
+from kbgpt.svc.qa_services import QAagent
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -65,7 +65,8 @@ def answer_question():
     try:
         params: dict = request.get_json()
         question = params["question"]
-        llm_result = answer_question_as_a_customer_service_agent(
+        agent = QAagent(1)
+        llm_result = agent.answer_question(
             question=question
         )
         return llm_result
