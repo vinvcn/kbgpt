@@ -53,16 +53,21 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         load the file and split it into documents
         """
 
-    def add_file_to_index(self, path: str, index_name: str, redis_url: str, db_url: str, **kwargs):
+    def add_file_to_index(
+        self, path: str, index_name: str, redis_url: str, db_url: str, flush_index: bool = False, **kwargs
+    ):
         """
         add a file to the given index
         """
-        with UniqueFilePerIndex(path, db_url, index_name):
-            logging.debug("embedding the file")
-            # load the data
-            documents = self.load_and_split(path, **kwargs)
-            # create the retriever
-            self._add_docs_to_redis_index(documents, redis_url, index_name)
+        # with UniqueFilePerIndex(path, db_url, index_name):
+        logging.debug("embedding the file")
+        # load the data
+        documents = self.load_and_split(path, **kwargs)
+        # flush the index if needed
+        if flush_index:
+            Redis.drop_index(index_name=index_name, delete_documents=True, redis_url=redis_url)
+        # create the retriever
+        self._add_docs_to_redis_index(documents, redis_url, index_name)
 
     def _add_docs_to_redis_index(
         self, documents: List[Document], redis_url: str, index_name: str

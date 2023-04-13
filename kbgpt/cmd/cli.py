@@ -1,11 +1,10 @@
-from kbgpt.svc.file_services import add_file_to_customer_service
+from kbgpt.svc.file_services import add_kb
 from kbgpt.svc.qa_services import QAagent
 
 
-def handle_file(path: str):
-    """
-    Handle the file mode"""
-    add_file_to_customer_service(path)
+def add_knowledge_base():
+    """add knowledge base"""
+    add_kb()
 
 
 def handle_qa():

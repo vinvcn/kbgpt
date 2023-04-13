@@ -5,7 +5,7 @@ main entry point to the application
 import argparse
 
 from config import *
-from kbgpt.cmd.cli import handle_file, handle_qa
+from kbgpt.cmd.cli import add_knowledge_base, handle_qa
 from kbgpt.web.app import run_debug
 
 # Define the argument parser with top-level help
@@ -18,11 +18,7 @@ parser_server = parser_server.add_argument("run", action="store_true", help="run
 # add subparser for the cli command
 parser_cli = subparsers.add_parser("cli", help="run cli mode")
 # add flag to cli subparser and pass the path as a string
-parser_cli.add_argument(
-    "--path",
-    type=str,
-    help="path to the file",
-)
+parser_cli.add_argument("--add-kb", action="store_true", default=False, help="add the knowledge base")
 # add flag to cli subparser indicting entering the qa mode
 parser_cli.add_argument(
     "--qa",
@@ -37,8 +33,7 @@ elif args.command == "cli":
     if args.qa:
         # handle the qa mode
         handle_qa()
-    elif args.path is not None:
-        # handle the file mode
-        handle_file(args.path)
+    elif args.add_kb:
+        add_knowledge_base()
 else:
     args.print_help()
