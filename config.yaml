@@ -9,13 +9,20 @@ EMBEDDING_DIMENSIONS: 1536
 TEXT_EMBEDDING_CHUNK_SIZE: 200
 # This is the minimum cosine similarity score that a file must have with the search query to be considered relevant
 # This is an arbitrary value, and you should vary/ remove this depending on the diversity of your dataset
-COSINE_SIM_THRESHOLD: 0.7
+COSINE_SIM_THRESHOLD: 0.9
 
 
 # Storage configurations
 REDIS_URL: "redis://localhost:6379"
 DB_URL: mysql+pymysql://user:password@localhost:3306/db
+PINECONE_ENV: us-west4-gcp
+
+VECTOR_STORE_CLASS: redis
+VECTOR_RETRIVAL_K: 1
+
+# switches
+FLUSH_BEFORE_WRITE: True
 
 # Indexing config
-CUSTOMER_SERVICE_INDEX: bullsmart_customer_services
-CUSTOMER_SERVICE_TEMPERATURE: 0.8
+CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
+CUSTOMER_SERVICE_TEMPERATURE: 0.6

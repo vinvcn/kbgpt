@@ -9,8 +9,10 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores.redis import Redis
+from pydantic import BaseModel
 
 from config import *
+from kbgpt.lib.db.vector_store import create_vector_store_strategy
 from kbgpt.lib.templates.file_qa_template import FileQATemplate
 
 RULES = (
@@ -24,13 +26,13 @@ RULES = (
 )
 
 
-class AbstractAgent(metaclass=abc.ABCMeta):
+class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
     """
     Abstract class for all agents
     """
 
-    def __init__(self, k=1) -> None:
-        self.k = k
+    k: int = VECTOR_RETRIVAL_K
+    vector_store_cls: str = VECTOR_STORE_CLASS
 
     @abc.abstractmethod
     def load_chain(self, llm: ChatOpenAI) -> BaseCombineDocumentsChain:
@@ -38,14 +40,14 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         Load the chain for the agent"""
         pass
 
-    def answer_question(self, question: str) -> str:
+    async def answer_question(self, question: str) -> str:
         """
         Answer a question as a customer service agent"""
-        answer, stats = self.answer_question_and_provide_cost(question=question)
+        answer, stats = await self.answer_question_and_provide_cost(question=question)
 
         return answer
 
-    def answer_question_and_provide_cost(self, question: str) -> Tuple[str, OpenAICallbackHandler]:
+    async def answer_question_and_provide_cost(self, question: str) -> Tuple[str, OpenAICallbackHandler]:
         """
         Answer a question as a customer service agent and provide the cost of the answer
         """
@@ -58,14 +60,10 @@ class AbstractAgent(metaclass=abc.ABCMeta):
             callback_manager=CallbackManager([stats]),
         )
 
-        rds = Redis.from_existing_index(
-            redis_url=REDIS_URL,
-            index_name=CUSTOMER_SERVICE_INDEX,
-            embedding=OpenAIEmbeddings(),
-        ).as_retriever(k=self.k)
+        retriever = await create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
 
         # result1 = rds.similarity_search(query=question, k=2)
-        result1 = rds.get_relevant_documents(query=question)  # , k=2)
+        result1 = retriever.get_relevant_documents(query=question)  # , k=2)
 
         chain = self.load_chain(llm)
 
@@ -77,9 +75,6 @@ class AbstractAgent(metaclass=abc.ABCMeta):
 class QAagent(AbstractAgent):
     """
     Agent that can refine an existing answer"""
-
-    def __init__(self, k=1) -> None:
-        super().__init__(k)
 
     def load_chain(self, llm: ChatOpenAI) -> BaseCombineDocumentsChain:
         """
@@ -102,9 +97,6 @@ class QAagent(AbstractAgent):
 class RefineAgent(AbstractAgent):
     """
     Agent that can refine an existing answer"""
-
-    def __init__(self, k=3) -> None:
-        super().__init__(k)
 
     def load_chain(self, llm: ChatOpenAI) -> BaseCombineDocumentsChain:
         """

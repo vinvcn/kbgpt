@@ -3,6 +3,7 @@ main entry point to the application
 """
 
 import argparse
+import asyncio
 
 from config import *
 from kbgpt.cmd.cli import add_knowledge_base, handle_qa
@@ -26,14 +27,16 @@ parser_cli.add_argument(
     help="run qa mode",
 )
 args = parser.parse_args()
-# handle the server subcommand
-if args.command == "server":
-    run_debug()
-elif args.command == "cli":
-    if args.qa:
-        # handle the qa mode
-        handle_qa()
-    elif args.add_kb:
-        add_knowledge_base()
-else:
-    args.print_help()
+
+if __name__ == "__main__":
+    # handle the server subcommand
+    if args.command == "server":
+        run_debug()
+    elif args.command == "cli":
+        if args.qa:
+            # handle the qa mode
+            handle_qa()
+        elif args.add_kb:
+            add_knowledge_base()
+    else:
+        args.print_help()
