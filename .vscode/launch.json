@@ -5,13 +5,55 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Main file",
+            "name": "Python: Draft File",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/draft.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Python Cli",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/main.py",
-            "args": ["--jinyong"],
+            "args": [
+                "cli",
+                "--qa"
+            ],
+            "envFile": "${workspaceFolder}/.env",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": false
+        },
+        {
+            "name": "Python Server",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": [
+                "server"
+            ],
+            "envFile": "${workspaceFolder}/.env",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Agent Draft",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/chatagent.py",
+            "envFile": "${workspaceFolder}/.env",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Agent mrkl_chat.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/mrkl_chat.py",
+            "envFile": "${workspaceFolder}/.env",
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }
