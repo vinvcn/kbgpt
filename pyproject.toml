@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "kbgpt"
+version = "0.1.0"
+description = ""
+authors = ["Vince <vince@surfin.sg>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+langchain = "^0.0.139"
+openai = "^0.27.2"
+bs4 = "^0.0.1"
+lxml = "^4.9.2"
+tiktoken = "^0.3.3"
+unstructured = "^0.5.9"
+redis = "^4.5.4"
+requests = "^2.28.2"
+pymysql = "^1.0.3"
+pymysqldb = "^0.0.2"
+flask-cors = "^3.0.10"
+flask = "^2.2.3"
+pyyaml = "^6.0"
+pypdf = "^3.7.0"
+mysqlclient = "^2.1.1"
+sanic = "^23.3.0"
+pinecone-client = "^2.2.1"
+
+[tool.poetry.dev-dependencies]
+flake8 = "*"
+pylint = "*"
+
+
+[tool.poetry.group.dev.dependencies]
+pyramid = "^2.0.1"
+black = "^23.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

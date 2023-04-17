@@ -1,0 +1,20 @@
+{
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.formatting.blackArgs": [
+        "--line-length=120"
+    ],
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintArgs": [
+        "--disable=C0103"
+    ],
+    "python.formatting.provider": "none",
+    "editor.formatOnSave": true,
+    "editor.wordWrap": "on",
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    },
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    }
+}
