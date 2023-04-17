@@ -14,10 +14,10 @@ COSINE_SIM_THRESHOLD: 0.9
 
 # Storage configurations
 REDIS_URL: "redis://localhost:6379"
-DB_URL: mysql+pymysql://user:password@localhost:3306/db
+# DB_URL: mysql+pymysql://user:password@localhost:3306/db
 PINECONE_ENV: us-west4-gcp
 
-VECTOR_STORE_CLASS: redis
+VECTOR_STORE_CLASS: pinecone
 VECTOR_RETRIVAL_K: 1
 
 # switches
