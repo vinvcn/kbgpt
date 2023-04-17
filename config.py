@@ -37,7 +37,7 @@ else:
     sys.exit(1)  # Exit the program if the config is invalid
 
 # Set a default value for SERVER_PORT if not specified in the config
-SERVER_PORT = yaml_config.get("SERVER_PORT", None)
+# SERVER_PORT = yaml_config.get("SERVER_PORT", None)
 
 # Use Path.resolve() to get the absolute path of the current directory
-SERVER_DIR = Path(__file__).resolve().parent
+# SERVER_DIR = Path(__file__).resolve().parent

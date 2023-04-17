@@ -7,7 +7,7 @@ import asyncio
 
 from config import *
 from kbgpt.cmd.cli import add_knowledge_base, handle_qa
-from kbgpt.web.app import run_debug
+from kbgpt.web.app import run
 
 # Define the argument parser with top-level help
 parser = argparse.ArgumentParser(description="Run the KBGPT application")
@@ -31,7 +31,7 @@ args = parser.parse_args()
 if __name__ == "__main__":
     # handle the server subcommand
     if args.command == "server":
-        run_debug()
+        run()
     elif args.command == "cli":
         if args.qa:
             # handle the qa mode

@@ -26,3 +26,9 @@ FLUSH_BEFORE_WRITE: True
 # Indexing config
 CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 CUSTOMER_SERVICE_TEMPERATURE: 0.6
+
+
+SANIC:
+  PORT: 8081
+  IP: 0.0.0.0
+  DEBUG: False

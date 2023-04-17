@@ -10,11 +10,12 @@ from sanic.exceptions import FileNotFound
 from sanic.response import html, json, text
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 
+from config import *
 from kbgpt.svc.file_services import add_file_to_customer_service
 from kbgpt.svc.qa_services import QAagent
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.DEBUG if SANIC.get("DEBUG", False) else logging.INFO,
     format="%(asctime)s [%(levelname)s]  %(filename)s:%(lineno)d %(message)s",
     handlers=[logging.FileHandler("debug.log"), logging.StreamHandler(sys.stdout)],
 )
@@ -42,6 +43,20 @@ async def process_file(request):
         return json({"success": False, "error": str(e)})
 
 
+@app.route("/get_qa", methods=["GET"])
+async def answer_question_get(request):
+    """
+    GET endpoint to answer a question"""
+    try:
+        question = request.json["question"]
+        agent = QAagent()
+        llm_result = await agent.answer_question(question=question)
+        return json({"success": True, "answer": llm_result})
+    except Exception as e:
+        logging.error(e.with_traceback())
+        return json({"success": False, "error": str(e)})
+
+
 @app.websocket("/qa")
 async def answer_question(request, ws):
     agent = QAagent()
@@ -55,5 +70,10 @@ async def answer_question(request, ws):
         await ws.send(llm_result)
 
 
-def run_debug():
-    app.run(host="0.0.0.0", port=8000, debug=True, protocol=WebSocketProtocol)
+def run():
+    app.run(
+        host=SANIC.get("IP", "0.0.0.0"),
+        port=SANIC.get("PORT", 8080),
+        debug=SANIC.get("DEBUG", False),
+        protocol=WebSocketProtocol,
+    )
