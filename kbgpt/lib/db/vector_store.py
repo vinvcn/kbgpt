@@ -65,9 +65,9 @@ class PineConeVectorStoreStrategy(VectorStoreStrategy):
             pinecone.describe_index(self.index_name)
             if flush_index:
                 pinecone.delete_index(self.index_name)
-                pinecone.create_index(self.index_name, 1536)
+                pinecone.create_index(self.index_name, EMBEDDING_DIMENSIONS)
         except pinecone.exceptions.NotFoundException:
-            pinecone.create_index(self.index_name, 1536)
+            pinecone.create_index(self.index_name, EMBEDDING_DIMENSIONS)
 
         pc = Pinecone.from_documents(documents, OpenAIEmbeddings(), index_name=self.index_name, api_key=self.api_key)
 

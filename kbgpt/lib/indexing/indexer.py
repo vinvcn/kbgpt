@@ -4,7 +4,7 @@ indexers
 import abc
 import logging
 import re
-from typing import List
+from typing import List, Tuple
 
 from langchain.docstore.document import Document
 from langchain.document_loaders import (
@@ -14,7 +14,9 @@ from langchain.document_loaders import (
     UnstructuredURLLoader,
     UnstructuredWordDocumentLoader,
 )
+from langchain.text_splitter import RecursiveCharacterTextSplitter, TextSplitter
 
+from config import *
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
 from kbgpt.lib.indexing.double_line_breaks_splitter import PondAstonPondSplitter
 
@@ -24,24 +26,35 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
     Abstract indexer class that defines the interface for indexing files.
     """
 
+    # recursive character splitter
+    RECR_SPL = RecursiveCharacterTextSplitter(
+        chunk_size=TEXT_EMBEDDING_CHUNK_SIZE, chunk_overlap=TEXT_EMBEDDING_CHUNK_OVERLAP
+    )
+    # customed splitter that splits on "#!#"
+    PAP_SPL = PondAstonPondSplitter(encoding_model=GENERATIVE_MODEL)
+
     EXT_TO_LOADER_MAP = {
-        r"https?://.*": lambda p: UnstructuredURLLoader([p]),
-        r".*\.pdf": PyPDFLoader,
-        r".*\.txt": TextLoader,
-        r".*\.html": UnstructuredHTMLLoader,
-        r".*\.htm": UnstructuredHTMLLoader,
-        r".*\.shtml": UnstructuredHTMLLoader,
-        r".*\.docx": UnstructuredWordDocumentLoader,
-        r".*\.doc": UnstructuredWordDocumentLoader,
+        r"https?://.*": (lambda p: UnstructuredURLLoader([p]), RECR_SPL),
+        r".*\.pdf": (PyPDFLoader, RECR_SPL),
+        r".*\.kb\.txt": (TextLoader, PAP_SPL),
+        r".*\.txt": (TextLoader, RECR_SPL),
+        r".*\.html": (UnstructuredHTMLLoader, RECR_SPL),
+        r".*\.htm": (UnstructuredHTMLLoader, RECR_SPL),
+        r".*\.shtml": (UnstructuredHTMLLoader, RECR_SPL),
+        r".*\.docx": (UnstructuredWordDocumentLoader, RECR_SPL),
+        r".*\.doc": (UnstructuredWordDocumentLoader, RECR_SPL),
     }
 
-    def _get_loader_for_file(self, path: str) -> TextLoader:
+    def _get_loader_and_split(self, path: str) -> Tuple[TextLoader, TextSplitter]:
         """
         get the loader for the given file
         """
-        for regex, loader in self.EXT_TO_LOADER_MAP.items():
+        for regex, tup in self.EXT_TO_LOADER_MAP.items():
+            loader, splitter = tup
             if re.match(regex, path):
-                return loader(path)
+                logging.info("matching loader: %s for path: %s", loader, path)
+                logging.info("matching splitter: %s for path: %s", splitter, path)
+                return loader(path), splitter
         raise ValueError(f"no loader found for {path}")
 
     @abc.abstractmethod
@@ -72,14 +85,10 @@ class CustomerServiceFilesIndexer(AbstractIndexer):
     Indexer for customer service files
     """
 
-    def __init__(self, tokenize_model: str) -> None:
-        super().__init__()
-        self.tokenize_model = tokenize_model
-
     def load_and_split(self, path: str, **kwargs) -> List[Document]:
         """
         load the file and split it into documents
         """
-        loader = self._get_loader_for_file(path)
-        documents = loader.load_and_split(PondAstonPondSplitter(encoding_model=self.tokenize_model, **kwargs))
+        loader, splitter = self._get_loader_and_split(path)
+        documents = loader.load_and_split(splitter)
         return [d for d in documents if len(d.page_content.strip()) > 0]

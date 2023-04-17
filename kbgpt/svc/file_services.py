@@ -25,7 +25,7 @@ async def add_kb():
 async def add_file_to_customer_service(path: str, **kwargs):
     """
     add a file to the customer service index"""
-    indexer = CustomerServiceFilesIndexer(GENERATIVE_MODEL)
+    indexer = CustomerServiceFilesIndexer()
     await indexer.add_file_to_index(path=path, **kwargs)
 
 

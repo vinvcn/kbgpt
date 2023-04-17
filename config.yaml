@@ -6,7 +6,8 @@ SERVER_PORT: "8080"
 EMBEDDINGS_MODEL: "text-embedding-ada-002"
 GENERATIVE_MODEL: "gpt-3.5-turbo"
 EMBEDDING_DIMENSIONS: 1536
-TEXT_EMBEDDING_CHUNK_SIZE: 200
+TEXT_EMBEDDING_CHUNK_SIZE: 1000
+TEXT_EMBEDDING_CHUNK_OVERLAP: 200
 # This is the minimum cosine similarity score that a file must have with the search query to be considered relevant
 # This is an arbitrary value, and you should vary/ remove this depending on the diversity of your dataset
 COSINE_SIM_THRESHOLD: 0.9
@@ -17,7 +18,7 @@ REDIS_URL: "redis://localhost:6379"
 # DB_URL: mysql+pymysql://user:password@localhost:3306/db
 PINECONE_ENV: us-west4-gcp
 
-VECTOR_STORE_CLASS: pinecone
+VECTOR_STORE_CLASS: redis
 VECTOR_RETRIVAL_K: 1
 
 # switches
