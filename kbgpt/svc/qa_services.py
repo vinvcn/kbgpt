@@ -1,4 +1,5 @@
 import abc
+import logging
 from typing import Tuple
 
 from langchain import PromptTemplate
@@ -45,8 +46,11 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
     async def answer_question(self, question: str) -> str:
         """
         Answer a question as a customer service agent"""
+        logging.debug("Started answering question: %s", question)
         answer, stats = await self.answer_question_and_provide_cost(question=question)
-
+        logging.debug("Answered question: %s", question)
+        logging.info("Total token consumed: %s", stats.total_tokens)
+        logging.info("Total cost: %s", stats.total_cost)
         return answer
 
     async def answer_question_and_provide_cost(self, question: str) -> Tuple[str, OpenAICallbackHandler]:
@@ -64,13 +68,17 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
 
         retriever = await create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
 
-        # result1 = rds.similarity_search(query=question, k=2)
-        result1 = retriever.get_relevant_documents(query=question)  # , k=2)
+        logging.debug("Started retrieving relevant documents for question: %s", question)
+        result1 = retriever.get_relevant_documents(query=question)
+        logging.debug("%s Documents retrieved: " % len(result1))
 
+        logging.debug("Started loading chain")
         chain = self.load_chain(llm)
+        logging.debug("End of loading chain")
 
+        logging.debug("Started running chain")
         value = chain({"input_documents": result1, "question": question})
-
+        logging.debug("End of running chain")
         return value["output_text"], stats
 
 

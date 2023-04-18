@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 from pathlib import Path
 from pprint import pformat
@@ -7,7 +8,7 @@ import yaml
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(filename)s %(message)s",
+    format="%(asctime)s.%(msecs)03d [%(levelname)s] %(filename)s %(message)s",
     handlers=[logging.FileHandler("debug.log"), logging.StreamHandler(sys.stdout)],
 )
 # Load config items from config.yaml.
@@ -35,6 +36,7 @@ if yaml_config is not None:
 else:
     logging.error(f"Could not load config from {yaml_path}.")
     sys.exit(1)  # Exit the program if the config is invalid
+
 
 # Set a default value for SERVER_PORT if not specified in the config
 # SERVER_PORT = yaml_config.get("SERVER_PORT", None)
