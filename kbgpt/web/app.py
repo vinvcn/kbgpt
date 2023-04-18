@@ -31,12 +31,14 @@ async def process_file(request):
 
     try:
         for file in request.files["file"]:
+            flush = FLUSH_BEFORE_WRITE
             async with tempfile.NamedTemporaryFile(
                 delete=True, prefix=str(uuid.uuid4()), suffix=file.name
             ) as temp_file:
                 async with open(temp_file.name, "wb") as f:
                     await f.write(file.body)
-                    await add_file_to_customer_service(path=temp_file.name)
+                    await add_file_to_customer_service(path=temp_file.name, flush_index=flush)
+                    flush = False
         return json({"success": True})
     except Exception as e:
         logging.error(str(e))
@@ -59,6 +61,8 @@ async def answer_question_get(request):
 
 @app.websocket("/qa")
 async def answer_question(request, ws):
+    """
+    Websocket endpoint to answer a question"""
     agent = QAagent()
     while True:
         # Wait for incoming message

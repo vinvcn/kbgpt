@@ -3,6 +3,7 @@ import os
 import tempfile
 from os import listdir, pardir
 from os.path import abspath, dirname, isfile, join
+from typing import List
 
 from config import *
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
@@ -12,14 +13,19 @@ async def add_kb():
     """
     add knowledge base in kb folder"""
     kb_dir = join(dirname(abspath(__file__)), pardir, "kb")
-    files = listdir(kb_dir)
+    files = [join(kb_dir, f) for f in listdir(kb_dir)]
+    files = [f for f in files if isfile(f) and f.endswith(".txt")]
+    await add_files(files)
+
+
+async def add_files(paths: List[str]):
+    """
+    add files in paths"""
     flush = FLUSH_BEFORE_WRITE
-    for filename in files:
-        filepath = join(kb_dir, filename)
-        logging.debug("adding %s" % filepath)
-        if isfile(filepath) and filepath.endswith(".txt"):
-            await add_file_to_customer_service(path=filepath, flush_index=flush)
-            flush = False
+    for path in paths:
+        logging.debug("adding %s" % path)
+        await add_file_to_customer_service(path=path, flush_index=flush)
+        flush = False
 
 
 async def add_file_to_customer_service(path: str, **kwargs):

@@ -1,8 +1,11 @@
 
-# ----- SERVER PORT ----
-SERVER_PORT: "8080"
+# ----- SANIC SERVER PORT ----
+SANIC:
+  PORT: 8081
+  IP: "0.0.0.0"
+  DEBUG: False
 
-# ---- OPENAI CONFIG -----
+# ----- OPENAI CONFIG -----
 EMBEDDINGS_MODEL: "text-embedding-ada-002"
 GENERATIVE_MODEL: "gpt-3.5-turbo"
 EMBEDDING_DIMENSIONS: 1536
@@ -12,14 +15,15 @@ TEXT_EMBEDDING_CHUNK_OVERLAP: 200
 # This is an arbitrary value, and you should vary/ remove this depending on the diversity of your dataset
 COSINE_SIM_THRESHOLD: 0.9
 
-
+# ----- VECTOR STORE CONFIG -----
+VECTOR_STORE_CLASS: pinecone
+VECTOR_RETRIVAL_K: 1
 # Storage configurations
 REDIS_URL: "redis://localhost:6379"
 # DB_URL: mysql+pymysql://user:password@localhost:3306/db
 PINECONE_ENV: us-west4-gcp
 
-VECTOR_STORE_CLASS: redis
-VECTOR_RETRIVAL_K: 1
+
 
 # switches
 FLUSH_BEFORE_WRITE: True
@@ -28,8 +32,3 @@ FLUSH_BEFORE_WRITE: True
 CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 CUSTOMER_SERVICE_TEMPERATURE: 0.6
 
-
-SANIC:
-  PORT: 8081
-  IP: 0.0.0.0
-  DEBUG: False

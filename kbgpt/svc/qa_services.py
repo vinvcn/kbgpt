@@ -23,6 +23,8 @@ RULES = (
     "- Find all the valid URLs, embed it in the relavent part in your answer as links. [<description>](url)\n"
     '- Find all the valid image URLs which is the url ending in ".png" or ".jpg", embed it in the relatent part in your answer as image. e.g. ![<image description>](url)\n'
     "- The answer is in markdown format.\n"
+    "- Be straight and precise.\n"
+    "- Limit the answer to within 10 words.\n"
 )
 
 
