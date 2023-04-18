@@ -54,7 +54,7 @@ class PineConeVectorStoreStrategy(VectorStoreStrategy):
         """
 
         pc = Pinecone.from_existing_index(index_name=self.index_name, embedding=OpenAIEmbeddings())
-        return pc.as_retriever(k=k)
+        return pc.as_retriever(search_kwargs={"k": k})
 
     async def write_to_store(self, documents: List[Document], flush_index=False, **kwargs) -> VectorStoreRetriever:
         """
@@ -84,7 +84,7 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
     async def get_retriever(self, k, **kwargs) -> VectorStoreRetriever:
         return Redis.from_existing_index(
             redis_url=self.redis_url, index_name=self.index_name, embedding=OpenAIEmbeddings()
-        ).as_retriever(k=k)
+        ).as_retriever(search_kwargs={"k": k})
 
     async def write_to_store(self, documents: List[Document], flush_index=False, **kwargs) -> VectorStoreRetriever:
         """
