@@ -17,7 +17,7 @@ COSINE_SIM_THRESHOLD: 0.9
 
 # ----- VECTOR STORE CONFIG -----
 VECTOR_STORE_CLASS: pinecone
-VECTOR_RETRIVAL_K: 1
+VECTOR_RETRIVAL_K: 3
 # Storage configurations
 REDIS_URL: "redis://localhost:6379"
 # DB_URL: mysql+pymysql://user:password@localhost:3306/db

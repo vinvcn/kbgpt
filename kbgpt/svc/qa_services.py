@@ -1,5 +1,6 @@
 import abc
 import logging
+import time
 from typing import Tuple
 
 from langchain import PromptTemplate
@@ -47,8 +48,11 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
         """
         Answer a question as a customer service agent"""
         logging.debug("Started answering question: %s", question)
+        start_counter = time.perf_counter()
         answer, stats = await self.answer_question_and_provide_cost(question=question)
-        logging.debug("Answered question: %s", question)
+        logging.debug(
+            "End of answering question: %s, total time %.3f seconds" % (question, time.perf_counter() - start_counter)
+        )
         logging.info("Total token consumed: %s", stats.total_tokens)
         logging.info("Total cost: %s", stats.total_cost)
         return answer
@@ -65,20 +69,27 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
             max_tokens=1000,
             callback_manager=CallbackManager([stats]),
         )
-
+        start_counter = time.perf_counter()
+        logging.debug("Started loading vector store")
         retriever = await create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
+        logging.debug("End of loading vector store, total time %.3f seconds" % (time.perf_counter() - start_counter))
 
         logging.debug("Started retrieving relevant documents for question: %s", question)
+        start_counter = time.perf_counter()
         result1 = retriever.get_relevant_documents(query=question)
-        logging.debug("%s Documents retrieved: " % len(result1))
+        logging.debug(
+            "%s Documents retrieved, total time %.3f seconds" % (len(result1), time.perf_counter() - start_counter)
+        )
 
         logging.debug("Started loading chain")
+        start_counter = time.perf_counter()
         chain = self.load_chain(llm)
-        logging.debug("End of loading chain")
+        logging.debug("End of loading chain, total time %.3f seconds" % (time.perf_counter() - start_counter))
 
         logging.debug("Started running chain")
+        start_counter = time.perf_counter()
         value = chain({"input_documents": result1, "question": question})
-        logging.debug("End of running chain")
+        logging.debug("End of running chain, total time %.3f seconds" % (time.perf_counter() - start_counter))
         return value["output_text"], stats
 
 

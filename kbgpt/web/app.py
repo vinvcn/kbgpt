@@ -1,6 +1,7 @@
 import logging
 import sys
 import tempfile
+import time
 import uuid
 from os.path import join
 
@@ -49,6 +50,7 @@ async def process_file(request):
 async def answer_question_get(request):
     """
     GET endpoint to answer a question"""
+    start_counter = time.perf_counter()
     try:
         question = request.json["question"]
         agent = QAagent()
@@ -57,6 +59,8 @@ async def answer_question_get(request):
     except Exception as e:
         logging.error(e.with_traceback())
         return json({"success": False, "error": str(e)})
+    finally:
+        logging.debug("End of answer_question_get request, total time %.3f" % (time.perf_counter() - start_counter))
 
 
 @app.websocket("/qa")
