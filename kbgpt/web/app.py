@@ -15,13 +15,6 @@ from config import *
 from kbgpt.svc.file_services import add_file_to_customer_service
 from kbgpt.svc.qa_services import QAagent
 
-logging.basicConfig(
-    level=logging.DEBUG if SANIC.get("DEBUG", False) else logging.INFO,
-    format="%(asctime)s [%(levelname)s]  %(filename)s:%(lineno)d %(message)s",
-    handlers=[logging.FileHandler("debug.log"), logging.StreamHandler(sys.stdout)],
-)
-
-
 app = Sanic("app")
 
 
@@ -31,8 +24,8 @@ async def process_file(request):
     POST endpoint to process file"""
 
     try:
+        flush = FLUSH_BEFORE_WRITE
         for file in request.files["file"]:
-            flush = FLUSH_BEFORE_WRITE
             async with tempfile.NamedTemporaryFile(
                 delete=True, prefix=str(uuid.uuid4()), suffix=file.name
             ) as temp_file:
@@ -42,7 +35,7 @@ async def process_file(request):
                     flush = False
         return json({"success": True})
     except Exception as e:
-        logging.error(str(e))
+        logging.exception(e)
         return json({"success": False, "error": str(e)})
 
 
