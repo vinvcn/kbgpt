@@ -26,11 +26,14 @@ async def process_file(request):
     try:
         flush = FLUSH_BEFORE_WRITE
         for file in request.files["file"]:
+            if len(file.body) <= 0:
+                raise ValueError(f"File {file.name} can not be empty")
             async with tempfile.NamedTemporaryFile(
                 delete=True, prefix=str(uuid.uuid4()), suffix=file.name
             ) as temp_file:
                 async with open(temp_file.name, "wb") as f:
                     await f.write(file.body)
+                    await f.flush()
                     await add_file_to_customer_service(path=temp_file.name, flush_index=flush)
                     flush = False
         return json({"success": True})
