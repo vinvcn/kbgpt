@@ -16,7 +16,7 @@ TEXT_EMBEDDING_CHUNK_OVERLAP: 200
 COSINE_SIM_THRESHOLD: 0.9
 
 # ----- VECTOR STORE CONFIG -----
-VECTOR_STORE_CLASS: pinecone
+VECTOR_STORE_CLASS: redis
 VECTOR_RETRIVAL_K: 3
 # Storage configurations
 REDIS_URL: "redis://redis-stack.ops:6379"
