@@ -4,8 +4,9 @@ import time
 from typing import Tuple
 
 from langchain import PromptTemplate
-from langchain.callbacks import CallbackManager, OpenAICallbackHandler
-from langchain.chains import ConversationChain
+from langchain.callbacks import AsyncCallbackManager, OpenAICallbackHandler
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain.chains import ConversationalRetrievalChain, ConversationChain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
@@ -67,7 +68,7 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
             n=1,
             temperature=CUSTOMER_SERVICE_TEMPERATURE,
             max_tokens=1000,
-            callback_manager=CallbackManager([stats]),
+            callback_manager=AsyncCallbackManager([stats]),
         )
         start_counter = time.perf_counter()
         logging.debug("Started loading vector store")
@@ -88,7 +89,8 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
 
         logging.debug("Started running chain")
         start_counter = time.perf_counter()
-        value = chain({"input_documents": result1, "question": question})
+        value = await chain.acall({"input_documents": result1, "question": question})
+        # chain.prep_outputs
         logging.debug("End of running chain, total time %.3f seconds" % (time.perf_counter() - start_counter))
         return value["output_text"], stats
 
@@ -161,3 +163,30 @@ class RefineAgent(AbstractAgent):
             refine_prompt=refine_prompt,
         )
         return chain
+
+
+AGENT_STG = {"refine": RefineAgent, "stuff": QAagent, "builtin": ConversationalRetrievalChain}
+
+
+async def create_agent(**kwargs) -> any:
+    """
+    Create a vector store strategy
+    """
+    if AGENT_CLS == "builtin":
+        # get streaming from kwargs
+        streaming = kwargs.pop("streaming", None)
+        stats = OpenAICallbackHandler()
+        llm = ChatOpenAI(
+            model_name=GENERATIVE_MODEL,
+            n=1,
+            temperature=CUSTOMER_SERVICE_TEMPERATURE,
+            max_tokens=1000,
+            streaming=streaming,
+            callback_manager=AsyncCallbackManager([stats, StreamingStdOutCallbackHandler()]),
+        )
+        retriever = await create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
+
+        chain = ConversationalRetrievalChain.from_llm(llm=llm, retriever=retriever)
+        return chain
+    else:
+        return AGENT_STG[AGENT_CLS](**kwargs)

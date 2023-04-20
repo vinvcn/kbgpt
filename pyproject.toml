@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-langchain = "^0.0.139"
+langchain = "^0.0.144"
 openai = "^0.27.2"
 bs4 = "^0.0.1"
 lxml = "^4.9.2"
@@ -24,6 +24,7 @@ pypdf = "^3.7.0"
 mysqlclient = "^2.1.1"
 sanic = "^23.3.0"
 pinecone-client = "^2.2.1"
+chromadb = "^0.3.21"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"
