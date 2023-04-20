@@ -22,6 +22,7 @@ pypdf = "^3.7.0"
 mysqlclient = "^2.1.1"
 sanic = "^23.3.0"
 pinecone-client = "^2.2.1"
+chromadb = "^0.3.21"
 
 [tool.poetry.dev-dependencies]
 flake8 = "*"
