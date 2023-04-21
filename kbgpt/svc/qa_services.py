@@ -4,7 +4,7 @@ import time
 from typing import List, Optional, Tuple
 
 from langchain import PromptTemplate
-from langchain.callbacks import BaseCallbackHandler, CallbackManager, OpenAICallbackHandler
+from langchain.callbacks import AsyncCallbackManager, BaseCallbackHandler, CallbackManager, OpenAICallbackHandler
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.chains import ConversationalRetrievalChain, ConversationChain
 from langchain.chains.base import Chain
