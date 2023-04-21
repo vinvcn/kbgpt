@@ -16,11 +16,13 @@ TEXT_EMBEDDING_CHUNK_OVERLAP: 200
 COSINE_SIM_THRESHOLD: 0.9
 
 # ----- VECTOR STORE CONFIG -----
-VECTOR_STORE_CLASS: chroma
+VECTOR_STORE_CLASS: redis
 VECTOR_RETRIVAL_K: 3
 # Storage configurations
 REDIS_URL: "redis://redis-stack.ops:6379"
 # REDIS_URL: "redis://localhost:6379"
+USE_REDIS_CACHE: False
+REDIS_CACHE_SIMILARITY_THRESHOLD: 0.2
 # REDIS_URL: "redis://debug.testbs.surfin.sg:30007"
 # DB_URL: mysql+pymysql://user:password@localhost:3306/db
 PINECONE_ENV: us-west4-gcp
@@ -33,6 +35,7 @@ FLUSH_BEFORE_WRITE: True
 
 # Indexing config
 CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
+CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
 CUSTOMER_SERVICE_TEMPERATURE: 0.6
 
 AGENT_CLS: builtin

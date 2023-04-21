@@ -15,7 +15,8 @@ from langchain.vectorstores.redis import Redis
 from pydantic import BaseModel
 
 from config import *
-from kbgpt.lib.db.vector_store import create_vector_store_strategy
+from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.vector_store import create_vector_store_strategy, get_embeddings
 from kbgpt.lib.templates.file_qa_template import FileQATemplate
 
 RULES = (
@@ -24,8 +25,8 @@ RULES = (
     "- You should provide super details that you found from the context, only if it's related to the question.\n"
     "- Be friendly and considerable.\n"
     "- Find all the valid URLs, embed it in the relavent part in your answer as links. [<description>](url)\n"
-    '- Find all the valid image URLs which is the url ending in ".png" or ".jpg", embed it in the relatent part in your answer as image. e.g. ![<image description>](url)\n'
-    "- The answer is in markdown format.\n"
+    '- Find all the valid image URLs which is the url ending in ".png" or ".jpg", embed it in the relatent part in your answer as image in html.'
+    "- Put the answer in HTML format.\n"
     "- Be straight and precise.\n"
     "- Limit the answer to within 10 words.\n"
 )
@@ -48,6 +49,11 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
     async def answer_question(self, question: str) -> str:
         """
         Answer a question as a customer service agent"""
+        if USE_REDIS_CACHE:
+            cache = RedisCacheStoreStrategy(embeddings=get_embeddings())
+            cached = await cache.retrieve(query=question)
+            if cached:
+                return cached["answer"]
         logging.debug("Started answering question: %s", question)
         start_counter = time.perf_counter()
         answer, stats = await self.answer_question_and_provide_cost(question=question)
@@ -56,6 +62,8 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
         )
         logging.info("Total token consumed: %s", stats.total_tokens)
         logging.info("Total cost: %s", stats.total_cost)
+        if USE_REDIS_CACHE:
+            await cache.write_to_store(question=question, answer=answer)
         return answer
 
     async def answer_question_and_provide_cost(self, question: str) -> Tuple[str, OpenAICallbackHandler]:

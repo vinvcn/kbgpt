@@ -53,7 +53,7 @@ async def answer_question_get(request):
         llm_result = await agent.answer_question(question=question)
         return json({"success": True, "answer": llm_result})
     except Exception as e:
-        logging.error(e.with_traceback())
+        logging.exception(e)
         return json({"success": False, "error": str(e)})
     finally:
         logging.debug("End of answer_question_get request, total time %.3f" % (time.perf_counter() - start_counter))

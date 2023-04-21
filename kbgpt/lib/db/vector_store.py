@@ -21,6 +21,11 @@ class VectorStoreStrategy(BaseModel, metaclass=abc.ABCMeta):
 
     index_name: str = CUSTOMER_SERVICE_INDEX
 
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(cls, "instance"):
+            cls.instance = super(VectorStoreStrategy, cls).__new__(cls)
+        return cls.instance
+
     @abc.abstractmethod
     async def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
         """
@@ -139,9 +144,9 @@ def get_embeddings() -> Embeddings:
 
 
 STORE_STG = {
-    "redis": RedisVectorStoreStrategy(embeddings=get_embeddings()),
-    "pinecone": PineConeVectorStoreStrategy(embeddings=get_embeddings()),
-    "chroma": ChromaVectorStoreStrategy(embeddings=get_embeddings()),
+    "redis": RedisVectorStoreStrategy,
+    "pinecone": PineConeVectorStoreStrategy,
+    "chroma": ChromaVectorStoreStrategy,
 }
 
 
@@ -149,4 +154,4 @@ def create_vector_store_strategy(**kwargs) -> VectorStoreStrategy:
     """
     Create a vector store strategy
     """
-    return STORE_STG[VECTOR_STORE_CLASS]
+    return STORE_STG[VECTOR_STORE_CLASS](embeddings=get_embeddings())
