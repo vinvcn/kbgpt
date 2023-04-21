@@ -19,10 +19,10 @@ COSINE_SIM_THRESHOLD: 0.9
 VECTOR_STORE_CLASS: redis
 VECTOR_RETRIVAL_K: 3
 # Storage configurations
-REDIS_URL: "redis://redis-stack.ops:6379"
-# REDIS_URL: "redis://localhost:6379"
-USE_REDIS_CACHE: False
-REDIS_CACHE_SIMILARITY_THRESHOLD: 0.2
+# REDIS_URL: "redis://redis-stack.ops:6379"
+REDIS_URL: "redis://localhost:6379"
+USE_REDIS_CACHE: True
+REDIS_CACHE_SIMILARITY_THRESHOLD: 0.01
 # REDIS_URL: "redis://debug.testbs.surfin.sg:30007"
 # DB_URL: mysql+pymysql://user:password@localhost:3306/db
 PINECONE_ENV: us-west4-gcp

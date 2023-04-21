@@ -40,6 +40,11 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
     k: int = VECTOR_RETRIVAL_K
     vector_store_cls: str = VECTOR_STORE_CLASS
 
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(cls, "instance"):
+            cls.instance = super(AbstractAgent, cls).__new__(cls)
+        return cls.instance
+
     @abc.abstractmethod
     def load_chain(self, llm: ChatOpenAI) -> BaseCombineDocumentsChain:
         """
