@@ -42,7 +42,7 @@ class ChromaVectorStoreStrategy(VectorStoreStrategy):
     """
 
     chroma: Optional[Chroma]
-    embeddings: Embeddings
+    embeddings: Optional[Embeddings]
 
     class Config:
         arbitrary_types_allowed = True
@@ -52,7 +52,8 @@ class ChromaVectorStoreStrategy(VectorStoreStrategy):
         self.chroma = Chroma(embedding_function=embeddings, persist_directory=CHROMA_PERSIST_DIR)
 
     async def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
-        return self.chroma.as_retriever(k=k)
+        # return self.chroma.as_retriever(search_kwargs={"k": k})
+        return self.chroma.as_retriever(search_kwargs={"k": k})
 
     async def write_to_store(self, documents: List[Document], flush_index=False, **kwargs) -> VectorStoreRetriever:
         if flush_index:
@@ -125,10 +126,22 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
         return rds.as_retriever(search_type="similarity_limit")
 
 
+def get_embeddings() -> Embeddings:
+    """
+    Get the embeddings
+    """
+    embeddings: Embeddings = None
+    if EMBEDDINGS_FUNCTION == "openai":
+        embeddings = OpenAIEmbeddings()
+    else:
+        embeddings = None
+    return embeddings
+
+
 STORE_STG = {
-    "redis": RedisVectorStoreStrategy,
-    "pinecone": PineConeVectorStoreStrategy,
-    "chroma": ChromaVectorStoreStrategy,
+    "redis": RedisVectorStoreStrategy(embeddings=get_embeddings()),
+    "pinecone": PineConeVectorStoreStrategy(embeddings=get_embeddings()),
+    "chroma": ChromaVectorStoreStrategy(embeddings=get_embeddings()),
 }
 
 
@@ -136,9 +149,4 @@ def create_vector_store_strategy(**kwargs) -> VectorStoreStrategy:
     """
     Create a vector store strategy
     """
-    embeddings: Embeddings = None
-    if EMBEDDINGS_FUNCTION == "openai":
-        embeddings = OpenAIEmbeddings()
-    else:
-        embeddings = None
-    return STORE_STG[VECTOR_STORE_CLASS](embeddings=embeddings, **kwargs)
+    return STORE_STG[VECTOR_STORE_CLASS]

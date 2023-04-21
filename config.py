@@ -8,7 +8,7 @@ import yaml
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s.%(msecs)03d [%(levelname)s] %(filename)s %(message)s",
+    format="%(asctime)s.%(msecs)03d [%(levelname)s] %(filename)s %(message)s %(pathname)s:%(lineno)d",
     handlers=[logging.FileHandler("debug.log"), logging.StreamHandler(sys.stdout)],
 )
 # Load config items from config.yaml.
