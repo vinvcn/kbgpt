@@ -13,7 +13,8 @@ from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 
 from config import *
 from kbgpt.svc.file_services import add_file_to_customer_service
-from kbgpt.svc.qa_services import QAagent
+from kbgpt.svc.qa_services import ConvAgent, QAagent, create_agent
+from kbgpt.web.callbacks import StreamingTextCallbackHandler
 
 app = Sanic("app")
 
@@ -62,16 +63,20 @@ async def answer_question_get(request):
 @app.websocket("/qa")
 async def answer_question(request, ws):
     """
-    Websocket endpoint to answer a question"""
-    agent = QAagent()
+    Websocket endpoint to answer a question
+    """
+    agent = ConvAgent(streaming=True, handlers=[StreamingTextCallbackHandler(ws)])
     while True:
         # Wait for incoming message
         message = await ws.recv()
         # Process message as needed
         # processed_message = process_qa_message(message)
         # Send response back over websocket
-        llm_result = await agent.answer_question(question=message)
-        await ws.send(llm_result)
+        answer = await agent.question(message)
+
+        await ws.send(answer)
+        # llm_result = await agent.answer_question(question=message)
+        # await ws.send(llm_result)
 
 
 def run():

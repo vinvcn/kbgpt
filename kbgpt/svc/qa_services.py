@@ -1,12 +1,13 @@
 import abc
 import logging
 import time
-from typing import Tuple
+from typing import List, Optional, Tuple
 
 from langchain import PromptTemplate
-from langchain.callbacks import AsyncCallbackManager, OpenAICallbackHandler
+from langchain.callbacks import BaseCallbackHandler, CallbackManager, OpenAICallbackHandler
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.chains import ConversationalRetrievalChain, ConversationChain
+from langchain.chains.base import Chain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
@@ -85,7 +86,7 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
         )
         start_counter = time.perf_counter()
         logging.debug("Started loading vector store")
-        retriever = await create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
+        retriever = create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
         logging.debug("End of loading vector store, total time %.3f seconds" % (time.perf_counter() - start_counter))
 
         logging.debug("Started retrieving relevant documents for question: %s", question)
@@ -178,10 +179,45 @@ class RefineAgent(AbstractAgent):
         return chain
 
 
+class ConvAgent(BaseModel):
+    """
+    Conversational Agent
+    """
+
+    chain: Optional[ConversationalRetrievalChain]
+    stats: Optional[OpenAICallbackHandler]
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __init__(self, handlers: List[BaseCallbackHandler], streaming, **data):
+        super().__init__(**data)
+        self.stats = OpenAICallbackHandler()
+        dummy = CallbackManager([])
+        handlers.extend([self.stats])
+        llm = ChatOpenAI(
+            model_name=GENERATIVE_MODEL,
+            n=1,
+            temperature=CUSTOMER_SERVICE_TEMPERATURE,
+            max_tokens=1000,
+            streaming=streaming,
+            callback_manager=CallbackManager(handlers),
+        )
+        retriever = create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
+        self.chain = ConversationalRetrievalChain.from_llm(llm=llm, retriever=retriever, callback_manager=dummy)
+
+    async def question(self, question: str):
+        """
+        Ask a question
+        """
+        result = self.chain({"question": question, "chat_history": ""})
+        return result["answer"]
+
+
 AGENT_STG = {"refine": RefineAgent, "stuff": QAagent, "builtin": ConversationalRetrievalChain}
 
 
-async def create_agent(**kwargs) -> any:
+async def create_agent(**kwargs) -> Chain:
     """
     Create a vector store strategy
     """
@@ -197,7 +233,7 @@ async def create_agent(**kwargs) -> any:
             streaming=streaming,
             callback_manager=AsyncCallbackManager([stats, StreamingStdOutCallbackHandler()]),
         )
-        retriever = await create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
+        retriever = create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
 
         chain = ConversationalRetrievalChain.from_llm(llm=llm, retriever=retriever)
         return chain

@@ -27,7 +27,7 @@ class VectorStoreStrategy(BaseModel, metaclass=abc.ABCMeta):
         return cls.instance
 
     @abc.abstractmethod
-    async def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
+    def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
         """
         Get the retriever
         """
@@ -56,7 +56,7 @@ class ChromaVectorStoreStrategy(VectorStoreStrategy):
         super().__init__(embeddings=embeddings, **kwargs)
         self.chroma = Chroma(embedding_function=embeddings, persist_directory=CHROMA_PERSIST_DIR)
 
-    async def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
+    def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
         # return self.chroma.as_retriever(search_kwargs={"k": k})
         return self.chroma.as_retriever(search_kwargs={"k": k})
 
@@ -81,7 +81,7 @@ class PineConeVectorStoreStrategy(VectorStoreStrategy):
         super().__init__(**kwargs)
         pinecone.init(api_key=self.api_key, environment=self.environment)
 
-    async def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
+    def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
         """
         Get the retriever
         """
@@ -114,7 +114,7 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
 
     redis_url: str = REDIS_URL
 
-    async def get_retriever(self, k, **kwargs) -> VectorStoreRetriever:
+    def get_retriever(self, k, **kwargs) -> VectorStoreRetriever:
         return Redis.from_existing_index(
             redis_url=self.redis_url, index_name=self.index_name, embedding=OpenAIEmbeddings()
         ).as_retriever(k=k)
