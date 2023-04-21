@@ -26,11 +26,14 @@ async def process_file(request):
     try:
         flush = FLUSH_BEFORE_WRITE
         for file in request.files["file"]:
+            if len(file.body) <= 0:
+                raise ValueError(f"File {file.name} can not be empty")
             async with tempfile.NamedTemporaryFile(
                 delete=True, prefix=str(uuid.uuid4()), suffix=file.name
             ) as temp_file:
                 async with open(temp_file.name, "wb") as f:
                     await f.write(file.body)
+                    await f.flush()
                     await add_file_to_customer_service(path=temp_file.name, flush_index=flush)
                     flush = False
         return json({"success": True})
@@ -50,7 +53,7 @@ async def answer_question_get(request):
         llm_result = await agent.answer_question(question=question)
         return json({"success": True, "answer": llm_result})
     except Exception as e:
-        logging.error(e.with_traceback())
+        logging.exception(e)
         return json({"success": False, "error": str(e)})
     finally:
         logging.debug("End of answer_question_get request, total time %.3f" % (time.perf_counter() - start_counter))
