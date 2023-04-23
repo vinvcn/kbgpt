@@ -25,14 +25,12 @@ pinecone-client = "^2.2.1"
 chromadb = "0.3.21"
 
 [tool.poetry.dev-dependencies]
-flake8 = "*"
 pylint = "*"
 
 
 [tool.poetry.group.dev.dependencies]
 pyramid = "^2.0.1"
 black = "^23.3.0"
-autoflake = "^2.1.1"
 
 [build-system]
 requires = ["poetry-core"]
