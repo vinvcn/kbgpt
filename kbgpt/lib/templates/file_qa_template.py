@@ -1,7 +1,8 @@
 from typing import List
+
+from langchain.docstore.document import Document
 from langchain.prompts import StringPromptTemplate
 from pydantic import BaseModel, validator
-from langchain.docstore.document import Document
 
 TEMPLATE = """
 Given a question, try to answer it using the content of the file extracts below, and if you cannot answer, or find 
@@ -53,13 +54,15 @@ class FileQATemplate(StringPromptTemplate, BaseModel):
         file_strings = []
         # Generate the prompt to be sent to the language model
         for d in docs:
-            file_string = f"###\n\"{d.metadata.get('source')}\"\n{d.page_content}\n"
+            file_string = (
+                f"###\n\"{d.metadata.get('source')}\"\n{d.page_content}\n"
+            )
             file_strings.append(file_string)
 
         prompt = TEMPLATE.format(
             question_string=qestion_str, files_strings="\n".join(file_strings)
         )
-        
+
         return prompt
 
     def _prompt_type(self):

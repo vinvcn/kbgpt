@@ -16,7 +16,7 @@ from langchain.document_loaders import (
 )
 from langchain.text_splitter import RecursiveCharacterTextSplitter, TextSplitter
 
-from config import *
+from config import *  # plint: disable=wildcard-import,unused-wildcard-import
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
 from kbgpt.lib.indexing.double_line_breaks_splitter import PondAstonPondSplitter
 
@@ -28,7 +28,8 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
 
     # recursive character splitter
     RECR_SPL = RecursiveCharacterTextSplitter(
-        chunk_size=TEXT_EMBEDDING_CHUNK_SIZE, chunk_overlap=TEXT_EMBEDDING_CHUNK_OVERLAP
+        chunk_size=TEXT_EMBEDDING_CHUNK_SIZE,
+        chunk_overlap=TEXT_EMBEDDING_CHUNK_OVERLAP,
     )
     # customed splitter that splits on "#!#"
     PAP_SPL = PondAstonPondSplitter(encoding_model=GENERATIVE_MODEL)
@@ -45,7 +46,9 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         r".*\.doc": (UnstructuredWordDocumentLoader, RECR_SPL),
     }
 
-    def _get_loader_and_split(self, path: str) -> Tuple[TextLoader, TextSplitter]:
+    def _get_loader_and_split(
+        self, path: str
+    ) -> Tuple[TextLoader, TextSplitter]:
         """
         get the loader for the given file
         """
@@ -53,7 +56,9 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
             loader, splitter = tup
             if re.match(regex, path):
                 logging.info("matching loader: %s for path: %s", loader, path)
-                logging.info("matching splitter: %s for path: %s", splitter, path)
+                logging.info(
+                    "matching splitter: %s for path: %s", splitter, path
+                )
                 return loader(path), splitter
         raise ValueError(f"no loader found for {path}")
 

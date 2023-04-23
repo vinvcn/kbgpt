@@ -1,19 +1,19 @@
+"""
+define the Sanic app
+"""
 import logging
-import sys
-import tempfile
 import time
 import uuid
-from os.path import join
 
-from aiofiles import open, tempfile
+from aiofiles import open as aopen
+from aiofiles import tempfile
 from sanic import Sanic
-from sanic.exceptions import FileNotFound
-from sanic.response import html, json, text
+from sanic.response import json
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 
-from config import *
+from config import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from kbgpt.svc.file_services import add_file_to_customer_service
-from kbgpt.svc.qa_services import ConvAgent, QAagent, create_agent
+from kbgpt.svc.qa_services import ConvAgent, QAagent
 from kbgpt.web.callbacks import StreamingTextCallbackHandler
 
 app = Sanic("app")
@@ -23,7 +23,7 @@ app = Sanic("app")
 async def process_file(request):
     """
     POST endpoint to process file"""
-
+    # pylint: disable=broad-except
     try:
         flush = FLUSH_BEFORE_WRITE
         for file in request.files["file"]:
@@ -32,10 +32,12 @@ async def process_file(request):
             async with tempfile.NamedTemporaryFile(
                 delete=True, prefix=str(uuid.uuid4()), suffix=file.name
             ) as temp_file:
-                async with open(temp_file.name, "wb") as f:
+                async with aopen(temp_file.name, "wb") as f:
                     await f.write(file.body)
                     await f.flush()
-                    await add_file_to_customer_service(path=temp_file.name, flush_index=flush)
+                    await add_file_to_customer_service(
+                        path=temp_file.name, flush_index=flush
+                    )
                     flush = False
         return json({"success": True})
     except Exception as e:
@@ -48,24 +50,31 @@ async def answer_question_get(request):
     """
     GET endpoint to answer a question"""
     start_counter = time.perf_counter()
+    # pylint: disable=broad-except
     try:
         question = request.json["question"]
-        agent = QAagent()
+        agent = QAagent.get_instance()
         llm_result = await agent.answer_question(question=question)
         return json({"success": True, "answer": llm_result})
     except Exception as e:
         logging.exception(e)
         return json({"success": False, "error": str(e)})
     finally:
-        logging.debug("End of answer_question_get request, total time %.3f" % (time.perf_counter() - start_counter))
+        logging.debug(
+            "End of answer_question_get request, total time %.3f",
+            (time.perf_counter() - start_counter),
+        )
 
 
+# pylint: disable=unused-argument
 @app.websocket("/qa")
 async def answer_question(request, ws):
     """
     Websocket endpoint to answer a question
     """
-    agent = ConvAgent(streaming=True, handlers=[StreamingTextCallbackHandler(ws)])
+    agent = ConvAgent(
+        streaming=True, handlers=[StreamingTextCallbackHandler(ws)]
+    )
     while True:
         # Wait for incoming message
         message = await ws.recv()
@@ -80,6 +89,9 @@ async def answer_question(request, ws):
 
 
 def run():
+    """
+    run the web app
+    """
     app.run(
         host=SANIC.get("IP", "0.0.0.0"),
         port=SANIC.get("PORT", 8080),

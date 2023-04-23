@@ -1,8 +1,8 @@
 {
     "python.linting.enabled": true,
-    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Enabled": false,
     "python.formatting.blackArgs": [
-        "--line-length=120"
+        "--line-length=80"
     ],
     "python.linting.pylintEnabled": true,
     "python.linting.pylintArgs": [
@@ -12,9 +12,9 @@
     "editor.formatOnSave": true,
     "editor.wordWrap": "on",
     "editor.codeActionsOnSave": {
-        "source.organizeImports": true
+        "source.organizeImports": true,
+        "source.unusedImports": true
     },
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
-    }
+    "python.analysis.typeCheckingMode": "off",
+    "black-formatter.importStrategy": "fromEnvironment"
 }
