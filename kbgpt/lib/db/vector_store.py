@@ -5,13 +5,13 @@ from typing import List
 
 import pinecone
 from langchain.docstore.document import Document
-from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores import Chroma, Pinecone
 from langchain.vectorstores.base import VectorStoreRetriever
 from langchain.vectorstores.redis import Redis
 
 from config import profile
+from kbgpt.lib.openai import openai_embeddings
 
 
 class VectorStoreStrategy(metaclass=abc.ABCMeta):
@@ -105,7 +105,7 @@ class PineConeVectorStoreStrategy(VectorStoreStrategy):
         """
 
         pc = Pinecone.from_existing_index(
-            index_name=self.index_name, embedding=OpenAIEmbeddings()
+            index_name=self.index_name, embedding=get_embeddings()
         )
         return pc.as_retriever(search_kwargs={"k": k})
 
@@ -130,7 +130,7 @@ class PineConeVectorStoreStrategy(VectorStoreStrategy):
 
         pc = Pinecone.from_documents(
             documents,
-            OpenAIEmbeddings(),
+            get_embeddings(),
             index_name=self.index_name,
             api_key=self.api_key,
         )
@@ -149,7 +149,7 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
         return Redis.from_existing_index(
             redis_url=self.redis_url,
             index_name=self.index_name,
-            embedding=OpenAIEmbeddings(),
+            embedding=get_embeddings(),
         ).as_retriever(k=k)
 
     async def write_to_store(
@@ -168,7 +168,7 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
 
         rds = Redis.from_documents(
             documents,
-            OpenAIEmbeddings(),
+            get_embeddings(),
             redis_url=self.redis_url,
             index_name=self.index_name,
         )
@@ -181,7 +181,7 @@ def get_embeddings() -> Embeddings:
     """
     embeddings: Embeddings = None
     if profile.embedding.embeddings_function == "openai":
-        embeddings = OpenAIEmbeddings()
+        embeddings = openai_embeddings
     else:
         embeddings = None
     return embeddings

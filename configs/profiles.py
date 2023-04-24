@@ -31,6 +31,8 @@ class QA(SuperConfig):
     embeddings_model: str
     generative_model: str
     customer_service_temperature: float
+    request_timeout: int
+    request_retry: int
     agent_cls: str
 
 

@@ -1,6 +1,5 @@
 PROFILE: DEFAULT
 
-
 DEFAULT:
 # ----- SANIC SERVER PORT ----
   SANIC:
@@ -14,6 +13,9 @@ DEFAULT:
     GENERATIVE_MODEL: "gpt-3.5-turbo"
     CUSTOMER_SERVICE_TEMPERATURE: 0.6
     AGENT_CLS: builtin
+    REQUEST_TIMEOUT: 3
+    REQUEST_RETRY: 2
+    DB_URL: mysql+pymysql://user:password@localhost:3306/db
 # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536
@@ -31,8 +33,6 @@ DEFAULT:
     USE_REDIS_CACHE: True
     REDIS_CACHE_SIMILARITY_THRESHOLD: 0.01
     CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
-# REDIS_URL: "redis://debug.testbs.surfin.sg:30007"
-# DB_URL: mysql+pymysql://user:password@localhost:3306/db
   INDEXING:
     FLUSH_BEFORE_WRITE: True
     CUSTOMER_SERVICE_INDEX: bullsmart-customer-services

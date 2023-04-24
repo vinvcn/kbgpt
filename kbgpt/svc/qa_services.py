@@ -27,6 +27,7 @@ from kbgpt.lib.db.vector_store import (
     create_vector_store_strategy,
     get_embeddings,
 )
+from kbgpt.lib.openai import chat_open_ai_llm
 
 RULES = (
     "You should strictly follow the following rules:\n"
@@ -107,13 +108,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         Answer a question as a customer service agent and provide the cost of the answer
         """
         stats = OpenAICallbackHandler()
-        llm = ChatOpenAI(
-            model_name=profile.qa.generative_model,
-            n=1,
-            temperature=profile.qa.customer_service_temperature,
-            max_tokens=1000,
-            callback_manager=AsyncCallbackManager([stats]),
-        )
+        llm = chat_open_ai_llm(handlers=[stats])
         start_counter = time.perf_counter()
         logging.debug("Started loading vector store")
         retriever = create_vector_store_strategy().get_retriever(k=self.k)
@@ -239,21 +234,13 @@ class ConvAgent:
     def __init__(self, handlers: List[BaseCallbackHandler], streaming, **data):
         super().__init__(**data)
         self.stats = OpenAICallbackHandler()
-        dummy = CallbackManager([])
         handlers.extend([self.stats])
-        llm = ChatOpenAI(
-            model_name=profile.qa.generative_model,
-            n=1,
-            temperature=profile.qa.customer_service_temperature,
-            max_tokens=1000,
-            streaming=streaming,
-            callback_manager=CallbackManager(handlers),
-        )
+        llm = chat_open_ai_llm(handlers=handlers, streaming=streaming)
         retriever = create_vector_store_strategy().get_retriever(
             k=profile.vector_store.vector_retrival_k
         )
         self.chain = ConversationalRetrievalChain.from_llm(
-            llm=llm, retriever=retriever, callback_manager=dummy
+            llm=llm, retriever=retriever, callback_manager=CallbackManager([])
         )
 
     async def question(self, question: str):
@@ -269,33 +256,3 @@ AGENT_STG = {
     "stuff": QAagent,
     "builtin": ConversationalRetrievalChain,
 }
-
-
-async def create_agent(**kwargs) -> Chain:
-    """
-    Create a vector store strategy
-    """
-    if profile.qa.agent_cls == "builtin":
-        # get streaming from kwargs
-        streaming = kwargs.pop("streaming", None)
-        stats = OpenAICallbackHandler()
-        llm = ChatOpenAI(
-            model_name=profile.qa.generative_model,
-            n=1,
-            temperature=profile.qa.customer_service_temperature,
-            max_tokens=1000,
-            streaming=streaming,
-            callback_manager=AsyncCallbackManager(
-                [stats, StreamingStdOutCallbackHandler()]
-            ),
-        )
-        retriever = create_vector_store_strategy().get_retriever(
-            k=profile.vector_store.vector_retrival_k
-        )
-
-        chain = ConversationalRetrievalChain.from_llm(
-            llm=llm, retriever=retriever
-        )
-        return chain
-    else:
-        return AGENT_STG[profile.qa.agent_cls](**kwargs)
