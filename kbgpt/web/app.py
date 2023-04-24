@@ -96,5 +96,6 @@ def run():
         host=SANIC.get("IP", "0.0.0.0"),
         port=SANIC.get("PORT", 8080),
         debug=SANIC.get("DEBUG", False),
+        workers=SANIC.get("WORKERS", 1),
         protocol=WebSocketProtocol,
     )
