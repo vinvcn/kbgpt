@@ -1,21 +1,28 @@
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, Field, root_validator
 
 
 class SuperConfig(BaseModel):
+    """Base class for all configs"""
+
+    class Config:
+        """Config for all configs"""
+
+        allow_mutation = False
+        validate_assignment = True
+
     @root_validator(pre=True)
     def check_and_convert_key_names(cls, values):
         """Convert all keys to lowercase"""
-        print("validator called on value", values)
         return dict((k.lower(), v) for k, v in values.items())
 
 
 class Sanic(SuperConfig):
     """Sanic configs"""
 
-    port: int
-    ip: str
-    debug: bool
-    workers: int
+    port: int = Field(8081)
+    ip: str = Field("0.0.0.0")
+    debug: bool = Field(False)
+    workers: int = Field(1)
 
 
 class QA(SuperConfig):

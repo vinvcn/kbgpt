@@ -14,8 +14,7 @@ from redis.client import Redis as RedisType
 from redis.commands.search.field import TextField, VectorField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 
-# pylint: disable=wildcard-import,unused-wildcard-import
-from config import *
+from config import profile
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +62,12 @@ class RedisCacheStoreStrategy:
             )
         else:
             super().__init__()
-            self.index_name = CUSTOMER_SERVICE_CACHE_INDEX
+            self.index_name = profile.indexing.customer_service_index
             self.embeddings = embeddings
-            self.redis_client = redis.from_url(REDIS_URL)
+            self.redis_client = redis.from_url(profile.vector_store.redis_url)
             self.init_if_needed()
             self.rds = Redis.from_existing_index(
-                redis_url=REDIS_URL,
+                redis_url=profile.vector_store.redis_url,
                 index_name=self.index_name,
                 embedding=self.embeddings,
             )
@@ -82,7 +81,7 @@ class RedisCacheStoreStrategy:
             return
         prefix = self._redis_prefix(self.index_name)
         # Constants
-        dim = int(EMBEDDING_DIMENSIONS)
+        dim = int(profile.embedding.embedding_dimensions)
         distance_metric = (
             "COSINE"  # distance metric for the vectors (ex. COSINE, IP, L2)
         )
@@ -112,7 +111,7 @@ class RedisCacheStoreStrategy:
         Retrieve from the store"""
         cached = self.rds.as_retriever(
             k=1,
-            score_threshold=REDIS_CACHE_SIMILARITY_THRESHOLD,
+            score_threshold=profile.cache.redis_cache_similarity_threshold,
             search_type="similarity_limit",
         ).get_relevant_documents(query=query)
 

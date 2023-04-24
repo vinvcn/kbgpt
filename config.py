@@ -1,12 +1,17 @@
 """
 setup the configuration from config.yaml
 """
+__all__ = ["profile"]
 import logging
 import sys
+from os import environ
 from pathlib import Path
 from pprint import pformat
 
 import yaml
+from mergedeep import merge
+
+from configs.profiles import Profile
 
 # Load config items from config.yaml.
 # Use Path.resolve() to get the absolute path of the parent directory
@@ -26,12 +31,20 @@ def load_yaml_config(path):
 
 # Load the config and update the global variables
 yaml_config = load_yaml_config(yaml_path)
+profile = None
 if yaml_config is not None:
     logging.info("Loaded config from %s:", yaml_path)
     logging.info(pformat(yaml_config))
-    globals().update(yaml_config)
+    default_config = yaml_config["DEFAULT"]
+    active_profile = (
+        environ["KBGPT_APP_ACTIVE_PROFILE"]
+        if "KBGPT_APP_ACTIVE_PROFILE" in environ
+        else yaml_config["PROFILE"]
+    )
+    merged_profile = merge({}, default_config, yaml_config[active_profile])
+    profile = Profile(**merged_profile)
     logging.basicConfig(
-        level=logging.DEBUG if SANIC.get("DEBUG", True) else logging.INFO,
+        level=logging.DEBUG if profile.sanic.debug else logging.INFO,
         format="%(asctime)s.%(msecs)03d [%(levelname)s]"
         + " %(filename)s %(message)s %(pathname)s:%(lineno)d",
         handlers=[

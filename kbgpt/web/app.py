@@ -11,7 +11,7 @@ from sanic import Sanic
 from sanic.response import json
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 
-from config import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from config import profile
 from kbgpt.svc.file_services import add_file_to_customer_service
 from kbgpt.svc.qa_services import ConvAgent, QAagent
 from kbgpt.web.callbacks import StreamingTextCallbackHandler
@@ -25,7 +25,7 @@ async def process_file(request):
     POST endpoint to process file"""
     # pylint: disable=broad-except
     try:
-        flush = FLUSH_BEFORE_WRITE
+        flush = profile.indexing.flush_before_write
         for file in request.files["file"]:
             if len(file.body) <= 0:
                 raise ValueError(f"File {file.name} can not be empty")
@@ -93,9 +93,9 @@ def run():
     run the web app
     """
     app.run(
-        host=SANIC.get("IP", "0.0.0.0"),
-        port=SANIC.get("PORT", 8080),
-        debug=SANIC.get("DEBUG", False),
-        workers=SANIC.get("WORKERS", 1),
+        host=profile.sanic.ip,
+        port=profile.sanic.port,
+        debug=profile.sanic.debug,
+        workers=profile.sanic.workers,
         protocol=WebSocketProtocol,
     )

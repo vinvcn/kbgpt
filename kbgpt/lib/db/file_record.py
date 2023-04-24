@@ -1,11 +1,9 @@
 from sqlalchemy import Boolean, Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
 
-from config import *
 
 # Create an engine that connects to your database (in this case, SQLite)
-engine = create_engine(DB_URL, echo=True)
+engine = create_engine("DB_URL", echo=True)
 
 # Create a base class for your models to inherit from
 Base = declarative_base()

@@ -4,7 +4,6 @@ main entry point to the application
 
 import argparse
 
-from config import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from kbgpt.cmd.cli import add_knowledge_base, handle_qa
 from kbgpt.web.app import run
 
