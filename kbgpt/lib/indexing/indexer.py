@@ -16,7 +16,7 @@ from langchain.document_loaders import (
 )
 from langchain.text_splitter import RecursiveCharacterTextSplitter, TextSplitter
 
-from config import *  # plint: disable=wildcard-import,unused-wildcard-import
+from config import profile
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
 from kbgpt.lib.indexing.double_line_breaks_splitter import PondAstonPondSplitter
 
@@ -28,11 +28,11 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
 
     # recursive character splitter
     RECR_SPL = RecursiveCharacterTextSplitter(
-        chunk_size=TEXT_EMBEDDING_CHUNK_SIZE,
-        chunk_overlap=TEXT_EMBEDDING_CHUNK_OVERLAP,
+        chunk_size=profile.embedding.text_embedding_chunk_size,
+        chunk_overlap=profile.embedding.text_embedding_chunk_overlap,
     )
     # customed splitter that splits on "#!#"
-    PAP_SPL = PondAstonPondSplitter(encoding_model=GENERATIVE_MODEL)
+    PAP_SPL = PondAstonPondSplitter(encoding_model=profile.qa.generative_model)
 
     EXT_TO_LOADER_MAP = {
         r"https?://.*": (lambda p: UnstructuredURLLoader([p]), RECR_SPL),

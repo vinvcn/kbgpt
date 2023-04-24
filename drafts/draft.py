@@ -1,16 +1,12 @@
 import json
 
 from langchain import PromptTemplate
-from langchain.chains import RetrievalQA
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.output_parsers import RegexParser
 from langchain.vectorstores.redis import Redis
 
-from config import *
-from kbgpt.svc.file_services import add_file_to_customer_service
-from kbgpt.svc.qa_services import answer_question_as_a_customer_service_agent
+from config import profile
 
 # add_file_to_customer_service("/Users/admin/Desktop/About Us.docx")
 # output_parser = RegexParser(
@@ -80,13 +76,20 @@ initial_qa_template = (
     "Given the context information and not prior knowledge, "
     "answer the question: {question}\n You should strictly follow the rule to only use information from the context and no prior knowledge. You should provide super details that you found from the context, only if it's related to the question. Be friendly and considerable. \n"
 )
-initial_qa_prompt = PromptTemplate(input_variables=["context_str", "question"], template=initial_qa_template)
+initial_qa_prompt = PromptTemplate(
+    input_variables=["context_str", "question"], template=initial_qa_template
+)
 
 
-llm = ChatOpenAI(model_name=GENERATIVE_MODEL, n=1, temperature=CUSTOMER_SERVICE_TEMPERATURE, max_tokens=1000)
+llm = ChatOpenAI(
+    model_name=profile.qa.generative_model,
+    n=1,
+    temperature=profile.qa.customer_service_temperature,
+    max_tokens=1000,
+)
 redis = Redis.from_existing_index(
-    redis_url=REDIS_URL,
-    index_name=CUSTOMER_SERVICE_INDEX,
+    redis_url=profile.vector_store.redis_url,
+    index_name=profile.indexing.customer_service_index,
     embedding=OpenAIEmbeddings(),
 )
 question = "What is the best way to contact Bullsmart?"

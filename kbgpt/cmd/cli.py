@@ -3,7 +3,6 @@ Cli module for kbgpt
 """
 import asyncio
 
-from config import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from kbgpt.svc.file_services import add_kb
 from kbgpt.svc.qa_services import QAagent
 

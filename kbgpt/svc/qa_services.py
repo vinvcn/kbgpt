@@ -21,7 +21,7 @@ from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
 
-from config import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.vector_store import (
     create_vector_store_strategy,
@@ -64,20 +64,20 @@ class AbstractAgent(metaclass=abc.ABCMeta):
             raise ValueError("This class is a singleton!")
         else:
             super().__init__()
-            self.k = VECTOR_RETRIVAL_K
-            self.vector_store_cls = VECTOR_STORE_CLASS
+            self.k = profile.vector_store.vector_retrival_k
+            self.vector_store_cls = profile.vector_store.vector_store_class
             AbstractAgent.instance = self
 
     @abc.abstractmethod
     def load_chain(self, llm: ChatOpenAI) -> BaseCombineDocumentsChain:
         """
-        Load the chain for the agent"""
-        pass
+        Load the chain for the agent
+        """
 
     async def answer_question(self, question: str) -> str:
         """
         Answer a question as a customer service agent"""
-        if USE_REDIS_CACHE:
+        if profile.cache.use_redis_cache:
             cache = RedisCacheStoreStrategy.get_instance(
                 embeddings=get_embeddings()
             )
@@ -96,7 +96,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         )
         logging.info("Total token consumed: %s", stats.total_tokens)
         logging.info("Total cost: %s", stats.total_cost)
-        if USE_REDIS_CACHE:
+        if profile.cache.use_redis_cache:
             await cache.write_to_store(question=question, answer=answer)
         return answer
 
@@ -108,17 +108,15 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         """
         stats = OpenAICallbackHandler()
         llm = ChatOpenAI(
-            model_name=GENERATIVE_MODEL,
+            model_name=profile.qa.generative_model,
             n=1,
-            temperature=CUSTOMER_SERVICE_TEMPERATURE,
+            temperature=profile.qa.customer_service_temperature,
             max_tokens=1000,
             callback_manager=AsyncCallbackManager([stats]),
         )
         start_counter = time.perf_counter()
         logging.debug("Started loading vector store")
-        retriever = create_vector_store_strategy().get_retriever(
-            k=VECTOR_RETRIVAL_K
-        )
+        retriever = create_vector_store_strategy().get_retriever(k=self.k)
         logging.debug(
             "End of loading vector store, total time %.3f seconds",
             time.perf_counter() - start_counter,
@@ -244,15 +242,15 @@ class ConvAgent:
         dummy = CallbackManager([])
         handlers.extend([self.stats])
         llm = ChatOpenAI(
-            model_name=GENERATIVE_MODEL,
+            model_name=profile.qa.generative_model,
             n=1,
-            temperature=CUSTOMER_SERVICE_TEMPERATURE,
+            temperature=profile.qa.customer_service_temperature,
             max_tokens=1000,
             streaming=streaming,
             callback_manager=CallbackManager(handlers),
         )
         retriever = create_vector_store_strategy().get_retriever(
-            k=VECTOR_RETRIVAL_K
+            k=profile.vector_store.vector_retrival_k
         )
         self.chain = ConversationalRetrievalChain.from_llm(
             llm=llm, retriever=retriever, callback_manager=dummy
@@ -277,14 +275,14 @@ async def create_agent(**kwargs) -> Chain:
     """
     Create a vector store strategy
     """
-    if AGENT_CLS == "builtin":
+    if profile.qa.agent_cls == "builtin":
         # get streaming from kwargs
         streaming = kwargs.pop("streaming", None)
         stats = OpenAICallbackHandler()
         llm = ChatOpenAI(
-            model_name=GENERATIVE_MODEL,
+            model_name=profile.qa.generative_model,
             n=1,
-            temperature=CUSTOMER_SERVICE_TEMPERATURE,
+            temperature=profile.qa.customer_service_temperature,
             max_tokens=1000,
             streaming=streaming,
             callback_manager=AsyncCallbackManager(
@@ -292,7 +290,7 @@ async def create_agent(**kwargs) -> Chain:
             ),
         )
         retriever = create_vector_store_strategy().get_retriever(
-            k=VECTOR_RETRIVAL_K
+            k=profile.vector_store.vector_retrival_k
         )
 
         chain = ConversationalRetrievalChain.from_llm(
@@ -300,4 +298,4 @@ async def create_agent(**kwargs) -> Chain:
         )
         return chain
     else:
-        return AGENT_STG[AGENT_CLS](**kwargs)
+        return AGENT_STG[profile.qa.agent_cls](**kwargs)

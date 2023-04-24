@@ -3,7 +3,7 @@ from os import listdir, pardir
 from os.path import abspath, dirname, isfile, join
 from typing import List
 
-from config import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from config import profile
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 
 
@@ -19,7 +19,7 @@ async def add_kb():
 async def add_files(paths: List[str]):
     """
     add files in paths"""
-    flush = FLUSH_BEFORE_WRITE
+    flush = profile.indexing.flush_before_write
     for path in paths:
         logging.debug("adding %s", path)
         await add_file_to_customer_service(path=path, flush_index=flush)

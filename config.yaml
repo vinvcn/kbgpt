@@ -1,41 +1,45 @@
+PROFILE: DEFAULT
 
+
+DEFAULT:
 # ----- SANIC SERVER PORT ----
-SANIC:
-  PORT: 8081
-  IP: "0.0.0.0"
-  DEBUG: False
-
+  SANIC:
+    PORT: 8081
+    IP: "0.0.0.0"
+    DEBUG: True
+    WORKERS: 1
 # ----- OPENAI CONFIG -----
-EMBEDDINGS_MODEL: "text-embedding-ada-002"
-GENERATIVE_MODEL: "gpt-3.5-turbo"
-EMBEDDING_DIMENSIONS: 1536
-TEXT_EMBEDDING_CHUNK_SIZE: 1000
-TEXT_EMBEDDING_CHUNK_OVERLAP: 200
-# This is the minimum cosine similarity score that a file must have with the search query to be considered relevant
-# This is an arbitrary value, and you should vary/ remove this depending on the diversity of your dataset
-COSINE_SIM_THRESHOLD: 0.9
-
+  QA:
+    EMBEDDINGS_MODEL: "text-embedding-ada-002"
+    GENERATIVE_MODEL: "gpt-3.5-turbo"
+    CUSTOMER_SERVICE_TEMPERATURE: 0.6
+    AGENT_CLS: builtin
+# ----- DOCUMENT EMBEDDING CONFIG -----
+  EMBEDDING:
+    EMBEDDING_DIMENSIONS: 1536
+    TEXT_EMBEDDING_CHUNK_SIZE: 1000
+    TEXT_EMBEDDING_CHUNK_OVERLAP: 200
+    EMBEDDINGS_FUNCTION: openai
 # ----- VECTOR STORE CONFIG -----
-VECTOR_STORE_CLASS: redis
-VECTOR_RETRIVAL_K: 3
-# Storage configurations
-REDIS_URL: "redis://redis-stack.ops:6379"
-# REDIS_URL: "redis://localhost:6379"
-USE_REDIS_CACHE: True
-REDIS_CACHE_SIMILARITY_THRESHOLD: 0.01
+  VECTOR_STORE:
+    VECTOR_STORE_CLASS: redis
+    VECTOR_RETRIVAL_K: 3
+    REDIS_URL: "redis://localhost:6379"
+    PINECONE_ENV: us-west4-gcp
+    CHROMA_PERSIST_DIR: .chroma/data
+  CACHE:
+    USE_REDIS_CACHE: True
+    REDIS_CACHE_SIMILARITY_THRESHOLD: 0.01
+    CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
 # REDIS_URL: "redis://debug.testbs.surfin.sg:30007"
 # DB_URL: mysql+pymysql://user:password@localhost:3306/db
-PINECONE_ENV: us-west4-gcp
+  INDEXING:
+    FLUSH_BEFORE_WRITE: True
+    CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 
-CHROMA_PERSIST_DIR: .chroma/data
-EMBEDDINGS_FUNCTION: openai
-
-# switches
-FLUSH_BEFORE_WRITE: True
-
-# Indexing config
-CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
-CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
-CUSTOMER_SERVICE_TEMPERATURE: 0.6
-
-AGENT_CLS: builtin
+PROD:
+  SANIC:
+    DEBUG: False
+    WORKERS: 4
+  VECTOR_STORE:
+    REDIS_URL: "redis://redis-stack.ops:6379"
