@@ -14,13 +14,11 @@ from langchain.prompts import BaseChatPromptTemplate
 from langchain.schema import AgentAction, AgentFinish, HumanMessage
 from langchain.vectorstores.redis import Redis
 
-
-# llm = ChatOpenAI(model_name=GENERATIVE_MODEL, n=1, temperature=CUSTOMER_SERVICE_TEMPERATURE, max_tokens=1000)
-
+from config import profile
 
 rds = Redis.from_existing_index(
-    redis_url=REDIS_URL,
-    index_name=CUSTOMER_SERVICE_INDEX,
+    redis_url=profile.vector_store.redis_url,
+    index_name=profile.indexing.customer_service_index,
     embedding=OpenAIEmbeddings(),
 ).as_retriever()
 
