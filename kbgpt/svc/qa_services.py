@@ -1,23 +1,32 @@
+"""
+QA agents
+"""
 import abc
 import logging
+import threading
 import time
-from typing import Tuple
+from typing import List, Tuple
 
 from langchain import PromptTemplate
-from langchain.callbacks import AsyncCallbackManager, OpenAICallbackHandler
+from langchain.callbacks import (
+    AsyncCallbackManager,
+    BaseCallbackHandler,
+    CallbackManager,
+    OpenAICallbackHandler,
+)
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.chains import ConversationalRetrievalChain, ConversationChain
+from langchain.chains import ConversationalRetrievalChain
+from langchain.chains.base import Chain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores.redis import Redis
-from pydantic import BaseModel
 
-from config import *
+from config import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
-from kbgpt.lib.db.vector_store import create_vector_store_strategy, get_embeddings
-from kbgpt.lib.templates.file_qa_template import FileQATemplate
+from kbgpt.lib.db.vector_store import (
+    create_vector_store_strategy,
+    get_embeddings,
+)
 
 RULES = (
     "You should strictly follow the following rules:\n"
@@ -32,18 +41,32 @@ RULES = (
 )
 
 
-class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
+class AbstractAgent(metaclass=abc.ABCMeta):
     """
     Abstract class for all agents
     """
 
-    k: int = VECTOR_RETRIVAL_K
-    vector_store_cls: str = VECTOR_STORE_CLASS
+    __lock = threading.Lock()
 
-    def __new__(cls, *args, **kwargs):
+    @classmethod
+    def get_instance(cls, *args, **kwargs):
+        """
+        Get the instance of the agent
+        """
         if not hasattr(cls, "instance"):
-            cls.instance = super(AbstractAgent, cls).__new__(cls)
+            with cls.__lock:
+                if not hasattr(cls, "instance"):
+                    cls(*args, **kwargs)
         return cls.instance
+
+    def __init__(self) -> None:
+        if hasattr(AbstractAgent, "instance"):
+            raise ValueError("This class is a singleton!")
+        else:
+            super().__init__()
+            self.k = VECTOR_RETRIVAL_K
+            self.vector_store_cls = VECTOR_STORE_CLASS
+            AbstractAgent.instance = self
 
     @abc.abstractmethod
     def load_chain(self, llm: ChatOpenAI) -> BaseCombineDocumentsChain:
@@ -55,15 +78,21 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
         """
         Answer a question as a customer service agent"""
         if USE_REDIS_CACHE:
-            cache = RedisCacheStoreStrategy(embeddings=get_embeddings())
+            cache = RedisCacheStoreStrategy.get_instance(
+                embeddings=get_embeddings()
+            )
             cached = await cache.retrieve(query=question)
             if cached:
                 return cached["answer"]
         logging.debug("Started answering question: %s", question)
         start_counter = time.perf_counter()
-        answer, stats = await self.answer_question_and_provide_cost(question=question)
+        answer, stats = await self.answer_question_and_provide_cost(
+            question=question
+        )
         logging.debug(
-            "End of answering question: %s, total time %.3f seconds" % (question, time.perf_counter() - start_counter)
+            "End of answering question: %s, total time %.3f seconds",
+            question,
+            time.perf_counter() - start_counter,
         )
         logging.info("Total token consumed: %s", stats.total_tokens)
         logging.info("Total cost: %s", stats.total_cost)
@@ -71,7 +100,9 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
             await cache.write_to_store(question=question, answer=answer)
         return answer
 
-    async def answer_question_and_provide_cost(self, question: str) -> Tuple[str, OpenAICallbackHandler]:
+    async def answer_question_and_provide_cost(
+        self, question: str
+    ) -> Tuple[str, OpenAICallbackHandler]:
         """
         Answer a question as a customer service agent and provide the cost of the answer
         """
@@ -85,26 +116,43 @@ class AbstractAgent(BaseModel, metaclass=abc.ABCMeta):
         )
         start_counter = time.perf_counter()
         logging.debug("Started loading vector store")
-        retriever = await create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
-        logging.debug("End of loading vector store, total time %.3f seconds" % (time.perf_counter() - start_counter))
+        retriever = create_vector_store_strategy().get_retriever(
+            k=VECTOR_RETRIVAL_K
+        )
+        logging.debug(
+            "End of loading vector store, total time %.3f seconds",
+            time.perf_counter() - start_counter,
+        )
 
-        logging.debug("Started retrieving relevant documents for question: %s", question)
+        logging.debug(
+            "Started retrieving relevant documents for question: %s", question
+        )
         start_counter = time.perf_counter()
         result1 = retriever.get_relevant_documents(query=question)
         logging.debug(
-            "%s Documents retrieved, total time %.3f seconds" % (len(result1), time.perf_counter() - start_counter)
+            "%s Documents retrieved, total time %.3f seconds",
+            len(result1),
+            time.perf_counter() - start_counter,
         )
 
         logging.debug("Started loading chain")
         start_counter = time.perf_counter()
         chain = self.load_chain(llm)
-        logging.debug("End of loading chain, total time %.3f seconds" % (time.perf_counter() - start_counter))
+        logging.debug(
+            "End of loading chain, total time %.3f seconds",
+            time.perf_counter() - start_counter,
+        )
 
         logging.debug("Started running chain")
         start_counter = time.perf_counter()
-        value = await chain.acall({"input_documents": result1, "question": question})
+        value = await chain.acall(
+            {"input_documents": result1, "question": question}
+        )
         # chain.prep_outputs
-        logging.debug("End of running chain, total time %.3f seconds" % (time.perf_counter() - start_counter))
+        logging.debug(
+            "End of running chain, total time %.3f seconds",
+            time.perf_counter() - start_counter,
+        )
         return value["output_text"], stats
 
 
@@ -125,8 +173,12 @@ class QAagent(AbstractAgent):
             f"{RULES}"
         )
 
-        PROMPT = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
-        chain = load_qa_chain(llm, chain_type="stuff", verbose=True, prompt=PROMPT)
+        PROMPT = PromptTemplate(
+            template=prompt_template, input_variables=["context", "question"]
+        )
+        chain = load_qa_chain(
+            llm, chain_type="stuff", verbose=True, prompt=PROMPT
+        )
         return chain
 
 
@@ -165,7 +217,10 @@ class RefineAgent(AbstractAgent):
             "answer the question in markdown: {question}\n"
             f"{RULES}"
         )
-        initial_qa_prompt = PromptTemplate(input_variables=["context_str", "question"], template=initial_qa_template)
+        initial_qa_prompt = PromptTemplate(
+            input_variables=["context_str", "question"],
+            template=initial_qa_template,
+        )
 
         chain = load_qa_chain(
             llm,
@@ -178,10 +233,47 @@ class RefineAgent(AbstractAgent):
         return chain
 
 
-AGENT_STG = {"refine": RefineAgent, "stuff": QAagent, "builtin": ConversationalRetrievalChain}
+class ConvAgent:
+    """
+    Conversational Agent
+    """
+
+    def __init__(self, handlers: List[BaseCallbackHandler], streaming, **data):
+        super().__init__(**data)
+        self.stats = OpenAICallbackHandler()
+        dummy = CallbackManager([])
+        handlers.extend([self.stats])
+        llm = ChatOpenAI(
+            model_name=GENERATIVE_MODEL,
+            n=1,
+            temperature=CUSTOMER_SERVICE_TEMPERATURE,
+            max_tokens=1000,
+            streaming=streaming,
+            callback_manager=CallbackManager(handlers),
+        )
+        retriever = create_vector_store_strategy().get_retriever(
+            k=VECTOR_RETRIVAL_K
+        )
+        self.chain = ConversationalRetrievalChain.from_llm(
+            llm=llm, retriever=retriever, callback_manager=dummy
+        )
+
+    async def question(self, question: str):
+        """
+        Ask a question
+        """
+        result = self.chain({"question": question, "chat_history": ""})
+        return result["answer"]
 
 
-async def create_agent(**kwargs) -> any:
+AGENT_STG = {
+    "refine": RefineAgent,
+    "stuff": QAagent,
+    "builtin": ConversationalRetrievalChain,
+}
+
+
+async def create_agent(**kwargs) -> Chain:
     """
     Create a vector store strategy
     """
@@ -195,11 +287,17 @@ async def create_agent(**kwargs) -> any:
             temperature=CUSTOMER_SERVICE_TEMPERATURE,
             max_tokens=1000,
             streaming=streaming,
-            callback_manager=AsyncCallbackManager([stats, StreamingStdOutCallbackHandler()]),
+            callback_manager=AsyncCallbackManager(
+                [stats, StreamingStdOutCallbackHandler()]
+            ),
         )
-        retriever = await create_vector_store_strategy().get_retriever(k=VECTOR_RETRIVAL_K)
+        retriever = create_vector_store_strategy().get_retriever(
+            k=VECTOR_RETRIVAL_K
+        )
 
-        chain = ConversationalRetrievalChain.from_llm(llm=llm, retriever=retriever)
+        chain = ConversationalRetrievalChain.from_llm(
+            llm=llm, retriever=retriever
+        )
         return chain
     else:
         return AGENT_STG[AGENT_CLS](**kwargs)

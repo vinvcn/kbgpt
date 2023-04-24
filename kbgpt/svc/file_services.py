@@ -1,11 +1,9 @@
 import logging
-import os
-import tempfile
 from os import listdir, pardir
 from os.path import abspath, dirname, isfile, join
 from typing import List
 
-from config import *
+from config import *  # pylint: disable=wildcard-import,unused-wildcard-import
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 
 
@@ -23,7 +21,7 @@ async def add_files(paths: List[str]):
     add files in paths"""
     flush = FLUSH_BEFORE_WRITE
     for path in paths:
-        logging.debug("adding %s" % path)
+        logging.debug("adding %s", path)
         await add_file_to_customer_service(path=path, flush_index=flush)
         flush = False
 

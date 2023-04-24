@@ -42,7 +42,9 @@ class UniqueFilePerIndex:
         )
         logging.debug("file record for %s is %s", self.path, self.file_record)
         if self.file_record is None:
-            logging.debug("file record for %s is None, creating new one", self.path)
+            logging.debug(
+                "file record for %s is None, creating new one", self.path
+            )
             # get the name of the file from the path, normalize it to lower case
             # and replace all spaces with underscore
             normalized_name = self.path.split("/")[-1].lower().replace(" ", "_")

@@ -1,7 +1,8 @@
 from typing import List
+
+from langchain.docstore.document import Document
 from langchain.prompts import StringPromptTemplate
 from pydantic import BaseModel, validator
-from langchain.docstore.document import Document
 
 TEMPLATE = """
 你是一个律师，你的客户卷入了法务纠纷，向你做法务咨询，你需要为他提供一些信息，如果你无法从如下法律文件中找到答案，就输出“我无法回答你的问题。”，在回答时你必须遵循律师守则。

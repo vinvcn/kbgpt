@@ -25,7 +25,6 @@ pinecone-client = "^2.2.1"
 chromadb = "0.3.21"
 
 [tool.poetry.dev-dependencies]
-flake8 = "*"
 pylint = "*"
 
 

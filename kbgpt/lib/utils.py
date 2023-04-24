@@ -5,6 +5,9 @@ import requests
 
 
 def md5_url_content(url) -> str:
+    """
+    Get the MD5 hash of a URL's content
+    """
     # Send a GET request to the URL
     response = requests.get(url, timeout=5)
 
