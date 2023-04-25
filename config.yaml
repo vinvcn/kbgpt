@@ -42,7 +42,6 @@ DEFAULT:
 
 FAT:
   SANIC:
-    DEBUG: False
-    WORKERS: 4
+    DEBUG: True
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
