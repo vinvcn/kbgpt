@@ -62,7 +62,7 @@ class RedisCacheStoreStrategy:
             )
         else:
             super().__init__()
-            self.index_name = profile.indexing.customer_service_index
+            self.index_name = profile.cache.customer_service_cache_index
             self.embeddings = embeddings
             self.redis_client = redis.from_url(profile.vector_store.redis_url)
             self.init_if_needed()
