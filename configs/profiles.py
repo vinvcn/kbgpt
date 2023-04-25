@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, root_validator
+from pydantic import AnyUrl, BaseModel, Field, RedisDsn, root_validator
 
 
 class SuperConfig(BaseModel):
@@ -19,6 +19,7 @@ class SuperConfig(BaseModel):
 class Sanic(SuperConfig):
     """Sanic configs"""
 
+    app_name: str
     port: int = Field(8081)
     ip: str = Field("0.0.0.0")
     debug: bool = Field(False)
@@ -34,6 +35,9 @@ class QA(SuperConfig):
     request_timeout: int
     request_retry: int
     agent_cls: str
+    words_limit: int = Field(..., gt=1, lt=1000)
+    db_url: AnyUrl
+    keep_msg_history: bool
 
 
 class Embedding(SuperConfig):
@@ -50,7 +54,7 @@ class VectorStore(SuperConfig):
 
     vector_store_class: str
     vector_retrival_k: int
-    redis_url: str
+    redis_url: RedisDsn
     pinecone_env: str
     chroma_persist_dir: str
 

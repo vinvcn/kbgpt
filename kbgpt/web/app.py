@@ -4,6 +4,7 @@ define the Sanic app
 import logging
 import time
 import uuid
+from json import dumps
 
 from aiofiles import open as aopen
 from aiofiles import tempfile
@@ -16,7 +17,7 @@ from kbgpt.svc.file_services import add_file_to_customer_service
 from kbgpt.svc.qa_services import ConvAgent, QAagent
 from kbgpt.web.callbacks import StreamingTextCallbackHandler
 
-app = Sanic("app")
+app = Sanic(profile.sanic.app_name)
 
 
 @app.route("/process_file", methods=["POST"])
@@ -53,8 +54,9 @@ async def answer_question_get(request):
     # pylint: disable=broad-except
     try:
         question = request.json["question"]
+        logging.info("handling request: %s", dumps(request.json, indent=4))
         agent = QAagent.get_instance()
-        llm_result = await agent.answer_question(question=question)
+        llm_result, stats = await agent.answer_question(question=question)
         return json({"success": True, "answer": llm_result})
     except Exception as e:
         logging.exception(e)

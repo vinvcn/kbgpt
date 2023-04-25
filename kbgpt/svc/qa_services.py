@@ -5,6 +5,7 @@ import abc
 import logging
 import threading
 import time
+from functools import wraps
 from typing import List, Tuple
 
 from langchain import PromptTemplate
@@ -20,6 +21,7 @@ from langchain.chains.base import Chain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
+from sanic import Sanic
 
 from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
@@ -38,8 +40,63 @@ RULES = (
     '- Find all the valid image URLs which is the url ending in ".png" or ".jpg", embed it in the relatent part in your answer as image in html.'
     "- Put the answer in HTML format.\n"
     "- Be straight and precise.\n"
-    "- Limit the answer to within 10 words.\n"
+    f"- Limit the answer to within {profile.qa.words_limit} words.\n"
 )
+
+
+class Context:
+    """
+    context for wrapping agent calls
+    """
+
+    def __init__(self) -> None:
+        self.cache_hit = False
+
+    def cached(self):
+        """query the cache store"""
+        that = self
+
+        def wrapper(func):
+            if not profile.cache.use_redis_cache:
+                return func
+            else:
+                # only when cache is set to true
+                @wraps(
+                    func
+                )  # wraps the function to provide the original docstring
+                async def wrapped(self, question, *args, **kwargs):
+                    cache = RedisCacheStoreStrategy.get_instance(
+                        embeddings=get_embeddings()
+                    )
+                    cached = await cache.retrieve(query=question)
+                    if cached:
+                        that.cache_hit = True
+                        return cached["answer"], OpenAICallbackHandler()
+                    else:
+                        that.cache_hit = False
+                        result, stats = await func(
+                            self, question=question, *args, **kwargs
+                        )
+                        await cache.write_to_store(
+                            question=question, answer=result
+                        )
+                        return result, stats
+
+                return wrapped
+
+        return wrapper
+
+    def keep_history(self):
+        """keep conversation history"""
+
+        that = self
+
+        def wrapper(func):
+            if not profile.qa.keep_msg_history:
+                pass
+
+
+context = Context()
 
 
 class AbstractAgent(metaclass=abc.ABCMeta):
@@ -75,16 +132,19 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         Load the chain for the agent
         """
 
-    async def answer_question(self, question: str) -> str:
+    @context.cached()
+    async def answer_question(
+        self, question: str
+    ) -> Tuple[str, OpenAICallbackHandler]:
         """
         Answer a question as a customer service agent"""
-        if profile.cache.use_redis_cache:
-            cache = RedisCacheStoreStrategy.get_instance(
-                embeddings=get_embeddings()
-            )
-            cached = await cache.retrieve(query=question)
-            if cached:
-                return cached["answer"]
+        # if profile.cache.use_redis_cache:
+        #     cache = RedisCacheStoreStrategy.get_instance(
+        #         embeddings=get_embeddings()
+        #     )
+        #     cached = await cache.retrieve(query=question)
+        #     if cached:
+        #         return cached["answer"], None
         logging.debug("Started answering question: %s", question)
         start_counter = time.perf_counter()
         answer, stats = await self.answer_question_and_provide_cost(
@@ -97,9 +157,9 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         )
         logging.info("Total token consumed: %s", stats.total_tokens)
         logging.info("Total cost: %s", stats.total_cost)
-        if profile.cache.use_redis_cache:
-            await cache.write_to_store(question=question, answer=answer)
-        return answer
+        # if profile.cache.use_redis_cache:
+        #     await cache.write_to_store(question=question, answer=answer)
+        return answer, stats
 
     async def answer_question_and_provide_cost(
         self, question: str

@@ -2376,6 +2376,21 @@ sentry = ["django", "sentry-sdk"]
 test = ["coverage", "flake8", "freezegun (==0.3.15)", "mock (>=2.0.0)", "pylint", "pytest"]
 
 [[package]]
+name = "py-apollo"
+version = "0.0.3"
+description = "pyapollo from filamoon"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "py_apollo-0.0.3-py2-none-any.whl", hash = "sha256:35b4bd172f0223e584a6cd14f25c26e9874f5501e0187799de94586738a438bf"},
+    {file = "py_apollo-0.0.3.tar.gz", hash = "sha256:46d8bc32185a95d1cc04d7652067ca7ff0b111cc96d7e8085dc0b8f7eefc3ce2"},
+]
+
+[package.dependencies]
+requests = "*"
+
+[[package]]
 name = "pycparser"
 version = "2.21"
 description = "C parser in Python"
@@ -4289,4 +4304,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "96f97f093c89af32f9f181ddc622404089e3ffab0aea23a442182c5a8975e922"
+content-hash = "51b979719e452518f2fd59c930ab7fbd8908374957b35a50d48239c7ec549014"
