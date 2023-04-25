@@ -13,6 +13,15 @@ from mergedeep import merge
 
 from configs.profiles import Profile
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s.%(msecs)03d [%(levelname)s]"
+    + " %(filename)s %(message)s %(pathname)s:%(lineno)d",
+    handlers=[
+        logging.FileHandler("debug.log"),
+        logging.StreamHandler(sys.stdout),
+    ],
+)
 # Load config items from config.yaml.
 # Use Path.resolve() to get the absolute path of the parent directory
 yaml_dir = Path(__file__).resolve().parent
