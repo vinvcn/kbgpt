@@ -21,7 +21,6 @@ from langchain.chains.base import Chain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
-from sanic import Sanic
 
 from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
@@ -36,8 +35,6 @@ RULES = (
     "- only use information from the context and no prior knowledge.\n"
     "- You should provide super details that you found from the context, only if it's related to the question.\n"
     "- Be friendly and considerable.\n"
-    "- Find all the valid URLs, embed it in the relavent part in your answer as links. [<description>](url)\n"
-    '- Find all the valid image URLs which is the url ending in ".png" or ".jpg", embed it in the relatent part in your answer as image in html.'
     "- Put the answer in HTML format.\n"
     "- Be straight and precise.\n"
     f"- Limit the answer to within {profile.qa.words_limit} words.\n"
@@ -85,15 +82,6 @@ class Context:
                 return wrapped
 
         return wrapper
-
-    def keep_history(self):
-        """keep conversation history"""
-
-        that = self
-
-        def wrapper(func):
-            if not profile.qa.keep_msg_history:
-                pass
 
 
 context = Context()
