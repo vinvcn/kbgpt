@@ -32,10 +32,10 @@ from kbgpt.lib.openai import chat_open_ai_llm
 
 RULES = (
     "You should strictly follow the following rules:\n"
-    "- only use information from the context and no prior knowledge.\n"
+    "- Only use information from the context and no prior knowledge.\n"
     "- You should provide super details that you found from the context, only if it's related to the question.\n"
+    "- Do not use any other information from the internet.\n"
     "- Be friendly and considerable.\n"
-    "- Put the answer in HTML format.\n"
     "- Be straight and precise.\n"
     f"- Limit the answer to within {profile.qa.words_limit} words.\n"
 )
