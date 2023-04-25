@@ -18,7 +18,7 @@ DEFAULT:
     REQUEST_RETRY: 2
     DB_URL: mysql+pymysql://user:password@localhost:3306/db
     keep_msg_history: True
-    words_limit: 100
+    words_limit: 50
 # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536
