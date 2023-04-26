@@ -45,3 +45,15 @@ FAT:
     DEBUG: True
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
+
+PRE:
+  SANIC:
+    DEBUG: True
+  VECTOR_STORE:
+    REDIS_URL: "redis://redis-stack.ops:6379"
+
+PROD:
+  SANIC:
+    DEBUG: True
+  VECTOR_STORE:
+    REDIS_URL: "redis://redis-stack.ops:6379"
