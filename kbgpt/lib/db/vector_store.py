@@ -165,6 +165,11 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
                 delete_documents=True,
                 redis_url=self.redis_url,
             )
+            Redis.drop_index(
+                index_name=profile.cache.customer_service_cache_index,
+                delete_documents=True,
+                redis_url=self.redis_url,
+            )
 
         rds = Redis.from_documents(
             documents,
