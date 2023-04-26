@@ -65,12 +65,12 @@ class RedisCacheStoreStrategy:
             self.index_name = profile.cache.customer_service_cache_index
             self.embeddings = embeddings
             self.redis_client = redis.from_url(profile.vector_store.redis_url)
+            self.init_if_needed()
             self.rds = Redis.from_existing_index(
                 redis_url=profile.vector_store.redis_url,
                 index_name=self.index_name,
                 embedding=self.embeddings,
             )
-            self.init_if_needed()
             RedisCacheStoreStrategy.instance = self
 
     def init_if_needed(self):
