@@ -32,6 +32,7 @@ from kbgpt.lib.openai import chat_open_ai_llm
 
 RULES = (
     "You should strictly follow the following rules:\n"
+    "- If it is not a question, give a gentle and warm response.\n"
     "- Only use information from the context and no prior knowledge.\n"
     "- You should provide super details that you found from the context, only if it's related to the question.\n"
     "- Do not use any other information from the internet.\n"
@@ -153,9 +154,9 @@ class QAagent(AbstractAgent):
             "---------------------\n"
             "{context}"
             "\n---------------------\n"
-            "Given the context information and not prior knowledge, "
-            "answer the question in markdown: {question}\n"
             f"{RULES}"
+            "Given the context information and not prior knowledge, "
+            "answer the question: {question}\n"
         )
 
         PROMPT = PromptTemplate(
