@@ -13,6 +13,15 @@ from mergedeep import merge
 
 from configs.profiles import Profile
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s.%(msecs)03d [%(levelname)s]"
+    + " %(filename)s %(message)s %(pathname)s:%(lineno)d",
+    handlers=[
+        logging.FileHandler("debug.log"),
+        logging.StreamHandler(sys.stdout),
+    ],
+)
 # Load config items from config.yaml.
 # Use Path.resolve() to get the absolute path of the parent directory
 yaml_dir = Path(__file__).resolve().parent
@@ -34,7 +43,7 @@ yaml_config = load_yaml_config(yaml_path)
 profile = None
 if yaml_config is not None:
     logging.info("Loaded config from %s:", yaml_path)
-    logging.info(pformat(yaml_config))
+    logging.info("\n%s", pformat(yaml_config))
     default_config = yaml_config["DEFAULT"]
     active_profile = (
         environ["KBGPT_APP_ACTIVE_PROFILE"]

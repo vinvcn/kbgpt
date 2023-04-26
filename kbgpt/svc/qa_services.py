@@ -5,6 +5,7 @@ import abc
 import logging
 import threading
 import time
+from functools import wraps
 from typing import List, Tuple
 
 from langchain import PromptTemplate
@@ -27,17 +28,17 @@ from kbgpt.lib.db.vector_store import (
     create_vector_store_strategy,
     get_embeddings,
 )
+from kbgpt.lib.openai import chat_open_ai_llm
 
 RULES = (
     "You should strictly follow the following rules:\n"
-    "- only use information from the context and no prior knowledge.\n"
+    "- If it is not a question, give a gentle and warm response.\n"
+    "- Only use information from the context and no prior knowledge.\n"
     "- You should provide super details that you found from the context, only if it's related to the question.\n"
+    "- Do not use any other information from the internet.\n"
     "- Be friendly and considerable.\n"
-    "- Find all the valid URLs, embed it in the relavent part in your answer as links. [<description>](url)\n"
-    '- Find all the valid image URLs which is the url ending in ".png" or ".jpg", embed it in the relatent part in your answer as image in html.'
-    "- Put the answer in HTML format.\n"
     "- Be straight and precise.\n"
-    "- Limit the answer to within 10 words.\n"
+    f"- Limit the answer to within {profile.qa.words_limit} words.\n"
 )
 
 
@@ -74,19 +75,14 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         Load the chain for the agent
         """
 
-    async def answer_question(self, question: str) -> str:
+    async def answer_question(
+        self, question: str
+    ) -> Tuple[str, OpenAICallbackHandler]:
         """
         Answer a question as a customer service agent"""
-        if profile.cache.use_redis_cache:
-            cache = RedisCacheStoreStrategy.get_instance(
-                embeddings=get_embeddings()
-            )
-            cached = await cache.retrieve(query=question)
-            if cached:
-                return cached["answer"]
         logging.debug("Started answering question: %s", question)
         start_counter = time.perf_counter()
-        answer, stats = await self.answer_question_and_provide_cost(
+        answer, stats = await self._answer_question_and_provide_cost(
             question=question
         )
         logging.debug(
@@ -96,24 +92,16 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         )
         logging.info("Total token consumed: %s", stats.total_tokens)
         logging.info("Total cost: %s", stats.total_cost)
-        if profile.cache.use_redis_cache:
-            await cache.write_to_store(question=question, answer=answer)
-        return answer
+        return answer, stats
 
-    async def answer_question_and_provide_cost(
+    async def _answer_question_and_provide_cost(
         self, question: str
     ) -> Tuple[str, OpenAICallbackHandler]:
         """
         Answer a question as a customer service agent and provide the cost of the answer
         """
         stats = OpenAICallbackHandler()
-        llm = ChatOpenAI(
-            model_name=profile.qa.generative_model,
-            n=1,
-            temperature=profile.qa.customer_service_temperature,
-            max_tokens=1000,
-            callback_manager=AsyncCallbackManager([stats]),
-        )
+        llm = chat_open_ai_llm(handlers=[stats])
         start_counter = time.perf_counter()
         logging.debug("Started loading vector store")
         retriever = create_vector_store_strategy().get_retriever(k=self.k)
@@ -166,9 +154,9 @@ class QAagent(AbstractAgent):
             "---------------------\n"
             "{context}"
             "\n---------------------\n"
-            "Given the context information and not prior knowledge, "
-            "answer the question in markdown: {question}\n"
             f"{RULES}"
+            "Given the context information and not prior knowledge, "
+            "answer the question: {question}\n"
         )
 
         PROMPT = PromptTemplate(
@@ -239,21 +227,13 @@ class ConvAgent:
     def __init__(self, handlers: List[BaseCallbackHandler], streaming, **data):
         super().__init__(**data)
         self.stats = OpenAICallbackHandler()
-        dummy = CallbackManager([])
         handlers.extend([self.stats])
-        llm = ChatOpenAI(
-            model_name=profile.qa.generative_model,
-            n=1,
-            temperature=profile.qa.customer_service_temperature,
-            max_tokens=1000,
-            streaming=streaming,
-            callback_manager=CallbackManager(handlers),
-        )
+        llm = chat_open_ai_llm(handlers=handlers, streaming=streaming)
         retriever = create_vector_store_strategy().get_retriever(
             k=profile.vector_store.vector_retrival_k
         )
         self.chain = ConversationalRetrievalChain.from_llm(
-            llm=llm, retriever=retriever, callback_manager=dummy
+            llm=llm, retriever=retriever, callback_manager=CallbackManager([])
         )
 
     async def question(self, question: str):
@@ -269,33 +249,3 @@ AGENT_STG = {
     "stuff": QAagent,
     "builtin": ConversationalRetrievalChain,
 }
-
-
-async def create_agent(**kwargs) -> Chain:
-    """
-    Create a vector store strategy
-    """
-    if profile.qa.agent_cls == "builtin":
-        # get streaming from kwargs
-        streaming = kwargs.pop("streaming", None)
-        stats = OpenAICallbackHandler()
-        llm = ChatOpenAI(
-            model_name=profile.qa.generative_model,
-            n=1,
-            temperature=profile.qa.customer_service_temperature,
-            max_tokens=1000,
-            streaming=streaming,
-            callback_manager=AsyncCallbackManager(
-                [stats, StreamingStdOutCallbackHandler()]
-            ),
-        )
-        retriever = create_vector_store_strategy().get_retriever(
-            k=profile.vector_store.vector_retrival_k
-        )
-
-        chain = ConversationalRetrievalChain.from_llm(
-            llm=llm, retriever=retriever
-        )
-        return chain
-    else:
-        return AGENT_STG[profile.qa.agent_cls](**kwargs)

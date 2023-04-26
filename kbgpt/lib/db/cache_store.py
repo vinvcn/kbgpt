@@ -62,7 +62,7 @@ class RedisCacheStoreStrategy:
             )
         else:
             super().__init__()
-            self.index_name = profile.indexing.customer_service_index
+            self.index_name = profile.cache.customer_service_cache_index
             self.embeddings = embeddings
             self.redis_client = redis.from_url(profile.vector_store.redis_url)
             self.init_if_needed()
@@ -109,19 +109,38 @@ class RedisCacheStoreStrategy:
     async def retrieve(self, query: str) -> Optional[dict]:
         """
         Retrieve from the store"""
-        cached = self.rds.as_retriever(
-            k=1,
-            score_threshold=profile.cache.redis_cache_similarity_threshold,
-            search_type="similarity_limit",
-        ).get_relevant_documents(query=query)
-
-        if len(cached) == 0:
+        self.init_if_needed()
+        docs_n_scores = self.rds.similarity_search_with_score(query=query, k=1)
+        if len(docs_n_scores) == 0:
+            logging.info("No results found in cache for query: %s", query)
             return None
         else:
-            return {
-                "question": cached[0].page_content,
-                "answer": cached[0].metadata["answer"],
-            }
+            logging.info("similar doc retrieved:")
+            logging.info("query: %s", query)
+            logging.info("question: %s", docs_n_scores[0][0].page_content)
+            logging.info("score %s", docs_n_scores[0][1])
+            filtered = [
+                (doc, score)
+                for doc, score in docs_n_scores
+                if score < profile.cache.redis_cache_similarity_threshold
+            ]
+            if len(filtered) == 0:
+                logging.info(
+                    "result score greater than threshold %s",
+                    profile.cache.redis_cache_similarity_threshold,
+                )
+                return None
+            else:
+                logging.info(
+                    "result socre %s, question %s less than threshold %s",
+                    filtered[0][1],
+                    filtered[0][0].page_content,
+                    profile.cache.redis_cache_similarity_threshold,
+                )
+                return {
+                    "question": filtered[0][0].page_content,
+                    "answer": filtered[0][0].metadata["answer"],
+                }
 
     async def write_to_store(
         self, question: str, answer: str, **kwargs
@@ -129,6 +148,7 @@ class RedisCacheStoreStrategy:
         """
         Write to the store
         """
+        self.init_if_needed()
         doc = Document(
             page_content=question,
             metadata={"answer": answer},

@@ -1,9 +1,9 @@
-PROFILE: DEFAULT
-
+PROFILE: FAT
 
 DEFAULT:
 # ----- SANIC SERVER PORT ----
   SANIC:
+    APP_NAME: kbgpt
     PORT: 8081
     IP: "0.0.0.0"
     DEBUG: True
@@ -12,8 +12,13 @@ DEFAULT:
   QA:
     EMBEDDINGS_MODEL: "text-embedding-ada-002"
     GENERATIVE_MODEL: "gpt-3.5-turbo"
-    CUSTOMER_SERVICE_TEMPERATURE: 0.6
+    CUSTOMER_SERVICE_TEMPERATURE: 0.3
     AGENT_CLS: builtin
+    REQUEST_TIMEOUT: 60
+    REQUEST_RETRY: 2
+    DB_URL: mysql+pymysql://user:password@localhost:3306/db
+    keep_msg_history: True
+    words_limit: 50
 # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536
@@ -29,17 +34,26 @@ DEFAULT:
     CHROMA_PERSIST_DIR: .chroma/data
   CACHE:
     USE_REDIS_CACHE: True
-    REDIS_CACHE_SIMILARITY_THRESHOLD: 0.01
+    REDIS_CACHE_SIMILARITY_THRESHOLD: 0.05
     CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
-# REDIS_URL: "redis://debug.testbs.surfin.sg:30007"
-# DB_URL: mysql+pymysql://user:password@localhost:3306/db
   INDEXING:
     FLUSH_BEFORE_WRITE: True
     CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 
+FAT:
+  SANIC:
+    DEBUG: True
+  VECTOR_STORE:
+    REDIS_URL: "redis://redis-stack.ops:6379"
+
+PRE:
+  SANIC:
+    DEBUG: True
+  VECTOR_STORE:
+    REDIS_URL: "redis://redis-stack.ops:6379"
+
 PROD:
   SANIC:
-    DEBUG: False
-    WORKERS: 4
+    DEBUG: True
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"

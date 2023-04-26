@@ -18,7 +18,7 @@ def handle_qa():
     agent = QAagent.get_instance()
     while True:
         question = input("Enter a question: ")
-        response = asyncio.run(agent.answer_question(question))
+        response, _ = asyncio.run(agent.answer_question(question))
         print(response)
 
 

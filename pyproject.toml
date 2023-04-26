@@ -24,6 +24,7 @@ sanic = "^23.3.0"
 pinecone-client = "^2.2.1"
 chromadb = "0.3.21"
 mergedeep = "^1.3.4"
+py-apollo = "^0.0.3"
 
 [tool.poetry.dev-dependencies]
 pylint = "*"
