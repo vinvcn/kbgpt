@@ -65,7 +65,6 @@ class RedisCacheStoreStrategy:
             self.index_name = profile.cache.customer_service_cache_index
             self.embeddings = embeddings
             self.redis_client = redis.from_url(profile.vector_store.redis_url)
-            self.init_if_needed()
             self.rds = Redis.from_existing_index(
                 redis_url=profile.vector_store.redis_url,
                 index_name=self.index_name,
@@ -109,6 +108,7 @@ class RedisCacheStoreStrategy:
     async def retrieve(self, query: str) -> Optional[dict]:
         """
         Retrieve from the store"""
+        self.init_if_needed()
         docs_n_scores = self.rds.similarity_search_with_score(query=query, k=1)
         if len(docs_n_scores) == 0:
             logging.info("No results found in cache for query: %s", query)
@@ -147,6 +147,7 @@ class RedisCacheStoreStrategy:
         """
         Write to the store
         """
+        self.init_if_needed()
         doc = Document(
             page_content=question,
             metadata={"answer": answer},
