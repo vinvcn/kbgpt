@@ -43,7 +43,7 @@ yaml_config = load_yaml_config(yaml_path)
 profile = None
 if yaml_config is not None:
     logging.info("Loaded config from %s:", yaml_path)
-    logging.info(pformat(yaml_config))
+    logging.info("\n%s", pformat(yaml_config))
     default_config = yaml_config["DEFAULT"]
     active_profile = (
         environ["KBGPT_APP_ACTIVE_PROFILE"]

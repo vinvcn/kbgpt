@@ -5,16 +5,20 @@ import logging
 import time
 import uuid
 from json import dumps
+from typing import Tuple
 
 from aiofiles import open as aopen
 from aiofiles import tempfile
+from langchain.callbacks import OpenAICallbackHandler
 from sanic import Sanic
 from sanic.response import json
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 
 from config import profile
+from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.svc.file_services import add_file_to_customer_service
-from kbgpt.svc.qa_services import ConvAgent, QAagent
+from kbgpt.svc.qa_services import AbstractAgent, ConvAgent, QAagent
 from kbgpt.web.callbacks import StreamingTextCallbackHandler
 
 app = Sanic(profile.sanic.app_name)
@@ -54,10 +58,10 @@ async def answer_question_get(request):
     # pylint: disable=broad-except
     try:
         question = request.json["question"]
-        logging.info("handling request: %s", dumps(request.json, indent=4))
-        agent = QAagent.get_instance()
-        llm_result, stats = await agent.answer_question(question=question)
-        return json({"success": True, "answer": llm_result})
+        logging.info("handling request: \n%s", dumps(request.json, indent=4))
+        agent = ProxiedAgent(QAagent.get_instance())
+        result = await agent.answer_question(question=question)
+        return json(result)
     except Exception as e:
         logging.exception(e)
         return json({"success": False, "error": str(e)})
@@ -88,6 +92,55 @@ async def answer_question(request, ws):
         await ws.send(answer)
         # llm_result = await agent.answer_question(question=message)
         # await ws.send(llm_result)
+
+
+class ProxiedAgent:
+    """
+    Proxy agent for the real agent
+    """
+
+    def __init__(self, agent: AbstractAgent) -> None:
+        self.agent = agent
+
+    def _create_result(
+        self, ans: str, stats: OpenAICallbackHandler, cached: bool
+    ):
+        """
+        Create the result
+        """
+        return {
+            "success": True,
+            "answer": ans,
+            "total_tokens": stats.total_tokens,
+            "total_cost": stats.total_cost,
+            "prompt_tokens": stats.prompt_tokens,
+            "completion_tokens": stats.completion_tokens,
+            "successful_requests": stats.successful_requests,
+            "hit_cache": cached,
+        }
+
+    async def answer_question(
+        self, question: str
+    ) -> Tuple[str, OpenAICallbackHandler, bool]:
+        """
+        Answer a question as a customer service agent
+        """
+        if not profile.cache.use_redis_cache:
+            ans, stats = await self.agent.answer_question(question=question)
+            return self._create_result(ans, stats, False)
+        else:
+            cache = RedisCacheStoreStrategy.get_instance(
+                embeddings=get_embeddings()
+            )
+            cached = await cache.retrieve(query=question)
+            if cached:
+                return self._create_result(
+                    cached["answer"], OpenAICallbackHandler(), True
+                )
+            else:
+                ans, stats = await self.agent.answer_question(question=question)
+                await cache.write_to_store(question=question, answer=ans)
+                return self._create_result(ans, stats, False)
 
 
 def run():

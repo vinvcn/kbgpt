@@ -41,52 +41,6 @@ RULES = (
 )
 
 
-class Context:
-    """
-    context for wrapping agent calls
-    """
-
-    def __init__(self) -> None:
-        self.cache_hit = False
-
-    def cached(self):
-        """query the cache store"""
-        that = self
-
-        def wrapper(func):
-            if not profile.cache.use_redis_cache:
-                return func
-            else:
-                # only when cache is set to true
-                @wraps(
-                    func
-                )  # wraps the function to provide the original docstring
-                async def wrapped(self, question, *args, **kwargs):
-                    cache = RedisCacheStoreStrategy.get_instance(
-                        embeddings=get_embeddings()
-                    )
-                    cached = await cache.retrieve(query=question)
-                    if cached:
-                        that.cache_hit = True
-                        return cached["answer"], OpenAICallbackHandler()
-                    else:
-                        that.cache_hit = False
-                        result, stats = await func(
-                            self, question=question, *args, **kwargs
-                        )
-                        await cache.write_to_store(
-                            question=question, answer=result
-                        )
-                        return result, stats
-
-                return wrapped
-
-        return wrapper
-
-
-context = Context()
-
-
 class AbstractAgent(metaclass=abc.ABCMeta):
     """
     Abstract class for all agents
@@ -120,22 +74,14 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         Load the chain for the agent
         """
 
-    @context.cached()
     async def answer_question(
         self, question: str
     ) -> Tuple[str, OpenAICallbackHandler]:
         """
         Answer a question as a customer service agent"""
-        # if profile.cache.use_redis_cache:
-        #     cache = RedisCacheStoreStrategy.get_instance(
-        #         embeddings=get_embeddings()
-        #     )
-        #     cached = await cache.retrieve(query=question)
-        #     if cached:
-        #         return cached["answer"], None
         logging.debug("Started answering question: %s", question)
         start_counter = time.perf_counter()
-        answer, stats = await self.answer_question_and_provide_cost(
+        answer, stats = await self._answer_question_and_provide_cost(
             question=question
         )
         logging.debug(
@@ -145,11 +91,9 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         )
         logging.info("Total token consumed: %s", stats.total_tokens)
         logging.info("Total cost: %s", stats.total_cost)
-        # if profile.cache.use_redis_cache:
-        #     await cache.write_to_store(question=question, answer=answer)
         return answer, stats
 
-    async def answer_question_and_provide_cost(
+    async def _answer_question_and_provide_cost(
         self, question: str
     ) -> Tuple[str, OpenAICallbackHandler]:
         """
