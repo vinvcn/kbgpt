@@ -70,6 +70,7 @@ class RedisCacheStoreStrategy:
                 index_name=self.index_name,
                 embedding=self.embeddings,
             )
+            self.init_if_needed()
             RedisCacheStoreStrategy.instance = self
 
     def init_if_needed(self):
