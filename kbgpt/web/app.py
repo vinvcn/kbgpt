@@ -129,9 +129,7 @@ class ProxiedAgent:
             ans, stats = await self.agent.answer_question(question=question)
             return self._create_result(ans, stats, False)
         else:
-            cache = RedisCacheStoreStrategy.get_instance(
-                embeddings=get_embeddings()
-            )
+            cache = RedisCacheStoreStrategy.get_instance()
             cached = await cache.retrieve(query=question)
             if cached:
                 return self._create_result(

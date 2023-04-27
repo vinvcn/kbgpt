@@ -21,9 +21,11 @@ from langchain.chains.base import Chain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
+from langchain.docstore.document import Document
+from langchain.schema import SystemMessage
+from more_itertools import chunked
 
 from config import profile
-from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.vector_store import (
     create_vector_store_strategy,
     get_embeddings,
@@ -40,6 +42,16 @@ RULES = (
     "- Be straight and precise.\n"
     f"- Limit the answer to within {profile.qa.words_limit} words.\n"
     "- Do not add anything except for the answer for your customer."
+)
+
+STUFF_TEMPLATE = (
+    "Pretend you are a customer service representative for an mobile App called Bullsmart. You were provided the following Context information.\n"
+    "---------------------\n"
+    "{context}"
+    "\n---------------------\n"
+    f"{RULES}"
+    "Given the context information and not prior knowledge, "
+    "answer the question: {question}\n"
 )
 
 
@@ -94,6 +106,27 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         logging.info("Total token consumed: %s", stats.total_tokens)
         logging.info("Total cost: %s", stats.total_cost)
         return answer, stats
+
+    async def answer_question_in_batch(
+        self, questions: List[str], documents: List[List[Document]]
+    ) -> List[str]:
+        """
+        Answer pairs of question and vectors in batch
+        """
+        qes_n_docs = zip(questions, documents)
+        stats = OpenAICallbackHandler()
+        llm = chat_open_ai_llm(handlers=[stats])
+        inputs = [
+            (ques, "\n".join([d.page_content for d in docs]))
+            for ques, docs in qes_n_docs
+        ]
+        prompts = [
+            STUFF_TEMPLATE.format(context=comb_doc, question=ques)
+            for ques, comb_doc in inputs
+        ]
+        messages = [[SystemMessage(content=prompt)] for prompt in prompts]
+        results = await llm.agenerate(messages)
+        return [gen[0].message.content for gen in results.generations]
 
     async def _answer_question_and_provide_cost(
         self, question: str
@@ -150,18 +183,9 @@ class QAagent(AbstractAgent):
     def load_chain(self, llm: ChatOpenAI) -> BaseCombineDocumentsChain:
         """
         Load the stuff chain for the customer service agent"""
-        prompt_template = (
-            "Pretend you are a customer service representative for an mobile App called Bullsmart. You were provided the following Context information.\n"
-            "---------------------\n"
-            "{context}"
-            "\n---------------------\n"
-            f"{RULES}"
-            "Given the context information and not prior knowledge, "
-            "answer the question: {question}\n"
-        )
 
         PROMPT = PromptTemplate(
-            template=prompt_template, input_variables=["context", "question"]
+            template=STUFF_TEMPLATE, input_variables=["context", "question"]
         )
         chain = load_qa_chain(
             llm, chain_type="stuff", verbose=True, prompt=PROMPT
