@@ -125,6 +125,9 @@ class ProxiedAgent:
         """
         Answer a question as a customer service agent
         """
+        question = question.strip()
+        if len(question) == 0:
+            raise ValueError(f"Empty question {question} provided")
         if not profile.cache.use_redis_cache:
             ans, stats = await self.agent.answer_question(question=question)
             return self._create_result(ans, stats, False)
