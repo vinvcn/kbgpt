@@ -13,15 +13,31 @@ from langchain.callbacks import OpenAICallbackHandler
 from sanic import Sanic
 from sanic.response import json
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
-from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
-from kbgpt.lib.db.vector_store import get_embeddings
+from kbgpt.lib.db.cache_store import (
+    CacheWarmingUpException,
+    RedisCacheStoreStrategy,
+)
 from kbgpt.svc.file_services import add_file_to_customer_service
 from kbgpt.svc.qa_services import AbstractAgent, ConvAgent, QAagent
 from kbgpt.web.callbacks import StreamingTextCallbackHandler
 
 app = Sanic(profile.sanic.app_name)
+
+
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
+async def warmup_task(app: Sanic, fpath: str):
+    """
+    kick off warm up task
+    """
+    cache = RedisCacheStoreStrategy.get_instance()
+    try:
+        await cache.warmup_cache(fpath=fpath)
+    except CacheWarmingUpException as e:
+        logging.exception(e)
+        logging.warning("cache warming up in another task, aborting")
 
 
 @app.route("/process_file", methods=["POST"])
@@ -30,6 +46,8 @@ async def process_file(request):
     POST endpoint to process file"""
     # pylint: disable=broad-except
     try:
+        cache = RedisCacheStoreStrategy.get_instance()
+        backup_file_p = await cache.backup_cache()
         flush = profile.indexing.flush_before_write
         for file in request.files["file"]:
             if len(file.body) <= 0:
@@ -44,6 +62,8 @@ async def process_file(request):
                         path=temp_file.name, flush_index=flush
                     )
                     flush = False
+        app.add_task(warmup_task(app, backup_file_p))
+
         return json({"success": True})
     except Exception as e:
         logging.exception(e)
@@ -132,15 +152,32 @@ class ProxiedAgent:
             ans, stats = await self.agent.answer_question(question=question)
             return self._create_result(ans, stats, False)
         else:
-            cache = RedisCacheStoreStrategy.get_instance()
-            cached = await cache.retrieve(query=question)
+            cached = None
+            try:
+                # try fetch cache
+                cache = RedisCacheStoreStrategy.get_instance()
+                cached = await cache.retrieve(query=question)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logging.error(
+                    "exception while fetching cache for question %s", question
+                )
+                logging.exception(e)
+
             if cached:
                 return self._create_result(
                     cached["answer"], OpenAICallbackHandler(), True
                 )
             else:
                 ans, stats = await self.agent.answer_question(question=question)
-                await cache.write_to_store(question=question, answer=ans)
+                try:
+                    # try write to cache
+                    await cache.write_to_store(question=question, answer=ans)
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    logging.error(
+                        "exception while writing to store for question %s",
+                        question,
+                    )
+                    logging.exception(e)
                 return self._create_result(ans, stats, False)
 
 

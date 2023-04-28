@@ -1,34 +1,49 @@
 """
 cache_store.py
 """
-import json
+import functools
 import logging
 import pickle
 import threading
 import uuid
 from os import getcwd, mkdir, path
-from typing import List, Mapping, Optional, Tuple
+from typing import List, Optional
 
-import aiofiles
 import aioredis
 import numpy as np
 import redis
-from aiofiles import tempfile
-from aioredis.client import Redis as AioRedis
 from langchain.docstore.document import Document
-from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.base import VectorStoreRetriever
-from langchain.vectorstores.redis import Redis
 from redis.client import Redis as RedisType
 from redis.commands.search.field import TextField, VectorField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
-from redis.commands.search.query import Query
+from redis.exceptions import LockError
+from redis.lock import Lock
 
 from config import profile
+from kbgpt.lib.db.redis import MyRedis
 from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.svc.qa_services import QAagent
 
 logger = logging.getLogger(__name__)
+
+
+class CacheWarmingUpException(Exception):
+    """
+    cache warming up
+    """
+
+    pass
+
+
+def check_lock(func):
+    @functools.wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        if self.redis_lock.locked():
+            raise CacheWarmingUpException()
+        return await func(self, *args, **kwargs)
+
+    return wrapper
 
 
 class RedisCacheStoreStrategy:
@@ -50,11 +65,6 @@ class RedisCacheStoreStrategy:
         return cls.instance
 
     @staticmethod
-    def _redis_prefix(index_name: str) -> str:
-        """Redis key prefix for a given index."""
-        return f"doc:{index_name}"
-
-    @staticmethod
     def _check_index_exists(client: RedisType, index_name: str) -> bool:
         """Check if Redis index exists."""
         # pylint: disable=bare-except
@@ -74,27 +84,35 @@ class RedisCacheStoreStrategy:
             )
         else:
             super().__init__()
-            self.index_name = profile.indexing.customer_service_index
+            self.index_name = profile.cache.customer_service_cache_index
             self.embeddings = get_embeddings()
             self.redis_client = redis.from_url(profile.vector_store.redis_url)
             self.aredis = aioredis.from_url(profile.vector_store.redis_url)
-            self.scan_match = f"{self._redis_prefix(self.index_name)}*"
-            self.init_if_needed()
+            self.scan_match = f"{MyRedis._redis_prefix(self.index_name)}*"
+            self._init_if_needed()
             self.fpath = None
-            self.rds = Redis.from_existing_index(
+            self.redis_lock = Lock(
+                self.redis_client, "cache-index-lock", blocking=False
+            )
+            self.rds = MyRedis.from_existing_index(
                 redis_url=profile.vector_store.redis_url,
                 index_name=self.index_name,
                 embedding=self.embeddings,
             )
+            self.doc_rds = MyRedis.from_existing_index(
+                redis_url=profile.vector_store.redis_url,
+                index_name=profile.indexing.customer_service_index,
+                embedding=self.embeddings,
+            )
             RedisCacheStoreStrategy.instance = self
 
-    def init_if_needed(self):
+    def _init_if_needed(self):
         """
         Initialize the index
         """
         if self._check_index_exists(self.redis_client, self.index_name):
             return
-        prefix = self._redis_prefix(self.index_name)
+        prefix = MyRedis._redis_prefix(self.index_name)
         # Constants
         dim = int(profile.embedding.embedding_dimensions)
         distance_metric = (
@@ -121,6 +139,7 @@ class RedisCacheStoreStrategy:
             ),
         )
 
+    @check_lock
     async def retrieve(self, query: str) -> Optional[dict]:
         """
         Retrieve from the store"""
@@ -156,6 +175,7 @@ class RedisCacheStoreStrategy:
                     "answer": filtered[0][0].metadata["answer"],
                 }
 
+    @check_lock
     async def write_to_store(
         self, question: str, answer: str, **kwargs
     ) -> VectorStoreRetriever:
@@ -168,86 +188,67 @@ class RedisCacheStoreStrategy:
         )
         self.rds.add_documents([doc])
 
-    async def write_all_to_store(
-        self, questions: List[str], answers: List[str], embeddings: List[bytes]
-    ):
-        pass
+    async def warmup_cache(self, fpath: str, batch_size: int = 10):
+        """
+        warm up the cache
+        """
 
-    async def similarity_search(self, embedding: bytes) -> List[Document]:
-        k = profile.vector_store.vector_retrival_k
-        return_fields = ["metadata", "content", "vector_score"]
-        vector_field = "content_vector"
-        hybrid_fields = "*"
-        base_query = f"{hybrid_fields}=>[KNN {k} @{vector_field} $vector AS vector_score]"
-        redis_query = (
-            Query(base_query)
-            .return_fields(*return_fields)
-            .sort_by("vector_score")
-            .paging(0, k)
-            .dialect(2)
-        )
-
-        params_dict: Mapping[str, bytes] = {"vector": embedding}
-
-        # perform vector search
-        results = self.redis_client.ft(self.index_name).search(
-            redis_query, params_dict
-        )
-
-        docs = [
-            # (
-            Document(
-                page_content=result.content,
-                metadata=json.loads(result.metadata),
-            )
-            #     float(result.vector_score),
-            # )
-            for result in results.docs
-        ]
-
-        return docs
-
-    async def warmup(self):
-        batch_size = 10
-        end = False
-        agent = QAagent.get_instance()
-        with open(self.fpath, "rb") as fio:
-            while not end:
-                questions = []
-                documents = []
-                embeddings = []
-                try:
-                    for _ in range(batch_size):
-                        data = pickle.load(fio)
-                        # ( str, bytes )
-                        docs = await self.similarity_search(data[1])
-                        questions.append(data[0])
-                        documents.append(docs)
-                        embeddings.append(data[1])
-
-                except EOFError:
-                    end = True
-                answers = await agent.answer_question_in_batch(
-                    questions, documents
+        try:
+            with self.redis_lock:
+                self.rds.drop_index(
+                    self.index_name,
+                    delete_documents=True,
+                    redis_url=profile.vector_store.redis_url,
                 )
-                await self.write_all_to_store(
-                    questions=questions, answers=answers, embeddings=embeddings
-                )
+                self._init_if_needed()
+                k = profile.vector_store.vector_retrival_k
+                end = False
+                agent = QAagent.get_instance()
+                with open(fpath, "rb") as fio:
+                    while not end:
+                        questions = []
+                        documents = []
+                        embeddings = []
+                        try:
+                            for _ in range(batch_size):
+                                data = pickle.load(fio)
+                                embd = np.frombuffer(
+                                    data[1], dtype=np.float32
+                                ).tolist()
+                                docs = await self.doc_rds.asimilarity_search_by_vector(
+                                    embd, k
+                                )
+                                questions.append(str(data[0], encoding="utf8"))
+                                documents.append(docs)
+                                embeddings.append(embd)
 
-    async def backup(self):
+                        except EOFError:
+                            end = True
+                        answers = await agent.answer_question_in_batch(
+                            questions, documents
+                        )
+                        metadatas = [{"answer": a} for a in answers]
+                        await self.rds.write_all_to_store(
+                            questions=questions,
+                            metadatas=metadatas,
+                            embeddings=embeddings,
+                        )
+        except LockError:
+            raise CacheWarmingUpException()
+
+    async def backup_cache(self, scan_size: int = 10000) -> str:
         """
         backup files
         """
         cursor = None
-        batch_size = 10
         rdir = path.join(getcwd(), ".redis")
         if not path.exists(rdir):
             mkdir(rdir)
-        self.fpath = path.join(rdir, f"{str(uuid.uuid4())}.pkl")
-        with open(self.fpath, "wb") as fio:
+        fpath = path.join(rdir, f"{str(uuid.uuid4())}.pkl")
+        with open(fpath, "wb") as fio:
             while cursor != 0:
                 cursor, keys = await self.aredis.scan(
-                    cursor=cursor or 0, match=self.scan_match, count=batch_size
+                    cursor=cursor or 0, match=self.scan_match, count=scan_size
                 )
                 if keys:
                     for k in keys:
@@ -255,8 +256,4 @@ class RedisCacheStoreStrategy:
                             k, "content", "content_vector"
                         )
                         fio.write(pickle.dumps((content, vector)))
-                        # pickle.dump((content, vector), fio)
-                        # await fio.write(content)
-                        # await fio.write(b"\n")
-                        # await fio.write(vector)
-                        # await fio.write(b"\n")
+            return fpath
