@@ -5,31 +5,23 @@ import abc
 import logging
 import threading
 import time
-from functools import wraps
 from typing import List, Tuple
 
 from langchain import PromptTemplate
 from langchain.callbacks import (
-    AsyncCallbackManager,
     BaseCallbackHandler,
     CallbackManager,
     OpenAICallbackHandler,
 )
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.chains import ConversationalRetrievalChain
-from langchain.chains.base import Chain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
-from langchain.docstore.document import Document
 from langchain.schema import SystemMessage
-from more_itertools import chunked
 
 from config import profile
-from kbgpt.lib.db.vector_store import (
-    create_vector_store_strategy,
-    get_embeddings,
-)
+from kbgpt.lib.db import Document
+from kbgpt.lib.db.vector_store import create_vector_store_strategy
 from kbgpt.lib.openai import chat_open_ai_llm
 
 RULES = (
@@ -117,7 +109,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         stats = OpenAICallbackHandler()
         llm = chat_open_ai_llm(handlers=[stats])
         inputs = [
-            (ques, "\n".join([d.page_content for d in docs]))
+            (ques, "\n".join([d.content for d in docs]))
             for ques, docs in qes_n_docs
         ]
         prompts = [
@@ -126,6 +118,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         ]
         messages = [[SystemMessage(content=prompt)] for prompt in prompts]
         results = await llm.agenerate(messages)
+        # see what's the result when http request failed
         return [gen[0].message.content for gen in results.generations]
 
     async def _answer_question_and_provide_cost(

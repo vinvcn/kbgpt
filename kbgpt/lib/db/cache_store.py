@@ -1,49 +1,31 @@
 """
-cache_store.py
+Redis Cache Interation module
 """
-import functools
 import logging
-import pickle
 import threading
 import uuid
-from os import getcwd, mkdir, path
 from typing import List, Optional
 
-import aioredis
 import numpy as np
 import redis
-from langchain.docstore.document import Document
 from langchain.vectorstores.base import VectorStoreRetriever
 from redis.client import Redis as RedisType
-from redis.commands.search.field import TextField, VectorField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
-from redis.exceptions import LockError
 from redis.lock import Lock
 
 from config import profile
-from kbgpt.lib.db.redis import MyRedis
+from kbgpt.lib.constants import (
+    CACHE_STATUS_KEY,
+    INDEX_VERSION_KEY,
+    REDIS_DOCUMENT_LOCK_NAME,
+    CacheStatus,
+)
+from kbgpt.lib.db import CacheMetadata, Document, cache_status, ensure_lock
+from kbgpt.lib.db.redis import MyRedis, WriteToDoc
 from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.svc.qa_services import QAagent
 
 logger = logging.getLogger(__name__)
-
-
-class CacheWarmingUpException(Exception):
-    """
-    cache warming up
-    """
-
-    pass
-
-
-def check_lock(func):
-    @functools.wraps(func)
-    async def wrapper(self, *args, **kwargs):
-        if self.redis_lock.locked():
-            raise CacheWarmingUpException()
-        return await func(self, *args, **kwargs)
-
-    return wrapper
 
 
 class RedisCacheStoreStrategy:
@@ -67,11 +49,11 @@ class RedisCacheStoreStrategy:
     @staticmethod
     def _check_index_exists(client: RedisType, index_name: str) -> bool:
         """Check if Redis index exists."""
-        # pylint: disable=bare-except
         try:
             client.ft(index_name).info()
-        except:  # noqa: E722
-            logger.info("Index does not exist")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.exception(e)
+            logger.error("fetching index information failed")
             return False
         logger.info("Index already exists")
         return True
@@ -87,24 +69,42 @@ class RedisCacheStoreStrategy:
             self.index_name = profile.cache.customer_service_cache_index
             self.embeddings = get_embeddings()
             self.redis_client = redis.from_url(profile.vector_store.redis_url)
-            self.aredis = aioredis.from_url(profile.vector_store.redis_url)
+            # self.aredis = aioredis.from_url(profile.vector_store.redis_url)
             self.scan_match = f"{MyRedis._redis_prefix(self.index_name)}*"
             self._init_if_needed()
             self.fpath = None
             self.redis_lock = Lock(
-                self.redis_client, "cache-index-lock", blocking=False
+                self.redis_client, REDIS_DOCUMENT_LOCK_NAME, blocking=False
             )
-            self.rds = MyRedis.from_existing_index(
+            self.rds: MyRedis = MyRedis.from_existing_index(
                 redis_url=profile.vector_store.redis_url,
                 index_name=self.index_name,
                 embedding=self.embeddings,
             )
-            self.doc_rds = MyRedis.from_existing_index(
+            self.doc_rds: MyRedis = MyRedis.from_existing_index(
                 redis_url=profile.vector_store.redis_url,
                 index_name=profile.indexing.customer_service_index,
                 embedding=self.embeddings,
             )
             RedisCacheStoreStrategy.instance = self
+
+    def is_cache_valid(self) -> bool:
+        """
+        Check if cache is valid
+        """
+        status = self.redis_client.get(CACHE_STATUS_KEY)
+        if not status:
+            return True
+        status_str = status.decode("utf-8")
+        return status_str == CacheStatus.VALID.value
+
+    def _redis_key(self, prefix: str) -> str:
+        """Redis key schema for a given prefix."""
+        return f"{prefix}:{uuid.uuid4().hex}"
+
+    def _redis_prefix(self, index_name: str) -> str:
+        """Redis key prefix for a given index."""
+        return f"doc:{index_name}"
 
     def _init_if_needed(self):
         """
@@ -112,25 +112,9 @@ class RedisCacheStoreStrategy:
         """
         if self._check_index_exists(self.redis_client, self.index_name):
             return
-        prefix = MyRedis._redis_prefix(self.index_name)
-        # Constants
-        dim = int(profile.embedding.embedding_dimensions)
-        distance_metric = (
-            "COSINE"  # distance metric for the vectors (ex. COSINE, IP, L2)
-        )
-        schema = (
-            TextField(name="content"),
-            TextField(name="metadata"),
-            VectorField(
-                "content_vector",
-                "FLAT",
-                {
-                    "TYPE": "FLOAT32",
-                    "DIM": dim,
-                    "DISTANCE_METRIC": distance_metric,
-                },
-            ),
-        )
+        prefix = self._redis_prefix(self.index_name)
+
+        schema = Document.to_redis_schema()
         # Create Redis Index
         self.redis_client.ft(self.index_name).create_index(
             fields=schema,
@@ -139,121 +123,151 @@ class RedisCacheStoreStrategy:
             ),
         )
 
-    @check_lock
-    async def retrieve(self, query: str) -> Optional[dict]:
+    @cache_status
+    async def retrieve(self, query: str) -> Optional[Document]:
         """
         Retrieve from the store"""
-        docs_n_scores = self.rds.similarity_search_with_score(query=query, k=1)
+
+        embedding = self.embeddings.embed_query(query)
+
+        docs_n_scores = self.rds.similarity_search_by_vector_with_score(
+            vector=embedding, k=1
+        )
         if len(docs_n_scores) == 0:
             logging.info("No results found in cache for query: %s", query)
             return None
         else:
+            doc, score = docs_n_scores[0]
+            # log the first record
             logging.info("similar doc retrieved:")
             logging.info("query: %s", query)
-            logging.info("question: %s", docs_n_scores[0][0].page_content)
-            logging.info("score %s", docs_n_scores[0][1])
+            logging.info("question: %s", doc.content)
+            logging.info("score %s", score)
+            threshold = profile.cache.redis_cache_similarity_threshold
             filtered = [
                 (doc, score)
                 for doc, score in docs_n_scores
-                if score < profile.cache.redis_cache_similarity_threshold
+                if score < threshold
             ]
             if len(filtered) == 0:
                 logging.info(
-                    "result score greater than threshold %s",
-                    profile.cache.redis_cache_similarity_threshold,
+                    "result score greater than threshold %s", threshold
                 )
                 return None
             else:
                 logging.info(
                     "result socre %s, question %s less than threshold %s",
-                    filtered[0][1],
-                    filtered[0][0].page_content,
-                    profile.cache.redis_cache_similarity_threshold,
+                    score,
+                    doc.content,
+                    threshold,
                 )
-                return {
-                    "question": filtered[0][0].page_content,
-                    "answer": filtered[0][0].metadata["answer"],
-                }
+                return doc
 
-    @check_lock
+    @cache_status
     async def write_to_store(
-        self, question: str, answer: str, **kwargs
+        self, question: str, answer: str
     ) -> VectorStoreRetriever:
         """
         Write to the store
         """
-        doc = Document(
-            page_content=question,
-            metadata={"answer": answer},
+        version = self.redis_client.get(INDEX_VERSION_KEY)
+        doc = Document.from_one(
+            question,
+            CacheMetadata(version=version, answer=answer),
+            self.embeddings.embed_query(question),
         )
-        self.rds.add_documents([doc])
+        key = self._redis_key(self._redis_prefix(self.index_name))
+        self.redis_client.hset(key, mapping=doc.dict())
 
-    async def warmup_cache(self, fpath: str, batch_size: int = 10):
+    @ensure_lock
+    async def refresh_cache(self, scan_size: int = 10000):
         """
-        warm up the cache
+        refresh the cache
         """
+        index_version = self.redis_client.get(INDEX_VERSION_KEY)
 
-        try:
-            with self.redis_lock:
-                self.rds.drop_index(
-                    self.index_name,
-                    delete_documents=True,
-                    redis_url=profile.vector_store.redis_url,
+        if index_version is None:
+            raise ValueError("Index version not found")
+        index_version = index_version.decode("utf8")
+        async for batch in self._read_batch(scan_size):
+            batch = await self._filter_versioning(index_version, batch)
+            if not batch:
+                continue
+
+            vectors = [
+                np.frombuffer(v, dtype=np.float32).tolist()
+                for _, _, v, _, in batch
+            ]
+            questions = [q for _, q, _, _, in batch]
+            keys = [k for k, _, _, _, in batch]
+            answers = await self._make_batch_http_req(
+                questions, await self._fetch_docs(vectors)
+            )
+
+            documents = Document.from_lists(
+                contents=questions,
+                embeddings=vectors,
+                metadatas=[
+                    CacheMetadata(version=index_version, answer=a)
+                    for a in answers
+                ],
+            )
+
+            ops = [
+                WriteToDoc(
+                    keys=keys,
+                    index_name=self.rds.index_name,
+                    documents=documents,
                 )
-                self._init_if_needed()
-                k = profile.vector_store.vector_retrival_k
-                end = False
-                agent = QAagent.get_instance()
-                with open(fpath, "rb") as fio:
-                    while not end:
-                        questions = []
-                        documents = []
-                        embeddings = []
-                        try:
-                            for _ in range(batch_size):
-                                data = pickle.load(fio)
-                                embd = np.frombuffer(
-                                    data[1], dtype=np.float32
-                                ).tolist()
-                                docs = await self.doc_rds.asimilarity_search_by_vector(
-                                    embd, k
-                                )
-                                questions.append(str(data[0], encoding="utf8"))
-                                documents.append(docs)
-                                embeddings.append(embd)
+            ]
 
-                        except EOFError:
-                            end = True
-                        answers = await agent.answer_question_in_batch(
-                            questions, documents
-                        )
-                        metadatas = [{"answer": a} for a in answers]
-                        await self.rds.write_all_to_store(
-                            questions=questions,
-                            metadatas=metadatas,
-                            embeddings=embeddings,
-                        )
-        except LockError:
-            raise CacheWarmingUpException()
+            self.rds.run_pipeline(ops)
 
-    async def backup_cache(self, scan_size: int = 10000) -> str:
-        """
-        backup files
-        """
+        self.redis_client.set(CACHE_STATUS_KEY, CacheStatus.VALID.value)
+
+    async def _read_batch(self, scan_size: int = 10000):
         cursor = None
-        rdir = path.join(getcwd(), ".redis")
-        if not path.exists(rdir):
-            mkdir(rdir)
-        fpath = path.join(rdir, f"{str(uuid.uuid4())}.pkl")
-        with open(fpath, "wb") as fio:
-            while cursor != 0:
-                cursor, keys = await self.aredis.scan(
-                    cursor=cursor or 0, match=self.scan_match, count=scan_size
-                )
-                if keys:
-                    for k in keys:
-                        content, vector = await self.aredis.hmget(
-                            k, "content", "content_vector"
-                        )
-                        fio.write(pickle.dumps((content, vector)))
-            return fpath
+
+        while cursor != 0:
+            cursor, keys = self.redis_client.scan(
+                cursor=cursor or 0, match=self.scan_match, count=scan_size
+            )
+            if keys:
+                batch = []
+                for k in keys:
+                    content, vector, metadata = self.redis_client.hmget(
+                        k,
+                        Document._content_key,  # pylint: disable=protected-access
+                        Document._vector_key,  # pylint: disable=protected-access
+                        Document._metadata_key,  # pylint: disable=protected-access
+                    )
+                    obj = CacheMetadata.from_str(metadata)
+                    batch.append((k, content, vector, obj.version))
+                yield batch
+
+    async def _filter_versioning(self, version: str, batch):
+        return [
+            (k, c, v, ver)
+            for k, c, v, ver in batch
+            if ver is None or ver != version
+        ]
+
+    async def _fetch_docs(self, vectors: List[List[float]]):
+        documents = []
+        for vector in vectors:
+            docs = self.doc_rds.similarity_search_by_vector_n(
+                vector, profile.vector_store.vector_retrival_k
+            )
+            documents.append(docs)
+        return documents
+
+    async def _make_batch_http_req(self, ques, docs, chunk_size=10):
+        c_s = chunk_size
+        agent = QAagent.get_instance()
+        answers = []
+        for i in range(0, len(ques), c_s):
+            ans = await agent.answer_question_in_batch(
+                ques[i : i + c_s], docs[i : i + c_s]
+            )
+            answers.extend(ans)
+        return answers

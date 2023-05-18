@@ -16,11 +16,9 @@ from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
-from kbgpt.lib.db.cache_store import (
-    CacheWarmingUpException,
-    RedisCacheStoreStrategy,
-)
-from kbgpt.svc.file_services import add_file_to_customer_service
+from kbgpt.lib.db import CacheWarmingUpException
+from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.svc.file_services import add_files_to_customer_service
 from kbgpt.svc.qa_services import AbstractAgent, ConvAgent, QAagent
 from kbgpt.web.callbacks import StreamingTextCallbackHandler
 
@@ -28,13 +26,13 @@ app = Sanic(profile.sanic.app_name)
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
-async def warmup_task(app: Sanic, fpath: str):
+async def warmup_task():
     """
     kick off warm up task
     """
     cache = RedisCacheStoreStrategy.get_instance()
     try:
-        await cache.warmup_cache(fpath=fpath)
+        await cache.refresh_cache()
     except CacheWarmingUpException as e:
         logging.exception(e)
         logging.warning("cache warming up in another task, aborting")
@@ -46,23 +44,23 @@ async def process_file(request):
     POST endpoint to process file"""
     # pylint: disable=broad-except
     try:
-        cache = RedisCacheStoreStrategy.get_instance()
-        backup_file_p = await cache.backup_cache()
-        flush = profile.indexing.flush_before_write
-        for file in request.files["file"]:
-            if len(file.body) <= 0:
-                raise ValueError(f"File {file.name} can not be empty")
-            async with tempfile.NamedTemporaryFile(
-                delete=True, prefix=str(uuid.uuid4()), suffix=file.name
-            ) as temp_file:
-                async with aopen(temp_file.name, "wb") as f:
+        async with tempfile.TemporaryDirectory() as temp_dir:
+            paths = []
+            for file in request.files["file"]:
+                if len(file.body) <= 0:
+                    raise ValueError(f"File {file.name} can not be empty")
+                path = f"{temp_dir}/{file.name}"
+                logging.debug("writing to temp file %s", path)
+                async with aopen(path, "wb") as f:
                     await f.write(file.body)
                     await f.flush()
-                    await add_file_to_customer_service(
-                        path=temp_file.name, flush_index=flush
-                    )
-                    flush = False
-        app.add_task(warmup_task(app, backup_file_p))
+                    paths.append(path)
+
+            logging.info(
+                "adding files to customer service %s\n", "\n".join(paths)
+            )
+            await add_files_to_customer_service(paths, flush_index=True)
+        app.add_task(warmup_task())
 
         return json({"success": True})
     except Exception as e:
@@ -70,7 +68,7 @@ async def process_file(request):
         return json({"success": False, "error": str(e)})
 
 
-@app.route("/get_qa", methods=["GET"])
+@app.route("/get_qa", methods=["GET", "POST"])
 async def answer_question_get(request):
     """
     GET endpoint to answer a question"""
@@ -139,6 +137,39 @@ class ProxiedAgent:
             "hit_cache": cached,
         }
 
+    async def _answer_question_with_cache(
+        self, question: str
+    ) -> Tuple[str, OpenAICallbackHandler, bool]:
+        cache = RedisCacheStoreStrategy.get_instance()
+        cached = None
+        try:
+            cached = await cache.retrieve(query=question)
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logging.error(
+                "exception while fetching cache for question %s", question
+            )
+            logging.exception(e)
+            logging.warning(
+                "this should not stop normal process, continue without cache"
+            )
+
+        if cached:
+            return self._create_result(
+                cached.metadata.answer, OpenAICallbackHandler(), True
+            )
+        else:
+            ans, stats = await self.agent.answer_question(question=question)
+            try:
+                # try write to cache
+                await cache.write_to_store(question=question, answer=ans)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logging.error(
+                    "exception while writing to store for question %s",
+                    question,
+                )
+                logging.exception(e)
+            return self._create_result(ans, stats, False)
+
     async def answer_question(
         self, question: str
     ) -> Tuple[str, OpenAICallbackHandler, bool]:
@@ -146,39 +177,15 @@ class ProxiedAgent:
         Answer a question as a customer service agent
         """
         question = question.strip()
+        cache = RedisCacheStoreStrategy.get_instance()
         if len(question) == 0:
             raise ValueError(f"Empty question {question} provided")
-        if not profile.cache.use_redis_cache:
+        if not profile.cache.use_redis_cache or not cache.is_cache_valid():
+            # if not using redis cache or cache is not valid
             ans, stats = await self.agent.answer_question(question=question)
             return self._create_result(ans, stats, False)
         else:
-            cached = None
-            try:
-                # try fetch cache
-                cache = RedisCacheStoreStrategy.get_instance()
-                cached = await cache.retrieve(query=question)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logging.error(
-                    "exception while fetching cache for question %s", question
-                )
-                logging.exception(e)
-
-            if cached:
-                return self._create_result(
-                    cached["answer"], OpenAICallbackHandler(), True
-                )
-            else:
-                ans, stats = await self.agent.answer_question(question=question)
-                try:
-                    # try write to cache
-                    await cache.write_to_store(question=question, answer=ans)
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    logging.error(
-                        "exception while writing to store for question %s",
-                        question,
-                    )
-                    logging.exception(e)
-                return self._create_result(ans, stats, False)
+            return await self._answer_question_with_cache(question=question)
 
 
 def run():

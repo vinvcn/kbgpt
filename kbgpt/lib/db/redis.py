@@ -1,14 +1,124 @@
 import json
+import logging
 import uuid
-from typing import Any, List, Mapping, Tuple
+from abc import ABCMeta, abstractmethod
+from typing import Any, Callable, List, Mapping, Tuple
+from uuid import uuid4
 
 import numpy as np
-from langchain.docstore.document import Document
+from langchain.docstore.document import Document as LCDocument
+from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.redis import Redis
+from pydantic import BaseModel
+from redis import Redis as RedisType
+from redis.client import Pipeline
+from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
+
+from kbgpt.lib.constants import CACHE_STATUS_KEY, INDEX_VERSION_KEY, CacheStatus
+from kbgpt.lib.db import CacheMetadata, Document
+
+
+class RedisOps(BaseModel, metaclass=ABCMeta):
+    """
+    Represent an abstract redis operation
+    """
+
+    @abstractmethod
+    def __call__(self, pipeline: Pipeline, *args: Any, **kwds: Any) -> Any:
+        pass
+
+
+class FlushIndex(RedisOps):
+    """
+    Represent a search index
+    """
+
+    name: str
+    redis_schema: Tuple
+
+    def __call__(self, pipeline: Pipeline, *args: Any, **kwds: Any) -> Pipeline:
+        super().__call__(pipeline, *args, **kwds)
+        pipeline.ft(self.name).dropindex(delete_documents=True)
+        prefix = f"doc:{self.name}"
+        return pipeline.ft(self.name).create_index(
+            fields=self.redis_schema,
+            definition=IndexDefinition(
+                prefix=[prefix], index_type=IndexType.HASH
+            ),
+        )
+
+
+class WriteToDoc(RedisOps):
+    """
+    write to langchain document
+    """
+
+    index_name: str
+    keys: List[str] = list()
+    documents: List[Any]
+
+    def __call__(self, pipeline: Pipeline, *args: Any, **kwds: Any) -> Any:
+        super().__call__(pipeline, *args, **kwds)
+        prefix = f"doc:{self.index_name}"
+        ids = []
+        for i, doc in enumerate(self.documents):
+            key = None
+            if self.keys:
+                key = self.keys[i]
+            else:
+                key = f"{prefix}:{uuid.uuid4().hex}"
+            pipeline.hset(
+                key,
+                mapping=doc.dict(),
+            )
+            ids.append(key)
+        return ids
+
+
+class SetKeyToValue(RedisOps):
+    """
+    set a key to given value
+    """
+
+    key: str
+    value: str
+
+    def __call__(self, pipeline: Pipeline, *args: Any, **kwds: Any) -> Any:
+        super().__call__(pipeline, *args, **kwds)
+        pipeline.set(self.key, self.value)
 
 
 class MyRedis(Redis):
+    """
+    Redis implementation of the vector store.
+    """
+
+    def __init__(
+        self,
+        redis_url: str,
+        index_name: str,
+        embedding_function: Callable,
+        content_key: str = "content",
+        metadata_key: str = "metadata",
+        vector_key: str = "content_vector",
+        *args: Any,
+        **kwargs: Any,
+    ):
+        self.embeddings: Embeddings = (
+            kwargs.pop("embeddings") if "embeddings" in kwargs else None
+        )
+        super().__init__(
+            redis_url,
+            index_name,
+            embedding_function,
+            content_key,
+            metadata_key,
+            vector_key,
+            *args,
+            **kwargs,
+        )
+
     @staticmethod
     def _redis_key(prefix: str) -> str:
         """Redis key schema for a given prefix."""
@@ -19,7 +129,49 @@ class MyRedis(Redis):
         """Redis key prefix for a given index."""
         return f"doc:{index_name}"
 
-    async def write_all_to_store(
+    def run_pipeline(self, ops: List[RedisOps]):
+        """run for the given pipeline"""
+        pipeline = self.client.pipeline()
+        for op in ops:
+            op(pipeline)
+        pipeline.execute()
+
+    def write_lc_documents(
+        self,
+        documents: List[LCDocument],
+        flush_index: bool = False,
+        **kwargs: Any,
+    ) -> List[str]:
+        """
+        Create a new Redis index from a list of documents.
+        """
+
+        ops = []
+        if flush_index:
+            ops.append(
+                FlushIndex(
+                    name=self.index_name,
+                    redis_schema=Document.to_redis_schema(),
+                )
+            )
+        texts = [d.page_content for d in documents]
+        metadatas = [d.metadata if d.metadata else {} for d in documents]
+        embeddings = self.embeddings.embed_documents(texts)
+
+        documents = Document.from_lists(
+            contents=texts, metadatas=metadatas, embeddings=embeddings
+        )
+
+        ops.append(WriteToDoc(index_name=self.index_name, documents=documents))
+        # set cache status to invalid
+        ops.append(
+            SetKeyToValue(key=CACHE_STATUS_KEY, value=CacheStatus.INVALID.value)
+        )
+        # write the index version
+        ops.append(SetKeyToValue(key=INDEX_VERSION_KEY, value=str(uuid4())))
+        self.run_pipeline(ops)
+
+    async def write_cache_documents(
         self,
         questions: List[str],
         metadatas: List[dict],
@@ -47,18 +199,21 @@ class MyRedis(Redis):
         pipeline.execute()
         return ids
 
-    def similarity_search_by_vector(
-        self, embedding: List[float], k: int = 4, **kwargs: Any
+    def similarity_search_by_vector_n(
+        self, vector: List[float], k: int = 4
     ) -> List[Document]:
         """similarity search"""
         docs_and_scores = self.similarity_search_by_vector_with_score(
-            embedding=embedding, k=k
+            vector=vector, k=k
         )
         return [doc for doc, _ in docs_and_scores]
 
     def similarity_search_by_vector_with_score(
-        self, embedding: List[float], k: int = 4, **kwargs: Any
+        self, vector: List[float], k: int = 4
     ) -> List[Tuple[Document, float]]:
+        """
+        similarity search, returns document and score
+        """
         # Prepare the Query
         return_fields = [self.metadata_key, self.content_key, "vector_score"]
         vector_field = self.vector_key
@@ -72,7 +227,7 @@ class MyRedis(Redis):
             .dialect(2)
         )
         params_dict: Mapping[str, str] = {
-            "vector": np.array(embedding)  # type: ignore
+            "vector": np.array(vector)  # type: ignore
             .astype(dtype=np.float32)
             .tobytes()
         }
@@ -85,8 +240,8 @@ class MyRedis(Redis):
         docs = [
             (
                 Document(
-                    page_content=result.content,
-                    metadata=json.loads(result.metadata),
+                    content=result.content,
+                    metadata=CacheMetadata.from_str(result.metadata),
                 ),
                 float(result.vector_score),
             )

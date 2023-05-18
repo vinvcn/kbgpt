@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-langchain = "^0.0.144"
+langchain = "0.0.144"
 openai = "^0.27.2"
 bs4 = "^0.0.1"
 lxml = "^4.9.2"
@@ -36,6 +36,27 @@ pylint = "*"
 [tool.poetry.group.dev.dependencies]
 pyramid = "^2.0.1"
 black = "^23.3.0"
+pytest = "^7.3.1"
+pytest-asyncio = "^0.21.0"
+pytest-sanic = "^1.9.1"
+sanic-testing = "^23.3.0"
+
+
+
+[[tool.poetry.source]]
+name = "ali"
+url = "http://mirrors.aliyun.com/pypi/simple/"
+default = true
+secondary = false
+
+[tool.pylint.'MESSAGES CONTROL']
+extension-pkg-whitelist = ["pydantic"]
+ignored-modules = ["redis"]
+disable=[
+  'no-name-in-module'
+]
+ignored-classes=["Redis"]
+
 
 [build-system]
 requires = ["poetry-core"]

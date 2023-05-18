@@ -82,7 +82,29 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         # load the data
         documents = self.load_and_split(path)
         store = create_vector_store_strategy(**kwargs)
-        await store.write_to_store(documents, flush_index, **kwargs)
+        await store.transctional_write_to_store(
+            documents, flush_index, **kwargs
+        )
+
+    async def transactional_add_to_index(
+        self,
+        paths: List[str],
+        flush_index: bool = False,
+        **kwargs,
+    ):
+        """
+        add a file to the given index
+        """
+        # with UniqueFilePerIndex(path, db_url, index_name):
+        logging.debug("embedding the file")
+        # load the data
+        documents = []
+        for path in paths:
+            documents.extend(self.load_and_split(path))
+        store = create_vector_store_strategy(**kwargs)
+        await store.transctional_write_to_store(
+            documents, flush_index, **kwargs
+        )
 
 
 class CustomerServiceFilesIndexer(AbstractIndexer):
