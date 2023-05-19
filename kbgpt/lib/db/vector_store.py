@@ -6,7 +6,6 @@ from typing import List
 # import pinecone
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
-from langchain.vectorstores import Chroma
 
 # , Pinecone
 from langchain.vectorstores.base import VectorStoreRetriever
@@ -19,6 +18,8 @@ from kbgpt.lib.constants import REDIS_DOCUMENT_LOCK_NAME
 from kbgpt.lib.db import check_lock
 from kbgpt.lib.db.redis import MyRedis
 from kbgpt.lib.openai import openai_embeddings
+
+# from langchain.vectorstores import Chroma
 
 
 class VectorStoreStrategy(metaclass=abc.ABCMeta):
@@ -71,34 +72,34 @@ class VectorStoreStrategy(metaclass=abc.ABCMeta):
         """
 
 
-class ChromaVectorStoreStrategy(VectorStoreStrategy):
-    """
-    Chroma vector store strategy
-    """
+# class ChromaVectorStoreStrategy(VectorStoreStrategy):
+#     """
+#     Chroma vector store strategy
+#     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.chroma = Chroma(
-            embedding_function=self.embeddings,
-            persist_directory=profile.vector_store.chroma_persist_dir,
-        )
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.chroma = Chroma(
+#             embedding_function=self.embeddings,
+#             persist_directory=profile.vector_store.chroma_persist_dir,
+#         )
 
-    def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
-        # return self.chroma.as_retriever(search_kwargs={"k": k})
-        return self.chroma.as_retriever(search_kwargs={"k": k})
+#     def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
+#         # return self.chroma.as_retriever(search_kwargs={"k": k})
+#         return self.chroma.as_retriever(search_kwargs={"k": k})
 
-    async def write_to_store(
-        self, documents: List[Document], flush_index=False, **kwargs
-    ) -> VectorStoreRetriever:
-        if flush_index:
-            self.chroma.delete_collection()
+#     async def write_to_store(
+#         self, documents: List[Document], flush_index=False, **kwargs
+#     ) -> VectorStoreRetriever:
+#         if flush_index:
+#             self.chroma.delete_collection()
 
-        self.chroma = Chroma.from_documents(
-            documents,
-            embedding=self.embeddings,
-            persist_directory=profile.vector_store.chroma_persist_dir,
-        )
-        return self.chroma.as_retriever()
+#         self.chroma = Chroma.from_documents(
+#             documents,
+#             embedding=self.embeddings,
+#             persist_directory=profile.vector_store.chroma_persist_dir,
+#         )
+#         return self.chroma.as_retriever()
 
 
 # class PineConeVectorStoreStrategy(VectorStoreStrategy):
@@ -226,7 +227,7 @@ def get_embeddings() -> Embeddings:
 STORE_STG = {
     "redis": RedisVectorStoreStrategy,
     # "pinecone": PineConeVectorStoreStrategy,
-    "chroma": ChromaVectorStoreStrategy,
+    # "chroma": ChromaVectorStoreStrategy,
 }
 
 
