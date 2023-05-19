@@ -16,7 +16,7 @@ from configs.profiles import Profile
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s.%(msecs)03d [%(levelname)s]"
-    + " %(filename)s %(message)s %(pathname)s:%(lineno)d",
+    + " %(filename)s %(message)s",
     handlers=[
         logging.FileHandler("debug.log"),
         logging.StreamHandler(sys.stdout),

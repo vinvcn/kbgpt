@@ -4,6 +4,7 @@ this is the data storage module
 import functools
 import json
 from collections import defaultdict
+from datetime import datetime
 from typing import Any, List
 
 import numpy as np
@@ -11,6 +12,13 @@ from pydantic import BaseModel, Field
 from redis.commands.search.field import TextField, VectorField
 
 from config import profile
+
+
+class IndexVersion(BaseModel):
+    """represent a cache version"""
+
+    uuid: str
+    timestamp: datetime
 
 
 class CacheMetadata(BaseModel):
@@ -108,7 +116,7 @@ class CacheWarmingUpException(Exception):
         super().__init__(
             "Failed to get redis lock, another thread might working"
             + " on warming up the index. Please try again later",
-            *args
+            *args,
         )
 
 

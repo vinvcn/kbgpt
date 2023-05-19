@@ -36,6 +36,7 @@ DEFAULT:
     USE_REDIS_CACHE: True
     REDIS_CACHE_SIMILARITY_THRESHOLD: 0.05
     CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
+    FRESH_BATCH_SIZE: 10
   INDEXING:
     FLUSH_BEFORE_WRITE: True
     CUSTOMER_SERVICE_INDEX: bullsmart-customer-services

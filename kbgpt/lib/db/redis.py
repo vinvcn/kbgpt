@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from typing import Any, Callable, List, Mapping, Tuple
 from uuid import uuid4
 
@@ -16,7 +17,7 @@ from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 
 from kbgpt.lib.constants import CACHE_STATUS_KEY, INDEX_VERSION_KEY, CacheStatus
-from kbgpt.lib.db import CacheMetadata, Document
+from kbgpt.lib.db import CacheMetadata, Document, IndexVersion
 
 
 class RedisOps(BaseModel, metaclass=ABCMeta):
@@ -168,7 +169,10 @@ class MyRedis(Redis):
             SetKeyToValue(key=CACHE_STATUS_KEY, value=CacheStatus.INVALID.value)
         )
         # write the index version
-        ops.append(SetKeyToValue(key=INDEX_VERSION_KEY, value=str(uuid4())))
+        index_version = IndexVersion(
+            uuid=str(uuid4()), timestamp=datetime.utcnow()
+        ).json()
+        ops.append(SetKeyToValue(key=INDEX_VERSION_KEY, value=index_version))
         self.run_pipeline(ops)
 
     async def write_cache_documents(

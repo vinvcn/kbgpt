@@ -20,7 +20,13 @@ from kbgpt.lib.constants import (
     REDIS_DOCUMENT_LOCK_NAME,
     CacheStatus,
 )
-from kbgpt.lib.db import CacheMetadata, Document, cache_status, ensure_lock
+from kbgpt.lib.db import (
+    CacheMetadata,
+    Document,
+    IndexVersion,
+    cache_status,
+    ensure_lock,
+)
 from kbgpt.lib.db.redis import MyRedis, WriteToDoc
 from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.svc.qa_services import QAagent
@@ -97,6 +103,20 @@ class RedisCacheStoreStrategy:
             return True
         status_str = status.decode("utf-8")
         return status_str == CacheStatus.VALID.value
+
+    def get_index_version(self) -> IndexVersion:
+        """
+        get the version of the index
+        """
+        index_version = self.redis_client.get(INDEX_VERSION_KEY)
+
+        if index_version is None:
+            raise ValueError("Index version not found")
+        index_version = index_version.decode("utf8")
+
+        index_version = IndexVersion.parse_raw(index_version)
+
+        return index_version
 
     def _redis_key(self, prefix: str) -> str:
         """Redis key schema for a given prefix."""
@@ -178,17 +198,19 @@ class RedisCacheStoreStrategy:
         )
         key = self._redis_key(self._redis_prefix(self.index_name))
         self.redis_client.hset(key, mapping=doc.dict())
+        logging.info("writing key %s to cache", key)
 
     @ensure_lock
     async def refresh_cache(self, scan_size: int = 10000):
         """
         refresh the cache
         """
-        index_version = self.redis_client.get(INDEX_VERSION_KEY)
-
-        if index_version is None:
-            raise ValueError("Index version not found")
-        index_version = index_version.decode("utf8")
+        index_version = self.get_index_version()
+        logging.info(
+            "refresh cache for index versioin: %s", index_version.json()
+        )
+        counter = 0
+        index_version = index_version.uuid
         async for batch in self._read_batch(scan_size):
             batch = await self._filter_versioning(index_version, batch)
             if not batch:
@@ -222,8 +244,12 @@ class RedisCacheStoreStrategy:
             ]
 
             self.rds.run_pipeline(ops)
+            counter = counter + len(documents)
 
         self.redis_client.set(CACHE_STATUS_KEY, CacheStatus.VALID.value)
+        logging.info(
+            "refresh cache done total cache entries updated %d", counter
+        )
 
     async def _read_batch(self, scan_size: int = 10000):
         cursor = None
@@ -261,8 +287,8 @@ class RedisCacheStoreStrategy:
             documents.append(docs)
         return documents
 
-    async def _make_batch_http_req(self, ques, docs, chunk_size=10):
-        c_s = chunk_size
+    async def _make_batch_http_req(self, ques, docs):
+        c_s = profile.cache.fresh_batch_size
         agent = QAagent.get_instance()
         answers = []
         for i in range(0, len(ques), c_s):

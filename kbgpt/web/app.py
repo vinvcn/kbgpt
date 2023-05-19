@@ -3,20 +3,19 @@ define the Sanic app
 """
 import logging
 import time
-import uuid
 from json import dumps
 from typing import Tuple
 
 from aiofiles import open as aopen
 from aiofiles import tempfile
 from langchain.callbacks import OpenAICallbackHandler
-from sanic import Sanic
-from sanic.response import json
+from redis.exceptions import LockError
+from sanic import Request, Sanic
+from sanic.response import JSONResponse, json
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
-from kbgpt.lib.db import CacheWarmingUpException
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.svc.file_services import add_files_to_customer_service
 from kbgpt.svc.qa_services import AbstractAgent, ConvAgent, QAagent
@@ -31,11 +30,48 @@ async def warmup_task():
     kick off warm up task
     """
     cache = RedisCacheStoreStrategy.get_instance()
+    # pylint: disable=broad-except
     try:
         await cache.refresh_cache()
-    except CacheWarmingUpException as e:
+    except LockError as e:
         logging.exception(e)
-        logging.warning("cache warming up in another task, aborting")
+        logging.warning(
+            "aquiring lock failed, another thread might be working aborting"
+        )
+    except Exception as e:
+        logging.exception(e)
+        logging.warning("cache refreshing cache encountered exception")
+        raise e
+
+
+@app.route("/warmup_cache", methods=["GET", "POST"])
+async def warmup_cache(request):
+    """
+    trigger warm up task without updating documents
+    """
+    agent = ProxiedDocAgent()
+    return await agent.refresh_cache(sanic_app=app, request=request)
+
+
+@app.route("/doc_version", methods=["GET"])
+async def doc_version(request):
+    """
+    get the doc version and timestamp
+    """
+    cache = RedisCacheStoreStrategy.get_instance()
+    # pylint: disable=broad-except
+    try:
+        index_version = cache.get_index_version()
+        return json(
+            {
+                "success": True,
+                "version": index_version.uuid,
+                "timestamp": str(index_version.timestamp),
+            }
+        )
+    except Exception as e:
+        logging.exception(e)
+        return json({"success": False, "error": str(e)})
 
 
 @app.route("/process_file", methods=["POST"])
@@ -43,29 +79,10 @@ async def process_file(request):
     """
     POST endpoint to process file"""
     # pylint: disable=broad-except
-    try:
-        async with tempfile.TemporaryDirectory() as temp_dir:
-            paths = []
-            for file in request.files["file"]:
-                if len(file.body) <= 0:
-                    raise ValueError(f"File {file.name} can not be empty")
-                path = f"{temp_dir}/{file.name}"
-                logging.debug("writing to temp file %s", path)
-                async with aopen(path, "wb") as f:
-                    await f.write(file.body)
-                    await f.flush()
-                    paths.append(path)
-
-            logging.info(
-                "adding files to customer service %s\n", "\n".join(paths)
-            )
-            await add_files_to_customer_service(paths, flush_index=True)
-        app.add_task(warmup_task())
-
-        return json({"success": True})
-    except Exception as e:
-        logging.exception(e)
-        return json({"success": False, "error": str(e)})
+    agent = ProxiedDocAgent()
+    return await agent.process_file_and_refresh_cache(
+        sanic_app=app, request=request
+    )
 
 
 @app.route("/get_qa", methods=["GET", "POST"])
@@ -77,7 +94,7 @@ async def answer_question_get(request):
     try:
         question = request.json["question"]
         logging.info("handling request: \n%s", dumps(request.json, indent=4))
-        agent = ProxiedAgent(QAagent.get_instance())
+        agent = ProxiedQAAgent(QAagent.get_instance())
         result = await agent.answer_question(question=question)
         return json(result)
     except Exception as e:
@@ -112,9 +129,59 @@ async def answer_question(request, ws):
         # await ws.send(llm_result)
 
 
-class ProxiedAgent:
+class ProxiedDocAgent:
     """
-    Proxy agent for the real agent
+    Wrapper for all Doc and Cache logic
+    """
+
+    async def process_file_and_refresh_cache(
+        self, sanic_app: Sanic, request: Request
+    ) -> JSONResponse:
+        """
+        process file then refresh the cache
+        """
+        # pylint: disable=broad-except
+        try:
+            async with tempfile.TemporaryDirectory() as temp_dir:
+                paths = []
+                for file in request.files["file"]:
+                    if len(file.body) <= 0:
+                        raise ValueError(f"File {file.name} can not be empty")
+                    path = f"{temp_dir}/{file.name}"
+                    logging.debug("writing to temp file %s", path)
+                    async with aopen(path, "wb") as f:
+                        await f.write(file.body)
+                        await f.flush()
+                        paths.append(path)
+
+                logging.info(
+                    "adding files to customer service %s\n", "\n".join(paths)
+                )
+                await add_files_to_customer_service(paths, flush_index=True)
+            sanic_app.add_task(warmup_task())
+            return json({"success": True})
+        except Exception as e:
+            logging.exception(e)
+            return json({"success": False, "error": str(e)})
+
+    async def refresh_cache(
+        self, sanic_app: Sanic, request: Request
+    ) -> JSONResponse:
+        """
+        Trigger a refresh cache task
+        """
+        # pylint: disable=broad-except
+        try:
+            sanic_app.add_task(warmup_task())
+            return json({"success": True})
+        except Exception as e:
+            logging.exception(e)
+            return json({"success": False, "error": str(e)})
+
+
+class ProxiedQAAgent:
+    """
+    Proxy agent for the QA logic
     """
 
     def __init__(self, agent: AbstractAgent) -> None:
