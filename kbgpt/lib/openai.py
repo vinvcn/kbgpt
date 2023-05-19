@@ -4,36 +4,17 @@ OpenAI clients
 __all__ = ["openai_embeddings", "chat_open_ai_llm"]
 from typing import List
 
-from langchain.callbacks import AsyncCallbackManager
 from langchain.callbacks.base import BaseCallbackHandler
+from langchain.callbacks.manager import AsyncCallbackManager
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
-from openai import Embedding
 
 from config import profile
 
-
-# pylint: disable=abstract-method
-class HackedEmbedding(Embedding):
-    """
-    add timeout and retry to the create method
-    """
-
-    @classmethod
-    def create(cls, *args, **kwargs):
-        return super().create(
-            request_timeout=profile.qa.request_timeout, *args, **kwargs
-        )
-
-    @classmethod
-    async def acreate(cls, *args, **kwargs):
-        return await super().acreate(
-            request_timeout=profile.qa.request_timeout, *args, **kwargs
-        )
-
-
-openai_embeddings = OpenAIEmbeddings(max_retries=profile.qa.request_retry)
-openai_embeddings.client = HackedEmbedding
+openai_embeddings = OpenAIEmbeddings(
+    max_retries=profile.qa.request_retry,
+    request_timeout=profile.qa.request_timeout,
+)
 
 
 def chat_open_ai_llm(

@@ -190,10 +190,10 @@ class RedisCacheStoreStrategy:
         """
         Write to the store
         """
-        version = self.redis_client.get(INDEX_VERSION_KEY)
+        index_version = self.get_index_version()
         doc = Document.from_one(
             question,
-            CacheMetadata(version=version, answer=answer),
+            CacheMetadata(version=index_version.uuid, answer=answer),
             self.embeddings.embed_query(question),
         )
         key = self._redis_key(self._redis_prefix(self.index_name))

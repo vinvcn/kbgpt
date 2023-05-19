@@ -8,7 +8,7 @@ import time
 from typing import List, Tuple
 
 from langchain import PromptTemplate
-from langchain.callbacks import (
+from langchain.callbacks.manager import (
     BaseCallbackHandler,
     CallbackManager,
     OpenAICallbackHandler,

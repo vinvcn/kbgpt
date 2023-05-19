@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any, Dict, List, Optional, Union
 
-from langchain.callbacks import BaseCallbackHandler
+from langchain.callbacks.manager import BaseCallbackHandler
 from langchain.schema import AgentAction, AgentFinish, LLMResult
 from sanic.server.websockets.impl import WebsocketImplProtocol
 
