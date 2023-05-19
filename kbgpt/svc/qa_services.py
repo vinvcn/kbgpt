@@ -258,7 +258,10 @@ class ConvAgent:
         """
         Ask a question
         """
-        result = self.chain({"question": question, "chat_history": ""})
+        # result = self.chain.arun("", callbacks=self.handlers)
+        result = await self.chain.acall(
+            {"question": question, "chat_history": ""}
+        )
         return result["answer"]
 
 

@@ -1,5 +1,4 @@
 import json
-import logging
 import uuid
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
@@ -9,9 +8,8 @@ from uuid import uuid4
 import numpy as np
 from langchain.docstore.document import Document as LCDocument
 from langchain.embeddings.base import Embeddings
-from langchain.vectorstores.redis import Redis
+from langchain.vectorstores.redis import Redis, RedisVectorStoreRetriever
 from pydantic import BaseModel
-from redis import Redis as RedisType
 from redis.client import Pipeline
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
@@ -90,6 +88,11 @@ class SetKeyToValue(RedisOps):
         pipeline.set(self.key, self.value)
 
 
+class MyRedisVectorRetiever(RedisVectorStoreRetriever):
+    async def aget_relevant_documents(self, query: str) -> List[Document]:
+        return self.get_relevant_documents(query)
+
+
 class MyRedis(Redis):
     """
     Redis implementation of the vector store.
@@ -136,6 +139,9 @@ class MyRedis(Redis):
         for op in ops:
             op(pipeline)
         pipeline.execute()
+
+    def as_retriever(self, **kwargs: Any) -> MyRedisVectorRetiever:
+        return MyRedisVectorRetiever(vectorstore=self, **kwargs)
 
     def write_lc_documents(
         self,

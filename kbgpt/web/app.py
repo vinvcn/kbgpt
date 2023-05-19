@@ -13,13 +13,14 @@ from redis.exceptions import LockError
 from sanic import Request, Sanic
 from sanic.response import JSONResponse, json
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
+from sanic.server.websockets.impl import WebsocketImplProtocol
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.svc.file_services import add_files_to_customer_service
 from kbgpt.svc.qa_services import AbstractAgent, ConvAgent, QAagent
-from kbgpt.web.callbacks import StreamingTextCallbackHandler
+from kbgpt.web.callbacks import StreamingAsyncHandler
 
 app = Sanic(profile.sanic.app_name)
 
@@ -54,7 +55,7 @@ async def warmup_cache(request):
 
 
 @app.route("/doc_version", methods=["GET"])
-async def doc_version(request):
+async def doc_version(request):  # pylint: disable=unused-argument
     """
     get the doc version and timestamp
     """
@@ -109,24 +110,23 @@ async def answer_question_get(request):
 
 # pylint: disable=unused-argument
 @app.websocket("/qa")
-async def answer_question(request, ws):
+async def answer_question(request: Request, ws: WebsocketImplProtocol):
     """
     Websocket endpoint to answer a question
     """
     agent = ConvAgent(
-        streaming=True, handlers=[StreamingTextCallbackHandler(ws)]
+        streaming=True,
+        handlers=[StreamingAsyncHandler(ws)],
     )
     while True:
         # Wait for incoming message
         message = await ws.recv()
         # Process message as needed
-        # processed_message = process_qa_message(message)
         # Send response back over websocket
-        answer = await agent.question(message)
+        await agent.question(message)
 
-        await ws.send(answer)
-        # llm_result = await agent.answer_question(question=message)
-        # await ws.send(llm_result)
+        # send out stats
+        await ws.send(repr(agent.stats))
 
 
 class ProxiedDocAgent:

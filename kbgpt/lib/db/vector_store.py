@@ -1,5 +1,4 @@
 import abc
-import os
 import threading
 from typing import List
 
@@ -9,7 +8,6 @@ from langchain.embeddings.base import Embeddings
 
 # , Pinecone
 from langchain.vectorstores.base import VectorStoreRetriever
-from langchain.vectorstores.redis import Redis
 from redis import Redis as RedisType
 from redis.lock import Lock
 
@@ -169,7 +167,7 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
         )
 
     def get_retriever(self, k, **kwargs) -> VectorStoreRetriever:
-        return Redis.from_existing_index(
+        return MyRedis.from_existing_index(
             redis_url=self.redis_url,
             index_name=self.index_name,
             embedding=get_embeddings(),
@@ -183,13 +181,13 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
         """
 
         if flush_index:
-            Redis.drop_index(
+            MyRedis.drop_index(
                 index_name=self.index_name,
                 delete_documents=True,
                 redis_url=self.redis_url,
             )
 
-        rds = Redis.from_documents(
+        rds = MyRedis.from_documents(
             documents,
             get_embeddings(),
             redis_url=self.redis_url,

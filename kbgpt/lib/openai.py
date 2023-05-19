@@ -5,7 +5,6 @@ __all__ = ["openai_embeddings", "chat_open_ai_llm"]
 from typing import List
 
 from langchain.callbacks.base import BaseCallbackHandler
-from langchain.callbacks.manager import AsyncCallbackManager
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 
@@ -23,7 +22,6 @@ def chat_open_ai_llm(
     """
     Get the chat open ai llm
     """
-    cbm = AsyncCallbackManager(handlers) if handlers else None
     return ChatOpenAI(
         model_name=profile.qa.generative_model,
         n=1,
@@ -32,5 +30,5 @@ def chat_open_ai_llm(
         temperature=profile.qa.customer_service_temperature,
         max_tokens=1000,
         streaming=streaming,
-        callback_manager=cbm,
+        callbacks=handlers,
     )
