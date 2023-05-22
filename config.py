@@ -54,8 +54,9 @@ if yaml_config is not None:
     profile = Profile(**merged_profile)
     logging.basicConfig(
         level=logging.DEBUG if profile.sanic.debug else logging.INFO,
+        force=True,
         format="%(asctime)s.%(msecs)03d [%(levelname)s]"
-        + " %(filename)s %(message)s %(pathname)s:%(lineno)d",
+        + " %(filename)s %(message)s",
         handlers=[
             logging.FileHandler("debug.log"),
             logging.StreamHandler(sys.stdout),

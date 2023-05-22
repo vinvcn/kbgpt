@@ -114,19 +114,20 @@ async def answer_question(request: Request, ws: WebsocketImplProtocol):
     """
     Websocket endpoint to answer a question
     """
-    agent = ConvAgent(
-        streaming=True,
-        handlers=[StreamingAsyncHandler(ws)],
-    )
+
+    callbacks = [StreamingAsyncHandler(ws)]
+    agent = ProxiedQAAgent(QAagent.get_instance())
     while True:
         # Wait for incoming message
         message = await ws.recv()
         # Process message as needed
         # Send response back over websocket
-        await agent.question(message)
+        rst = await agent.answer_question(
+            question=message, streaming=True, callbacks=callbacks
+        )
 
         # send out stats
-        await ws.send(repr(agent.stats))
+        await ws.send(dumps(rst))
 
 
 class ProxiedDocAgent:
@@ -205,7 +206,7 @@ class ProxiedQAAgent:
         }
 
     async def _answer_question_with_cache(
-        self, question: str
+        self, question: str, **kwargs
     ) -> Tuple[str, OpenAICallbackHandler, bool]:
         cache = RedisCacheStoreStrategy.get_instance()
         cached = None
@@ -225,7 +226,9 @@ class ProxiedQAAgent:
                 cached.metadata.answer, OpenAICallbackHandler(), True
             )
         else:
-            ans, stats = await self.agent.answer_question(question=question)
+            ans, stats = await self.agent.answer_question(
+                question=question, **kwargs
+            )
             try:
                 # try write to cache
                 await cache.write_to_store(question=question, answer=ans)
@@ -238,7 +241,7 @@ class ProxiedQAAgent:
             return self._create_result(ans, stats, False)
 
     async def answer_question(
-        self, question: str
+        self, question: str, streaming: bool = False, callbacks=None
     ) -> Tuple[str, OpenAICallbackHandler, bool]:
         """
         Answer a question as a customer service agent
@@ -249,10 +252,14 @@ class ProxiedQAAgent:
             raise ValueError(f"Empty question {question} provided")
         if not profile.cache.use_redis_cache or not cache.is_cache_valid():
             # if not using redis cache or cache is not valid
-            ans, stats = await self.agent.answer_question(question=question)
+            ans, stats = await self.agent.answer_question(
+                question=question, streaming=streaming, callbacks=callbacks
+            )
             return self._create_result(ans, stats, False)
         else:
-            return await self._answer_question_with_cache(question=question)
+            return await self._answer_question_with_cache(
+                question=question, streaming=streaming, callbacks=callbacks
+            )
 
 
 def run():

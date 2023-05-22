@@ -55,6 +55,6 @@ PRE:
 
 PROD:
   SANIC:
-    DEBUG: True
+    DEBUG: False
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
