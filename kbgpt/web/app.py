@@ -109,25 +109,34 @@ async def answer_question_get(request):
 
 
 # pylint: disable=unused-argument
-@app.websocket("/qa")
-async def answer_question(request: Request, ws: WebsocketImplProtocol):
+@app.route("/stream_qa", methods=["GET", "POST"])
+async def answer_question(request: Request):
     """
     Websocket endpoint to answer a question
     """
-
-    callbacks = [StreamingAsyncHandler(ws)]
-    agent = ProxiedQAAgent(QAagent.get_instance())
-    while True:
-        # Wait for incoming message
-        message = await ws.recv()
-        # Process message as needed
-        # Send response back over websocket
-        rst = await agent.answer_question(
-            question=message, streaming=True, callbacks=callbacks
+    headers = {"Cache-Control": "no-cache"}
+    response = await request.respond(
+        headers=headers, content_type="text/event-stream; charset=utf-8"
+    )
+    callbacks = [StreamingAsyncHandler(response.send)]
+    start_counter = time.perf_counter()
+    # pylint: disable=broad-except
+    try:
+        question = request.json["question"]
+        logging.info("handling request: \n%s", dumps(request.json, indent=4))
+        agent = ProxiedQAAgent(QAagent.get_instance())
+        result = await agent.answer_question(
+            question=question, streaming=True, callbacks=callbacks
         )
-
-        # send out stats
-        await ws.send(dumps(rst))
+        return json(result)
+    except Exception as e:
+        logging.exception(e)
+        return json({"success": False, "error": str(e)})
+    finally:
+        logging.debug(
+            "End of answer_question_get request, total time %.3f",
+            (time.perf_counter() - start_counter),
+        )
 
 
 class ProxiedDocAgent:
