@@ -13,13 +13,12 @@ from redis.exceptions import LockError
 from sanic import Request, Sanic
 from sanic.response import JSONResponse, json
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
-from sanic.server.websockets.impl import WebsocketImplProtocol
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.svc.file_services import add_files_to_customer_service
-from kbgpt.svc.qa_services import AbstractAgent, ConvAgent, QAagent
+from kbgpt.svc.qa_services import AbstractAgent, QAagent
 from kbgpt.web.callbacks import StreamingAsyncHandler
 
 app = Sanic(profile.sanic.app_name)
@@ -128,11 +127,13 @@ async def answer_question(request: Request):
         result = await agent.answer_question(
             question=question, streaming=True, callbacks=callbacks
         )
-        return json(result)
+        await response.send(f"data: {dumps(result)}")
     except Exception as e:
         logging.exception(e)
-        return json({"success": False, "error": str(e)})
+        obj = {"success": False, "error": str(e)}
+        await response.send(f"data: {dumps(obj=obj)}")
     finally:
+        await response.eof()
         logging.debug(
             "End of answer_question_get request, total time %.3f",
             (time.perf_counter() - start_counter),
