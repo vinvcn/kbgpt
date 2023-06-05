@@ -33,6 +33,14 @@ async def add_file_to_customer_service(path: str, **kwargs):
     await indexer.add_file_to_index(path=path, **kwargs)
 
 
+async def add_files_to_customer_service(paths: List[str], **kwargs):
+    """
+    transcational add files to the customer service index
+    """
+    indexer = CustomerServiceFilesIndexer()
+    await indexer.transactional_add_to_index(paths=paths, **kwargs)
+
+
 async def a_add_file_to_customer_service(**kwargs):
     """
     add a file to the customer service index"""

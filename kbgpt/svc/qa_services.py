@@ -5,29 +5,24 @@ import abc
 import logging
 import threading
 import time
-from functools import wraps
 from typing import List, Tuple
 
 from langchain import PromptTemplate
-from langchain.callbacks import (
-    AsyncCallbackManager,
+from langchain.callbacks.manager import (
     BaseCallbackHandler,
     CallbackManager,
     OpenAICallbackHandler,
 )
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain.callbacks.openai_info import get_openai_token_cost_for_model
 from langchain.chains import ConversationalRetrievalChain
-from langchain.chains.base import Chain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
+from langchain.schema import SystemMessage
 
 from config import profile
-from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
-from kbgpt.lib.db.vector_store import (
-    create_vector_store_strategy,
-    get_embeddings,
-)
+from kbgpt.lib.db import Document
+from kbgpt.lib.db.vector_store import create_vector_store_strategy
 from kbgpt.lib.openai import chat_open_ai_llm
 
 RULES = (
@@ -40,6 +35,16 @@ RULES = (
     "- Be straight and precise.\n"
     f"- Limit the answer to within {profile.qa.words_limit} words.\n"
     "- Do not add anything except for the answer for your customer."
+)
+
+STUFF_TEMPLATE = (
+    "Pretend you are a customer service representative for an mobile App called Bullsmart. You were provided the following Context information.\n"
+    "---------------------\n"
+    "{context}"
+    "\n---------------------\n"
+    f"{RULES}"
+    "Given the context information and not prior knowledge, "
+    "answer the question: {question}\n"
 )
 
 
@@ -77,14 +82,14 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         """
 
     async def answer_question(
-        self, question: str
+        self, question: str, **kwargs
     ) -> Tuple[str, OpenAICallbackHandler]:
         """
         Answer a question as a customer service agent"""
         logging.debug("Started answering question: %s", question)
         start_counter = time.perf_counter()
         answer, stats = await self._answer_question_and_provide_cost(
-            question=question
+            question=question, **kwargs
         )
         logging.debug(
             "End of answering question: %s, total time %.3f seconds",
@@ -95,14 +100,39 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         logging.info("Total cost: %s", stats.total_cost)
         return answer, stats
 
+    async def answer_question_in_batch(
+        self, questions: List[str], documents: List[List[Document]]
+    ) -> List[str]:
+        """
+        Answer pairs of question and vectors in batch
+        """
+        qes_n_docs = zip(questions, documents)
+        stats = OpenAICallbackHandler()
+        llm = chat_open_ai_llm(handlers=[stats])
+        inputs = [
+            (ques, "\n".join([d.content for d in docs]))
+            for ques, docs in qes_n_docs
+        ]
+        prompts = [
+            STUFF_TEMPLATE.format(context=comb_doc, question=ques)
+            for ques, comb_doc in inputs
+        ]
+        messages = [[SystemMessage(content=prompt)] for prompt in prompts]
+        results = await llm.agenerate(messages)
+        # see what's the result when http request failed
+        return [gen[0].message.content for gen in results.generations]
+
     async def _answer_question_and_provide_cost(
-        self, question: str
+        self, question: str, streaming: bool = False, callbacks=None
     ) -> Tuple[str, OpenAICallbackHandler]:
         """
         Answer a question as a customer service agent and provide the cost of the answer
         """
         stats = OpenAICallbackHandler()
-        llm = chat_open_ai_llm(handlers=[stats])
+        handlers = [stats]
+        if callbacks:
+            handlers.extend(callbacks)
+        llm = chat_open_ai_llm(streaming=streaming, handlers=handlers)
         start_counter = time.perf_counter()
         logging.debug("Started loading vector store")
         retriever = create_vector_store_strategy().get_retriever(k=self.k)
@@ -140,6 +170,24 @@ class AbstractAgent(metaclass=abc.ABCMeta):
             "End of running chain, total time %.3f seconds",
             time.perf_counter() - start_counter,
         )
+        if streaming:
+            stats = OpenAICallbackHandler()
+            total_cost = 0.0
+            prompt_tokens = llm.get_num_tokens(question)
+            total_cost += get_openai_token_cost_for_model(
+                llm.model_name, prompt_tokens, True
+            )
+            completion_tokens = llm.get_num_tokens(value["output_text"])
+            total_cost += get_openai_token_cost_for_model(
+                llm.model_name, completion_tokens
+            )
+            total_tokens = prompt_tokens + completion_tokens
+            successful_requests = 1
+            stats.prompt_tokens = prompt_tokens
+            stats.completion_tokens = completion_tokens
+            stats.total_tokens = total_tokens
+            stats.total_cost = total_cost
+            stats.successful_requests = successful_requests
         return value["output_text"], stats
 
 
@@ -150,18 +198,9 @@ class QAagent(AbstractAgent):
     def load_chain(self, llm: ChatOpenAI) -> BaseCombineDocumentsChain:
         """
         Load the stuff chain for the customer service agent"""
-        prompt_template = (
-            "Pretend you are a customer service representative for an mobile App called Bullsmart. You were provided the following Context information.\n"
-            "---------------------\n"
-            "{context}"
-            "\n---------------------\n"
-            f"{RULES}"
-            "Given the context information and not prior knowledge, "
-            "answer the question: {question}\n"
-        )
 
         PROMPT = PromptTemplate(
-            template=prompt_template, input_variables=["context", "question"]
+            template=STUFF_TEMPLATE, input_variables=["context", "question"]
         )
         chain = load_qa_chain(
             llm, chain_type="stuff", verbose=True, prompt=PROMPT
@@ -229,19 +268,30 @@ class ConvAgent:
         super().__init__(**data)
         self.stats = OpenAICallbackHandler()
         handlers.extend([self.stats])
-        llm = chat_open_ai_llm(handlers=handlers, streaming=streaming)
+        self.llm = chat_open_ai_llm(handlers=handlers, streaming=streaming)
         retriever = create_vector_store_strategy().get_retriever(
             k=profile.vector_store.vector_retrival_k
         )
         self.chain = ConversationalRetrievalChain.from_llm(
-            llm=llm, retriever=retriever, callback_manager=CallbackManager([])
+            llm=self.llm,
+            retriever=retriever,
+            callback_manager=CallbackManager([]),
         )
 
     async def question(self, question: str):
         """
         Ask a question
         """
-        result = self.chain({"question": question, "chat_history": ""})
+        # result = self.chain.arun("", callbacks=self.handlers)
+        result = await self.chain.acall(
+            {"question": question, "chat_history": ""}
+        )
+        p_len = self.llm.get_num_tokens(question)
+        p_cost = get_openai_token_cost_for_model(
+            self.llm.model_name, p_len, True
+        )
+        a_len = self.llm.get_num_tokens(result["answer"])
+        a_cost = get_openai_token_cost_for_model(self.llm.model_name, a_len)
         return result["answer"]
 
 

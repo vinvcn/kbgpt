@@ -65,6 +65,7 @@ class Cache(SuperConfig):
     use_redis_cache: bool
     redis_cache_similarity_threshold: float
     customer_service_cache_index: str
+    fresh_batch_size: int
 
 
 class Indexing(SuperConfig):
