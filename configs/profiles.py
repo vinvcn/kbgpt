@@ -39,6 +39,10 @@ class QA(SuperConfig):
     db_url: AnyUrl
     keep_msg_history: bool
 
+class COMMENT(SuperConfig):
+    """Comment Configs"""
+
+    generative_model: str
 
 class Embedding(SuperConfig):
     """Embedding Configs"""
@@ -79,6 +83,7 @@ class Profile(SuperConfig):
     """Profile configs"""
 
     sanic: Sanic
+    comment: COMMENT
     qa: QA
     embedding: Embedding
     vector_store: VectorStore

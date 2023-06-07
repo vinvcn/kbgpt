@@ -4,7 +4,7 @@ define the Sanic app
 import logging
 import time
 from json import dumps
-from typing import Tuple
+from typing import Tuple, List
 
 from aiofiles import open as aopen
 from aiofiles import tempfile
@@ -17,9 +17,11 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.svc.comment_service import CommentAgent, Post
 from kbgpt.svc.file_services import add_files_to_customer_service
 from kbgpt.svc.qa_services import AbstractAgent, QAagent
 from kbgpt.web.callbacks import StreamingAsyncHandler
+from pydantic import parse_obj_as
 
 app = Sanic(profile.sanic.app_name)
 
@@ -134,6 +136,26 @@ async def answer_question(request: Request):
         await response.send(f"data: {dumps(obj=obj)}")
     finally:
         await response.eof()
+        logging.debug(
+            "End of answer_question_get request, total time %.3f",
+            (time.perf_counter() - start_counter),
+        )
+
+
+@app.route("/get_comments", methods=["GET", "POST"])
+async def get_comments(request: Request):
+    """
+    GET endpoint to answer a question"""
+    start_counter = time.perf_counter()
+    # pylint: disable=broad-except
+    try:
+        agent = CommentAgent()
+        comments = await agent(list_of_posts=parse_obj_as(List[Post],request.json))
+        return json({"success": True, "comments": [c.dict() for c in comments]})
+    except Exception as e:
+        logging.exception(e)
+        return json({"success": False, "error": str(e)})
+    finally:
         logging.debug(
             "End of answer_question_get request, total time %.3f",
             (time.perf_counter() - start_counter),

@@ -13,7 +13,7 @@ from langchain.callbacks.manager import (
     CallbackManager,
     OpenAICallbackHandler,
 )
-from langchain.callbacks.openai_info import get_openai_token_cost_for_model
+from kbgpt.svc.utils import get_total_cost
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
@@ -174,13 +174,8 @@ class AbstractAgent(metaclass=abc.ABCMeta):
             stats = OpenAICallbackHandler()
             total_cost = 0.0
             prompt_tokens = llm.get_num_tokens(question)
-            total_cost += get_openai_token_cost_for_model(
-                llm.model_name, prompt_tokens, True
-            )
             completion_tokens = llm.get_num_tokens(value["output_text"])
-            total_cost += get_openai_token_cost_for_model(
-                llm.model_name, completion_tokens
-            )
+            total_cost = get_total_cost(llm.model_name, prompt_tokens, completion_tokens)
             total_tokens = prompt_tokens + completion_tokens
             successful_requests = 1
             stats.prompt_tokens = prompt_tokens
@@ -287,11 +282,8 @@ class ConvAgent:
             {"question": question, "chat_history": ""}
         )
         p_len = self.llm.get_num_tokens(question)
-        p_cost = get_openai_token_cost_for_model(
-            self.llm.model_name, p_len, True
-        )
         a_len = self.llm.get_num_tokens(result["answer"])
-        a_cost = get_openai_token_cost_for_model(self.llm.model_name, a_len)
+        total_cost = get_total_cost(self.llm.model_name, p_len, a_len)
         return result["answer"]
 
 
