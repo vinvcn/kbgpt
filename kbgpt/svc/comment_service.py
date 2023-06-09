@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from config import profile
 from kbgpt.svc.utils import get_total_cost
-from kbgpt.lib.templates.post_classification import CLASSFIER_TEMPLATE, HARMFUL, OFFENSIVE
+from kbgpt.lib.templates.post_classification import CLASSFIER_TEMPLATE, CATEGORY_TO_IGNORE
 from kbgpt.lib.templates.comments import get_prompt_with_personality
 
 
@@ -100,7 +100,7 @@ class CommentAgent:
         """get comment for the given post"""
         category = await self.classify(post)
         logging.info("post classified as in category: %s" % category)
-        if category.category == HARMFUL or category.category == OFFENSIVE or category.category == "":
+        if category.category in CATEGORY_TO_IGNORE:
             return Comment(
                 post_id=post.post_id,
                 comment=".",
