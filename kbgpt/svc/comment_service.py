@@ -12,47 +12,9 @@ from pydantic import BaseModel
 
 from config import profile
 from kbgpt.svc.utils import get_total_cost
+from kbgpt.lib.templates.post_classification import CLASSFIER_TEMPLATE, HARMFUL, OFFENSIVE
+from kbgpt.lib.templates.comments import get_prompt_with_personality
 
-TEMPLATE = """
-You are a maintainer of a internet forum, your job is to write a one short reply for the posts. The posts can include various topics in different forms. 
-You guidance to reply on posts:
-- for the ones contains valuable information. you do it like this:
-1. Summarize the main topic of the content.
-2. Extract the opinion and attitude on the topic. 
-3. Extract the facts that's supporting the arguments.
-4. Find out why and how the topic and the writting will be beneficial and helpful to readers.
-5. Write a reply. The reply should include an ackownledgement to content creator and encourage the user to create more content.
-- for the ones contains greeting information to the forum. you do it like this:
-1. simply reply as if you talk to him.
-- for the ones contains inappropriate, offensive, or irrespectful content. do it like this:
-1. reply with a comma.
-- for the meaningless post. do it like this:
-1. simply reply with a friendly reply in 1 to 2 words or a emoji.
-- for the rest of the posts, or if you are unsure of, or if you can not reply. do it like this:
-1. reply with a dot.
-
-
-Your boss give you some restrictions when writing the replies:
-- no hashtags
-- no more than 50 words
-- no line breaks
-
-Your coworker give you some examples:
-- Great article summarizing the tax implications of Index Funds in India. The insights on Long-term capital gains, dividend distribution tax, short-term capital gains, and tax benefits of ELSS are informative and helpful. Investors can make informed decisions and consult a professional to optimize investment strategies. Thank you for sharing, keep up the good work!
-- Thank you for sharing your insights on the impact of government regulations on firms and consumers. It's important to see the different perspectives on how external factors can shape decision-making. Your post will be helpful for anyone interested in microeconomics. Keep up the good work! 👍
-- 😊
-
-Post Content:
----
-
-{title}
-
-{content}
-
----
-
-Your reply:
-"""
 
 
 class Post(BaseModel):
@@ -72,6 +34,14 @@ class Comment(BaseModel):
     cost: float
 
 
+class Category(BaseModel):
+    """model class"""
+
+    category: str
+    tokens: int
+    cost: float
+
+
 class CommentAgent:
     """
     agent to give comment
@@ -87,9 +57,25 @@ class CommentAgent:
                 chunk = []
         yield chunk
 
-    async def get_one_comment(self, post: Post) -> Comment:
-        """get comment for the given post"""
-        prompt = TEMPLATE.format(content=post.content, title=post.title)
+    async def classify(self, post: Post) -> Category:
+        """classify the post"""
+        prompt = CLASSFIER_TEMPLATE.format(title=post.title, content=post.content)
+        completion = await openai.ChatCompletion.acreate(
+            model=profile.comment.generative_model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        promp_tokens = completion["usage"]["prompt_tokens"]
+        comp_tokens = completion["usage"]["completion_tokens"]
+        total_tokens = completion["usage"]["total_tokens"]
+        cost = get_total_cost(
+            profile.comment.generative_model, promp_tokens, comp_tokens
+        )
+        category = completion.choices[0].message["content"]
+        return Category(category=category, tokens=total_tokens, cost=cost)
+
+    async def _get_the_comment(self, post: Post) -> Comment:
+        """get the comment"""
+        prompt = get_prompt_with_personality(content=post.content, title=post.title)
         logging.debug("submitting request to openai")
         completion = await openai.ChatCompletion.acreate(
             model=profile.comment.generative_model,
@@ -109,6 +95,24 @@ class CommentAgent:
         return Comment(
             post_id=post.post_id, comment=sub_ans[-1], cost=cost, tokens=total_tokens
         )
+
+    async def get_one_comment(self, post: Post) -> Comment:
+        """get comment for the given post"""
+        category = await self.classify(post)
+        logging.info("post classified as in category: %s" % category)
+        if category.category == HARMFUL or category.category == OFFENSIVE or category.category == "":
+            return Comment(
+                post_id=post.post_id,
+                comment=".",
+                tokens=category.tokens,
+                cost=category.cost
+            )
+        else:
+            comment = await self._get_the_comment(post)
+            comment.tokens += category.tokens
+            comment.cost += category.cost
+            return comment
+
 
     async def __call__(self, list_of_posts: List[Post]) -> List[Comment]:
         """get comments for given all posts"""
