@@ -82,9 +82,7 @@ async def process_file(request):
     POST endpoint to process file"""
     # pylint: disable=broad-except
     agent = ProxiedDocAgent()
-    return await agent.process_file_and_refresh_cache(
-        sanic_app=app, request=request
-    )
+    return await agent.process_file_and_refresh_cache(sanic_app=app, request=request)
 
 
 @app.route("/get_qa", methods=["GET", "POST"])
@@ -150,7 +148,7 @@ async def get_comments(request: Request):
     # pylint: disable=broad-except
     try:
         agent = CommentAgent()
-        comments = await agent(list_of_posts=parse_obj_as(List[Post],request.json))
+        comments = await agent(list_of_posts=parse_obj_as(List[Post], request.json))
         return json({"success": True, "comments": [c.dict() for c in comments]})
     except Exception as e:
         logging.exception(e)
@@ -187,9 +185,7 @@ class ProxiedDocAgent:
                         await f.flush()
                         paths.append(path)
 
-                logging.info(
-                    "adding files to customer service %s\n", "\n".join(paths)
-                )
+                logging.info("adding files to customer service %s\n", "\n".join(paths))
                 await add_files_to_customer_service(paths, flush_index=True)
             sanic_app.add_task(warmup_task())
             return json({"success": True})
@@ -197,9 +193,7 @@ class ProxiedDocAgent:
             logging.exception(e)
             return json({"success": False, "error": str(e)})
 
-    async def refresh_cache(
-        self, sanic_app: Sanic, request: Request
-    ) -> JSONResponse:
+    async def refresh_cache(self, sanic_app: Sanic, request: Request) -> JSONResponse:
         """
         Trigger a refresh cache task
         """
@@ -220,9 +214,7 @@ class ProxiedQAAgent:
     def __init__(self, agent: AbstractAgent) -> None:
         self.agent = agent
 
-    def _create_result(
-        self, ans: str, stats: OpenAICallbackHandler, cached: bool
-    ):
+    def _create_result(self, ans: str, stats: OpenAICallbackHandler, cached: bool):
         """
         Create the result
         """
@@ -245,9 +237,7 @@ class ProxiedQAAgent:
         try:
             cached = await cache.retrieve(query=question)
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logging.error(
-                "exception while fetching cache for question %s", question
-            )
+            logging.error("exception while fetching cache for question %s", question)
             logging.exception(e)
             logging.warning(
                 "this should not stop normal process, continue without cache"
@@ -258,9 +248,7 @@ class ProxiedQAAgent:
                 cached.metadata.answer, OpenAICallbackHandler(), True
             )
         else:
-            ans, stats = await self.agent.answer_question(
-                question=question, **kwargs
-            )
+            ans, stats = await self.agent.answer_question(question=question, **kwargs)
             try:
                 # try write to cache
                 await cache.write_to_store(question=question, answer=ans)
@@ -292,6 +280,16 @@ class ProxiedQAAgent:
             return await self._answer_question_with_cache(
                 question=question, streaming=streaming, callbacks=callbacks
             )
+
+
+async def setup_resources(sanic_app: Sanic):
+    from kbgpt.lib.db.mysql import Crud
+
+    crud = Crud(profile.db_url)
+    crud.create_tables()
+
+
+app.register_listener(setup_resources, "before_server_start")
 
 
 def run():

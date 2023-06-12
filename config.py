@@ -62,6 +62,12 @@ if yaml_config is not None:
             logging.StreamHandler(sys.stdout),
         ],
     )
+
+    if "KBGPT_MYSQL_DB_URL" in environ:
+        profile.db_url = environ["KBGPT_MYSQL_DB_URL"]
+    elif not profile.db_url:
+        raise ValueError("db url is not configured")
+
 else:
     logging.error("Could not load config from %s.", yaml_path)
     sys.exit(1)  # Exit the program if the config is invalid

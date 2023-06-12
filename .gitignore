@@ -4,3 +4,6 @@ __pycache__
 .chroma
 .vscode
 .redis
+dockerfile/mysql-db
+dockerfile/mysql-db.bak
+dockerfile/redis_persist

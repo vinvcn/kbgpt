@@ -1,0 +1,24 @@
+version: '3.8'
+services:
+  cache:
+    image: redis/redis-stack:latest
+    restart: always
+    ports:
+      - '6379:6379'
+      - '8080:8080'
+    volumes: 
+      - ./redis_persist:/data
+  db:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: 'kbgpt'
+      MYSQL_USER: 'user'
+      MYSQL_PASSWORD: 'password'
+      MYSQL_ROOT_PASSWORD: 'password'
+    ports:
+      - '3306:3306'
+    expose:
+      - '3306'
+    volumes:
+      - ./mysql-db:/var/lib/mysql
