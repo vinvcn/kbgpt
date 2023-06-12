@@ -51,6 +51,12 @@ if yaml_config is not None:
         else yaml_config["PROFILE"]
     )
     merged_profile = merge({}, default_config, yaml_config[active_profile])
+    db_url = (
+        environ["KBGPT_MYSQL_DB_URL"] if "KBGPT_MYSQL_DB_URL" in environ else None
+    )
+    if db_url:
+        merged_profile["DB_URL"] = db_url
+        
     profile = Profile(**merged_profile)
     logging.basicConfig(
         level=logging.DEBUG if profile.sanic.debug else logging.INFO,
@@ -63,10 +69,6 @@ if yaml_config is not None:
         ],
     )
 
-    if "KBGPT_MYSQL_DB_URL" in environ:
-        profile.db_url = environ["KBGPT_MYSQL_DB_URL"]
-    elif not profile.db_url:
-        raise ValueError("db url is not configured")
 
 else:
     logging.error("Could not load config from %s.", yaml_path)
