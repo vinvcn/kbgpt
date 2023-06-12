@@ -1,6 +1,7 @@
 PROFILE: FAT
 
 DEFAULT:
+  DB_URL: mysql+pymysql://user:password@localhost:3306/db
 # ----- SANIC SERVER PORT ----
   SANIC:
     APP_NAME: kbgpt
@@ -17,7 +18,6 @@ DEFAULT:
     AGENT_CLS: builtin
     REQUEST_TIMEOUT: 60
     REQUEST_RETRY: 2
-    DB_URL: mysql+pymysql://user:password@localhost:3306/db
     keep_msg_history: True
     words_limit: 50
 # ----- DOCUMENT EMBEDDING CONFIG -----

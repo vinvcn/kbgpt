@@ -36,7 +36,6 @@ class QA(SuperConfig):
     request_retry: int
     agent_cls: str
     words_limit: int = Field(..., gt=1, lt=1000)
-    db_url: AnyUrl
     keep_msg_history: bool
 
 class COMMENT(SuperConfig):
@@ -89,3 +88,5 @@ class Profile(SuperConfig):
     vector_store: VectorStore
     cache: Cache
     indexing: Indexing
+    db_url: AnyUrl
+

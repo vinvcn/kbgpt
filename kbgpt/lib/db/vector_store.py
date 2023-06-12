@@ -2,11 +2,9 @@ import abc
 import threading
 from typing import List
 
-# import pinecone
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
 
-# , Pinecone
 from langchain.vectorstores.base import VectorStoreRetriever
 from redis import Redis as RedisType
 from redis.lock import Lock
@@ -70,88 +68,6 @@ class VectorStoreStrategy(metaclass=abc.ABCMeta):
         """
 
 
-# class ChromaVectorStoreStrategy(VectorStoreStrategy):
-#     """
-#     Chroma vector store strategy
-#     """
-
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self.chroma = Chroma(
-#             embedding_function=self.embeddings,
-#             persist_directory=profile.vector_store.chroma_persist_dir,
-#         )
-
-#     def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
-#         # return self.chroma.as_retriever(search_kwargs={"k": k})
-#         return self.chroma.as_retriever(search_kwargs={"k": k})
-
-#     async def write_to_store(
-#         self, documents: List[Document], flush_index=False, **kwargs
-#     ) -> VectorStoreRetriever:
-#         if flush_index:
-#             self.chroma.delete_collection()
-
-#         self.chroma = Chroma.from_documents(
-#             documents,
-#             embedding=self.embeddings,
-#             persist_directory=profile.vector_store.chroma_persist_dir,
-#         )
-#         return self.chroma.as_retriever()
-
-
-# class PineConeVectorStoreStrategy(VectorStoreStrategy):
-#     """
-#     Pinecone vector store strategy"""
-
-#     api_key: str = os.environ["PINECONE_KEY"]
-#     environment: str = profile.vector_store.pinecone_env
-
-#     def __init__(self, **kwargs):
-#         """
-#         Constructor"""
-#         super().__init__(**kwargs)
-#         pinecone.init(api_key=self.api_key, environment=self.environment)
-
-#     def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
-#         """
-#         Get the retriever
-#         """
-
-#         pc = Pinecone.from_existing_index(
-#             index_name=self.index_name, embedding=get_embeddings()
-#         )
-#         return pc.as_retriever(search_kwargs={"k": k})
-
-#     async def write_to_store(
-#         self, documents: List[Document], flush_index=False, **kwargs
-#     ) -> VectorStoreRetriever:
-#         """
-#         Write to the store
-#         """
-
-#         try:
-#             pinecone.describe_index(self.index_name)
-#             if flush_index:
-#                 pinecone.delete_index(self.index_name)
-#                 pinecone.create_index(
-#                     self.index_name, profile.embedding.embedding_dimensions
-#                 )
-#         except pinecone.exceptions.NotFoundException:
-#             pinecone.create_index(
-#                 self.index_name, profile.embedding.embedding_dimensions
-#             )
-
-#         pc = Pinecone.from_documents(
-#             documents,
-#             get_embeddings(),
-#             index_name=self.index_name,
-#             api_key=self.api_key,
-#         )
-
-#         return pc.as_retriever()
-
-
 class RedisVectorStoreStrategy(VectorStoreStrategy):
     """
     Redis vector store strategy
@@ -186,7 +102,7 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
                 delete_documents=True,
                 redis_url=self.redis_url,
             )
-            Redis.drop_index(
+            MyRedis.drop_index(
                 index_name=profile.cache.customer_service_cache_index,
                 delete_documents=True,
                 redis_url=self.redis_url,
