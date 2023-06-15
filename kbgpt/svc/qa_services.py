@@ -34,7 +34,8 @@ RULES = (
     "- Be friendly and considerable.\n"
     "- Be straight and precise.\n"
     f"- Limit the answer to within {profile.qa.words_limit} words.\n"
-    "- Do not add anything except for the answer for your customer."
+    "- Do not add anything except for the answer for your customer.\n"
+    "- Do not provide information other than the ones you find from the context.\n"
 )
 
 STUFF_TEMPLATE = (
