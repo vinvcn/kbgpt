@@ -6,7 +6,7 @@ import logging
 import sys
 from os import environ
 from pathlib import Path
-from pprint import pformat
+from json import dumps
 
 import yaml
 from mergedeep import merge
@@ -43,7 +43,6 @@ yaml_config = load_yaml_config(yaml_path)
 profile = None
 if yaml_config is not None:
     logging.info("Loaded config from %s:", yaml_path)
-    logging.info("\n%s", pformat(yaml_config))
     default_config = yaml_config["DEFAULT"]
     active_profile = (
         environ["KBGPT_APP_ACTIVE_PROFILE"]
@@ -68,6 +67,7 @@ if yaml_config is not None:
             logging.StreamHandler(sys.stdout),
         ],
     )
+    logging.debug(dumps(merged_profile, indent=4))
 
 
 else:
