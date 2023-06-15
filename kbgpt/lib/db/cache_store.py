@@ -33,6 +33,9 @@ from kbgpt.svc.qa_services import QAagent
 
 logger = logging.getLogger(__name__)
 
+class VersionNotFound(Exception):
+    pass
+
 
 class RedisCacheStoreStrategy:
     """
@@ -111,7 +114,7 @@ class RedisCacheStoreStrategy:
         index_version = self.redis_client.get(INDEX_VERSION_KEY)
 
         if index_version is None:
-            raise ValueError("Index version not found")
+            raise VersionNotFound("Index version not found")
         index_version = index_version.decode("utf8")
 
         index_version = IndexVersion.parse_raw(index_version)
@@ -190,10 +193,18 @@ class RedisCacheStoreStrategy:
         """
         Write to the store
         """
-        index_version = self.get_index_version()
+
+        version_number = ""
+        try:
+            index_version = self.get_index_version()
+            version_number = index_version.uuid
+        except VersionNotFound as e:
+            logger.exception(e)
+            logger.warning("index version not found")
+
         doc = Document.from_one(
             question,
-            CacheMetadata(version=index_version.uuid, answer=answer),
+            CacheMetadata(version=version_number, answer=answer),
             self.embeddings.embed_query(question),
         )
         key = self._redis_key(self._redis_prefix(self.index_name))
