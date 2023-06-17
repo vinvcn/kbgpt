@@ -310,11 +310,12 @@ class RedisCacheStoreStrategy:
             )
             est = self._estimate_total_tokens(prompts)
 
-            if allowance - est <= 0:
+            if allowance < est:
                 one_minute_limit = MODEL_LIMIT_PER_MINUTE[profile.qa.generative_model]
                 logging.info(
-                    "Allowance %d less than 0 sleeping for %d seconds",
+                    "Allowance %d is less than Estimation %d sleeping for %d seconds",
                     allowance,
+                    est,
                     sleep_seconds
                 )
                 await sleep(sleep_seconds)
