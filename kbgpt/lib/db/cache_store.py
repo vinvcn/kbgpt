@@ -304,39 +304,36 @@ class RedisCacheStoreStrategy:
         answers = []
         statiss = OpenAICallbackHandler()
 
-        async def sleep_and_reset():
-            one_minute_limit = MODEL_LIMIT_PER_MINUTE[profile.qa.generative_model]
-            logging.info(
-                "Estimated 1 minute window accumulated tokens is %d, exceeding the allowance of %d sleeping for %d seconds",
-                statiss.total_tokens + est,
-                allowance,
-                sleep_seconds,
-            )
-            await sleep(sleep_seconds)
-            logging.info("wake up reset the allowance to limit of %d", one_minute_limit)
-            return one_minute_limit
-
-        if allowance <= 0:
-            allowance = await sleep_and_reset()
-
         for i in range(0, len(ques), c_s):
             prompts = await agent.get_prompts_in_batch(
                 ques[i : i + c_s], docs[i : i + c_s]
             )
             est = self._estimate_total_tokens(prompts)
 
-            if statiss.total_tokens + est >= allowance:
-                allowance = await sleep_and_reset()
+            if allowance - est <= 0:
+                one_minute_limit = MODEL_LIMIT_PER_MINUTE[profile.qa.generative_model]
+                logging.info(
+                    "Allowance %d less than 0 sleeping for %d seconds",
+                    allowance,
+                    sleep_seconds
+                )
+                await sleep(sleep_seconds)
+                logging.info(
+                    "wake up reset the allowance to limit of %d", one_minute_limit
+                )
+                allowance = one_minute_limit
 
             ans, stats = await agent.answer_question_in_batch(prompts)
+
             allowance -= stats.total_tokens
             answers.extend(ans)
             statiss = merge_stats(statiss, stats)
-            logging.info(
-                "finished one batch of %d questions, with total cost %f total tokens %d",
-                c_s,
-                statiss.total_cost,
-                statiss.total_tokens,
-            )
-            logging.info("Allowance left: %d", allowance)
+            logging.info("Finished %d questions, Allowance left: %d ", c_s, allowance)
+
+        logging.info(
+            "finished %d questions, with total cost %f total tokens %d",
+            len(ques),
+            statiss.total_cost,
+            statiss.total_tokens,
+        )
         return answers, statiss, allowance
