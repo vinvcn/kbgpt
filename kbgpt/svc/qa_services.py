@@ -101,27 +101,36 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         logging.info("Total cost: %s", stats.total_cost)
         return answer, stats
 
-    async def answer_question_in_batch(
+    async def get_prompts_in_batch(
         self, questions: List[str], documents: List[List[Document]]
     ) -> List[str]:
-        """
-        Answer pairs of question and vectors in batch
-        """
+        """get prompts in batch"""
         qes_n_docs = zip(questions, documents)
-        stats = OpenAICallbackHandler()
-        llm = chat_open_ai_llm(handlers=[stats])
         inputs = [
-            (ques, "\n".join([d.content for d in docs]))
-            for ques, docs in qes_n_docs
+            (ques, "\n".join([d.content for d in docs])) for ques, docs in qes_n_docs
         ]
         prompts = [
             STUFF_TEMPLATE.format(context=comb_doc, question=ques)
             for ques, comb_doc in inputs
         ]
+        return prompts
+
+    # async def answer_question_in_batch(
+    #     self, questions: List[str], documents: List[List[Document]]
+    # ) -> Tuple[List[str], OpenAICallbackHandler]:
+
+    async def answer_question_in_batch(
+            self, prompts: List[str]
+    ) -> Tuple[List[str], OpenAICallbackHandler]:
+        """
+        Answer pairs of question and vectors in batch
+        """
+        stats = OpenAICallbackHandler()
         messages = [[SystemMessage(content=prompt)] for prompt in prompts]
+        llm = chat_open_ai_llm(handlers=[stats])
         results = await llm.agenerate(messages)
         # see what's the result when http request failed
-        return [gen[0].message.content for gen in results.generations]
+        return [gen[0].message.content for gen in results.generations], stats
 
     async def _answer_question_and_provide_cost(
         self, question: str, streaming: bool = False, callbacks=None
@@ -163,9 +172,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
 
         logging.debug("Started running chain")
         start_counter = time.perf_counter()
-        value = await chain.acall(
-            {"input_documents": result1, "question": question}
-        )
+        value = await chain.acall({"input_documents": result1, "question": question})
         # chain.prep_outputs
         logging.debug(
             "End of running chain, total time %.3f seconds",
@@ -176,7 +183,9 @@ class AbstractAgent(metaclass=abc.ABCMeta):
             total_cost = 0.0
             prompt_tokens = llm.get_num_tokens(question)
             completion_tokens = llm.get_num_tokens(value["output_text"])
-            total_cost = get_total_cost(llm.model_name, prompt_tokens, completion_tokens)
+            total_cost = get_total_cost(
+                llm.model_name, prompt_tokens, completion_tokens
+            )
             total_tokens = prompt_tokens + completion_tokens
             successful_requests = 1
             stats.prompt_tokens = prompt_tokens
@@ -198,9 +207,7 @@ class QAagent(AbstractAgent):
         PROMPT = PromptTemplate(
             template=STUFF_TEMPLATE, input_variables=["context", "question"]
         )
-        chain = load_qa_chain(
-            llm, chain_type="stuff", verbose=True, prompt=PROMPT
-        )
+        chain = load_qa_chain(llm, chain_type="stuff", verbose=True, prompt=PROMPT)
         return chain
 
 
@@ -253,39 +260,6 @@ class RefineAgent(AbstractAgent):
             refine_prompt=refine_prompt,
         )
         return chain
-
-
-class ConvAgent:
-    """
-    Conversational Agent
-    """
-
-    def __init__(self, handlers: List[BaseCallbackHandler], streaming, **data):
-        super().__init__(**data)
-        self.stats = OpenAICallbackHandler()
-        handlers.extend([self.stats])
-        self.llm = chat_open_ai_llm(handlers=handlers, streaming=streaming)
-        retriever = create_vector_store_strategy().get_retriever(
-            k=profile.vector_store.vector_retrival_k
-        )
-        self.chain = ConversationalRetrievalChain.from_llm(
-            llm=self.llm,
-            retriever=retriever,
-            callback_manager=CallbackManager([]),
-        )
-
-    async def question(self, question: str):
-        """
-        Ask a question
-        """
-        # result = self.chain.arun("", callbacks=self.handlers)
-        result = await self.chain.acall(
-            {"question": question, "chat_history": ""}
-        )
-        p_len = self.llm.get_num_tokens(question)
-        a_len = self.llm.get_num_tokens(result["answer"])
-        total_cost = get_total_cost(self.llm.model_name, p_len, a_len)
-        return result["answer"]
 
 
 AGENT_STG = {

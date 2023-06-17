@@ -1,6 +1,8 @@
 """
 Redis Cache Interation module
 """
+from asyncio import sleep
+from functools import reduce
 import logging
 import threading
 import uuid
@@ -12,6 +14,7 @@ from langchain.vectorstores.base import VectorStoreRetriever
 from redis.client import Redis as RedisType
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.lock import Lock
+from langchain.callbacks import OpenAICallbackHandler
 
 from config import profile
 from kbgpt.lib.constants import (
@@ -30,8 +33,10 @@ from kbgpt.lib.db import (
 from kbgpt.lib.db.redis import MyRedis, WriteToDoc
 from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.svc.qa_services import QAagent
+from kbgpt.svc.utils import merge_stats, token_counts, MODEL_LIMIT_PER_MINUTE
 
 logger = logging.getLogger(__name__)
+
 
 class VersionNotFound(Exception):
     pass
@@ -70,8 +75,7 @@ class RedisCacheStoreStrategy:
     def __init__(self) -> None:
         if hasattr(RedisCacheStoreStrategy, "instance"):
             raise ValueError(
-                "An instantiation already exists!"
-                " Use get_instance() instead."
+                "An instantiation already exists!" " Use get_instance() instead."
             )
         else:
             super().__init__()
@@ -141,9 +145,7 @@ class RedisCacheStoreStrategy:
         # Create Redis Index
         self.redis_client.ft(self.index_name).create_index(
             fields=schema,
-            definition=IndexDefinition(
-                prefix=[prefix], index_type=IndexType.HASH
-            ),
+            definition=IndexDefinition(prefix=[prefix], index_type=IndexType.HASH),
         )
 
     @cache_status
@@ -168,14 +170,10 @@ class RedisCacheStoreStrategy:
             logging.info("score %s", score)
             threshold = profile.cache.redis_cache_similarity_threshold
             filtered = [
-                (doc, score)
-                for doc, score in docs_n_scores
-                if score < threshold
+                (doc, score) for doc, score in docs_n_scores if score < threshold
             ]
             if len(filtered) == 0:
-                logging.info(
-                    "result score greater than threshold %s", threshold
-                )
+                logging.info("result score greater than threshold %s", threshold)
                 return None
             else:
                 logging.info(
@@ -187,9 +185,7 @@ class RedisCacheStoreStrategy:
                 return doc
 
     @cache_status
-    async def write_to_store(
-        self, question: str, answer: str
-    ) -> VectorStoreRetriever:
+    async def write_to_store(self, question: str, answer: str) -> VectorStoreRetriever:
         """
         Write to the store
         """
@@ -211,16 +207,22 @@ class RedisCacheStoreStrategy:
         self.redis_client.hset(key, mapping=doc.dict())
         logging.info("writing key %s to cache", key)
 
+    def _estimate_total_tokens(self, prompts: List[str]) -> int:
+        return sum(
+            token_counts(profile.qa.generative_model, p) + profile.qa.words_limit + 50
+            for p in prompts
+        )
+
     @ensure_lock
     async def refresh_cache(self, scan_size: int = 10000):
         """
         refresh the cache
         """
         index_version = self.get_index_version()
-        logging.info(
-            "refresh cache for index versioin: %s", index_version.json()
-        )
+        logging.info("refresh cache for index versioin: %s", index_version.json())
+        all_stats = OpenAICallbackHandler()
         counter = 0
+        allowance = MODEL_LIMIT_PER_MINUTE[profile.qa.generative_model]
         index_version = index_version.uuid
         async for batch in self._read_batch(scan_size):
             batch = await self._filter_versioning(index_version, batch)
@@ -228,21 +230,22 @@ class RedisCacheStoreStrategy:
                 continue
 
             vectors = [
-                np.frombuffer(v, dtype=np.float32).tolist()
-                for _, _, v, _, in batch
+                np.frombuffer(v, dtype=np.float32).tolist() for _, _, v, _, in batch
             ]
             questions = [q for _, q, _, _, in batch]
             keys = [k for k, _, _, _, in batch]
-            answers = await self._make_batch_http_req(
-                questions, await self._fetch_docs(vectors)
+            answers, statis, allowance = await self._make_batch_http_req(
+                allowance,
+                questions,
+                await self._fetch_docs(vectors),
             )
+            all_stats = merge_stats(all_stats, statis)
 
             documents = Document.from_lists(
                 contents=questions,
                 embeddings=vectors,
                 metadatas=[
-                    CacheMetadata(version=index_version, answer=a)
-                    for a in answers
+                    CacheMetadata(version=index_version, answer=a) for a in answers
                 ],
             )
 
@@ -258,9 +261,7 @@ class RedisCacheStoreStrategy:
             counter = counter + len(documents)
 
         self.redis_client.set(CACHE_STATUS_KEY, CacheStatus.VALID.value)
-        logging.info(
-            "refresh cache done total cache entries updated %d", counter
-        )
+        logging.info("refresh cache done total cache entries updated %d", counter)
 
     async def _read_batch(self, scan_size: int = 10000):
         cursor = None
@@ -284,12 +285,10 @@ class RedisCacheStoreStrategy:
 
     async def _filter_versioning(self, version: str, batch):
         return [
-            (k, c, v, ver)
-            for k, c, v, ver in batch
-            if ver is None or ver != version
+            (k, c, v, ver) for k, c, v, ver in batch if ver is None or ver != version
         ]
 
-    async def _fetch_docs(self, vectors: List[List[float]]):
+    async def _fetch_docs(self, vectors: List[List[float]]) -> List[List[Document]]:
         documents = []
         for vector in vectors:
             docs = self.doc_rds.similarity_search_by_vector_n(
@@ -298,13 +297,46 @@ class RedisCacheStoreStrategy:
             documents.append(docs)
         return documents
 
-    async def _make_batch_http_req(self, ques, docs):
+    async def _make_batch_http_req(self, allowance, ques, docs):
         c_s = profile.cache.fresh_batch_size
+        sleep_seconds = 60
         agent = QAagent.get_instance()
         answers = []
+        statiss = OpenAICallbackHandler()
+
+        async def sleep_and_reset():
+            one_minute_limit = MODEL_LIMIT_PER_MINUTE[profile.qa.generative_model]
+            logging.info(
+                "Estimated 1 minute window accumulated tokens is %d, exceeding the allowance of %d sleeping for %d seconds",
+                statiss.total_tokens + est,
+                allowance,
+                sleep_seconds,
+            )
+            await sleep(sleep_seconds)
+            logging.info("wake up reset the allowance to limit of %d", one_minute_limit)
+            return one_minute_limit
+
+        if allowance <= 0:
+            allowance = await sleep_and_reset()
+
         for i in range(0, len(ques), c_s):
-            ans = await agent.answer_question_in_batch(
+            prompts = await agent.get_prompts_in_batch(
                 ques[i : i + c_s], docs[i : i + c_s]
             )
+            est = self._estimate_total_tokens(prompts)
+
+            if statiss.total_tokens + est >= allowance:
+                allowance = await sleep_and_reset()
+
+            ans, stats = await agent.answer_question_in_batch(prompts)
+            allowance -= stats.total_tokens
             answers.extend(ans)
-        return answers
+            statiss = merge_stats(statiss, stats)
+            logging.info(
+                "finished one batch of %d questions, with total cost %f total tokens %d",
+                c_s,
+                statiss.total_cost,
+                statiss.total_tokens,
+            )
+            logging.info("Allowance left: %d", allowance)
+        return answers, statiss, allowance
