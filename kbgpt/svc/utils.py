@@ -29,8 +29,8 @@ MODEL_COST_PER_1K_TOKENS = {
 }
 
 MODEL_LIMIT_PER_MINUTE = {
-    "gpt-3.5-turbo" : 900,
-    "gpt-3.5-turbo-0301": 900
+    "gpt-3.5-turbo" : 90000 - 40000,
+    "gpt-3.5-turbo-0301": 90000 - 40000
 }
 
 
