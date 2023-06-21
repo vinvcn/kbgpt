@@ -299,7 +299,7 @@ class RedisCacheStoreStrategy:
 
     async def _make_batch_http_req(self, allowance, ques, docs):
         c_s = profile.cache.fresh_batch_size
-        sleep_seconds = 60
+        sleep_seconds = 120
         agent = QAagent.get_instance()
         answers = []
         statiss = OpenAICallbackHandler()
