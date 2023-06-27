@@ -1,0 +1,42 @@
+[
+    {
+        "mark_name": "Title-Page",
+        "time_seconds": 0.009999999776482582
+    },
+    {
+        "mark_name": "Trending",
+        "time_seconds": 2.420875072479248
+    },
+    {
+        "mark_name": "Volumn-Page",
+        "time_seconds": 13.120753288269043
+    },
+    {
+        "mark_name": "Volumn-Compare-To-5-Day-Avg-Chart",
+        "time_seconds": 18.539628982543945
+    },
+    {
+        "mark_name": "Volumn-Active-Selling-And-Buying-Chart",
+        "time_seconds": 22.556753158569336
+    },
+    {
+        "mark_name": "Capital-Flows-Page",
+        "time_seconds": 31.529294967651367
+    },
+    {
+        "mark_name": "Main-Fund-Page",
+        "time_seconds": 38.45621109008789
+    },
+    {
+        "mark_name": "Main-Fund-Buying-Chart",
+        "time_seconds": 43.435420989990234
+    },
+    {
+        "mark_name": "Main-Fund-Selling-Chart",
+        "time_seconds": 45.976131439208984
+    },
+    {
+        "mark_name": "End",
+        "time_seconds": 49.29333333333334
+    }
+]

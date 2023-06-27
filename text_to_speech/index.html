@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Background Music</title>
+  </head>
+  <body>
+    <!-- <iframe src="./out.mp3" allow="autoplay" style="display:none" id="iframeAudio">
+    </iframe>  -->
+    <audio controls autoplay loop hidden>
+        <source src="./out.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="slideshow">
+        <img id="myImage" src="./1.png" />
+    </div>
+  </body>
+  <script>
+    const loop = true;
+    const images = [
+        "1.png",
+        "2.png",
+        "3.png",
+        "4.png",
+        "5.png",
+        "6.png",
+        "7.png",
+        "8.png",
+        "9.png",
+    ]
+    fetch("out.mp3.json")
+    .then(response => response.json())
+    .then(data => timePoint(data, 0));
+
+    function getTimeout(data, currentIndex) {
+        nextIndex = (currentIndex + 1)
+        timeout = Math.abs(data[nextIndex].time_seconds - data[currentIndex].time_seconds)
+        return timeout
+    }
+
+    function timePoint(data, currentIndex) {
+        console.log("Reached to Timepoint " + currentIndex + " at " + data[currentIndex].time_seconds + " seconds.")
+        if(currentIndex >= data.length - 1){
+            if (loop) {
+                timePoint(data, 0)
+                return
+            } else {
+                image.hidden = true;   
+                return
+            }
+        }
+        imageIndex = currentIndex
+        setTimeout(function() {
+            changeImage(data, imageIndex);
+        }, 500);
+        duration = getTimeout(data, currentIndex);
+        currentIndex = currentIndex + 1
+        setTimeout(function() {
+            timePoint(data, currentIndex);
+        }, duration*1000);
+
+    }
+
+    function changeImage(data, currentIndex) {
+        console.log("change image to " + currentIndex)
+        var image = document.getElementById("myImage");
+        image.src = images[currentIndex];
+    }
+  </script>
+</html>
+
