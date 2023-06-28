@@ -5,22 +5,22 @@ service to comment forum posts
 import asyncio
 import logging
 import re
+from datetime import datetime
 from typing import List, Tuple
+from uuid import uuid4
 
 import openai
 from pydantic import BaseModel
-from uuid import uuid4
+from sanic import Sanic
 
 from config import profile
 from kbgpt.lib.db.mysql.comment_record import VirtualCommentRecord
-from kbgpt.svc.utils import get_total_cost
-from kbgpt.lib.templates.post_classification import (
-    CLASSFIER_TEMPLATE,
-    CATEGORY_TO_IGNORE,
-)
+from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.lib.templates.comments import get_prompt_with_personality
-from kbgpt.lib.db.mysql import Crud
-from datetime import datetime
+from kbgpt.lib.templates.post_classification import (CATEGORY_TO_IGNORE,
+                                                     CLASSFIER_TEMPLATE)
+from kbgpt.svc.utils import get_total_cost
+from kbgpt.web.resources import ResourceMgr
 
 
 class Post(BaseModel):
@@ -53,9 +53,10 @@ class CommentAgent:
     agent to give comment
     """
 
-    def __init__(self):
+    def __init__(self, app: Sanic):
         self.lock = asyncio.Lock()
         self.log_list = []
+        self.app = app
 
     async def append_to_log_list(self, log_entry: VirtualCommentRecord):
         async with self.lock:
@@ -180,9 +181,7 @@ class CommentAgent:
             requests = [self.get_one_comment(post, uid) for post, uid in chunk]
             chunk_of_comments = await asyncio.gather(*requests)
             list_of_comments.extend(chunk_of_comments)
-        crud = Crud(profile.db_url)
-        crud.create_session()
-        crud.batch_insert(self.log_list)
-        crud.close_session()
-
+        mgr: ResourceMgr = self.app.ctx.res
+        emitter: MySqlEmitter = mgr.get(MySqlEmitter.__name__)
+        await emitter.aemit(self.log_list)
         return list_of_comments
