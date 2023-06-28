@@ -19,7 +19,6 @@ pymysql = "^1.0.3"
 pymysqldb = "^0.0.2"
 pyyaml = "^6.0"
 pypdf = "^3.7.0"
-mysqlclient = "^2.1.1"
 sanic = "^23.3.0"
 mergedeep = "^1.3.4"
 py-apollo = "^0.0.3"
@@ -56,6 +55,9 @@ disable=[
   'no-name-in-module'
 ]
 ignored-classes=["Redis"]
+
+[tool.pylint.'BASIC']
+good-names = ["e"]
 
 
 [build-system]
