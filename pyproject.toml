@@ -57,7 +57,7 @@ disable=[
 ignored-classes=["Redis"]
 
 [tool.pylint.'BASIC']
-good-names = ["e"]
+good-names = ["e", "i"]
 
 
 [build-system]
