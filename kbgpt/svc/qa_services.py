@@ -2,28 +2,26 @@
 QA agents
 """
 import abc
+import asyncio
 import logging
 import threading
 import time
 from typing import List, Tuple
 
 from langchain import PromptTemplate
-from langchain.callbacks.manager import (
-    BaseCallbackHandler,
-    CallbackManager,
-    OpenAICallbackHandler,
-)
-from kbgpt.svc.utils import get_total_cost
+from langchain.callbacks.manager import OpenAICallbackHandler
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import SystemMessage
+from openai.error import RateLimitError
 
 from config import profile
 from kbgpt.lib.db import Document
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
 from kbgpt.lib.openai import chat_open_ai_llm
+from kbgpt.svc.utils import get_total_cost
 
 RULES = (
     "You should strictly follow the following rules:\n"
@@ -125,12 +123,22 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         """
         Answer pairs of question and vectors in batch
         """
-        stats = OpenAICallbackHandler()
-        messages = [[SystemMessage(content=prompt)] for prompt in prompts]
-        llm = chat_open_ai_llm(handlers=[stats])
-        results = await llm.agenerate(messages)
-        # see what's the result when http request failed
-        return [gen[0].message.content for gen in results.generations], stats
+        limit_refreshed = False
+        while True:
+            try:
+                stats = OpenAICallbackHandler()
+                messages = [[SystemMessage(content=prompt)] for prompt in prompts]
+                llm = chat_open_ai_llm(handlers=[stats])
+                results = await llm.agenerate(messages)
+                # see what's the result when http request failed
+                return [gen[0].message.content for gen in results.generations], stats, limit_refreshed
+            except RateLimitError as e:
+                logging.exception(e)
+                logging.warning("rate limit hit sleeping for %d seconds", profile.cache.cool_down_seconds)
+                await asyncio.sleep(profile.cache.cool_down_seconds)
+                logging.debug("wake up from sleep")
+                limit_refreshed = True
+
 
     async def _answer_question_and_provide_cost(
         self, question: str, streaming: bool = False, callbacks=None

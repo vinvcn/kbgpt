@@ -4,24 +4,15 @@ setup the configuration from config.yaml
 __all__ = ["profile"]
 import logging
 import sys
+from json import dumps
 from os import environ
 from pathlib import Path
-from json import dumps
 
 import yaml
 from mergedeep import merge
 
 from configs.profiles import Profile
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s.%(msecs)03d [%(levelname)s]"
-    + " %(filename)s %(message)s",
-    handlers=[
-        logging.FileHandler("debug.log"),
-        logging.StreamHandler(sys.stdout),
-    ],
-)
 # Load config items from config.yaml.
 # Use Path.resolve() to get the absolute path of the parent directory
 yaml_dir = Path(__file__).resolve().parent
@@ -55,7 +46,7 @@ if yaml_config is not None:
     )
     if db_url:
         merged_profile["DB_URL"] = db_url
-        
+
     profile = Profile(**merged_profile)
     logging.basicConfig(
         level=logging.DEBUG if profile.sanic.debug else logging.INFO,

@@ -4,11 +4,12 @@ define the Sanic app
 import logging
 import time
 from json import dumps
-from typing import Tuple, List
+from typing import List, Tuple
 
 from aiofiles import open as aopen
 from aiofiles import tempfile
 from langchain.callbacks import OpenAICallbackHandler
+from pydantic import parse_obj_as
 from redis.exceptions import LockError
 from sanic import Request, Sanic
 from sanic.response import JSONResponse, json
@@ -17,11 +18,13 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.mysql import Crud
+from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.svc.comment_service import CommentAgent, Post
 from kbgpt.svc.file_services import add_files_to_customer_service
 from kbgpt.svc.qa_services import AbstractAgent, QAagent
 from kbgpt.web.callbacks import StreamingAsyncHandler
-from pydantic import parse_obj_as
+from kbgpt.web.resources import ResourceMgr
 
 app = Sanic(profile.sanic.app_name)
 
@@ -147,7 +150,7 @@ async def get_comments(request: Request):
     start_counter = time.perf_counter()
     # pylint: disable=broad-except
     try:
-        agent = CommentAgent()
+        agent = CommentAgent(request.app)
         comments = await agent(list_of_posts=parse_obj_as(List[Post], request.json))
         return json({"success": True, "comments": [c.dict() for c in comments]})
     except Exception as e:
@@ -282,14 +285,31 @@ class ProxiedQAAgent:
             )
 
 
-async def setup_resources(sanic_app: Sanic):
-    from kbgpt.lib.db.mysql import Crud
+@app.before_server_start
+async def setup_resources(sanic_app: Sanic, loop):
+    """
+    Setup all resources to be used later on.
+    """
 
     crud = Crud(profile.db_url)
-    crud.create_tables()
+    sql_emitter = MySqlEmitter(crud)
+    mgr = ResourceMgr(sanic_app)
+    mgr.add(crud)
+    mgr.add(sql_emitter)
+
+    await mgr.init_all()
+    sanic_app.ctx.res = mgr
+
+    sanic_app.add_task(sql_emitter.aloop_drain(), name="sql_emitter_drain_loop")
 
 
-app.register_listener(setup_resources, "before_server_start")
+@app.after_server_stop
+async def cleanup_resources(sanic_app: Sanic):
+    """
+    Clean up resources setup earlier.
+    """
+    mgr: ResourceMgr = sanic_app.ctx.res
+    await mgr.destroy_all()
 
 
 def run():

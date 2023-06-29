@@ -1,45 +1,37 @@
 """
 Redis Cache Interation module
 """
-from asyncio import sleep
-from functools import reduce
 import logging
 import threading
 import uuid
+from asyncio import sleep
 from typing import List, Optional
 
 import numpy as np
 import redis
+from langchain.callbacks import OpenAICallbackHandler
 from langchain.vectorstores.base import VectorStoreRetriever
 from redis.client import Redis as RedisType
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.lock import Lock
-from langchain.callbacks import OpenAICallbackHandler
 
 from config import profile
-from kbgpt.lib.constants import (
-    CACHE_STATUS_KEY,
-    INDEX_VERSION_KEY,
-    REDIS_DOCUMENT_LOCK_NAME,
-    CacheStatus,
-)
-from kbgpt.lib.db import (
-    CacheMetadata,
-    Document,
-    IndexVersion,
-    cache_status,
-    ensure_lock,
-)
+from kbgpt.lib.constants import (CACHE_STATUS_KEY, INDEX_VERSION_KEY,
+                                 REDIS_DOCUMENT_LOCK_NAME, CacheStatus)
+from kbgpt.lib.db import (CacheMetadata, Document, IndexVersion, cache_status,
+                          ensure_lock)
 from kbgpt.lib.db.redis import MyRedis, WriteToDoc
 from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.svc.qa_services import QAagent
-from kbgpt.svc.utils import merge_stats, token_counts, MODEL_LIMIT_PER_MINUTE
+from kbgpt.svc.utils import MODEL_LIMIT_PER_MINUTE, merge_stats, token_counts
 
 logger = logging.getLogger(__name__)
 
 
 class VersionNotFound(Exception):
-    pass
+    """
+    cache version not found exception
+    """
 
 
 class RedisCacheStoreStrategy:
@@ -75,7 +67,7 @@ class RedisCacheStoreStrategy:
     def __init__(self) -> None:
         if hasattr(RedisCacheStoreStrategy, "instance"):
             raise ValueError(
-                "An instantiation already exists!" " Use get_instance() instead."
+                "An instantiation already exists!" + " Use get_instance() instead."
             )
         else:
             super().__init__()
@@ -213,8 +205,37 @@ class RedisCacheStoreStrategy:
             for p in prompts
         )
 
+
+    # @staticmethod
+    # async def copy_cache(self, scan_size: int = 10000):
+    #     """ copy cache between redis """
+
+    #     async for batch in self._read_batch(scan_size):
+
+    #         questions = [q for _, q, _, _, in batch]
+    #         keys = [k for k, _, _, _, in batch]
+    #         vectors = [
+    #             np.frombuffer(v, dtype=np.float32).tolist() for _, _, v, _, in batch
+    #         ]
+    #         meta = [obj for _, _, _, obj in batch]
+
+    #         documents = Document.from_lists(
+    #             contents=questions,
+    #             embeddings=vectors,
+    #             metadatas=meta,
+    #         )
+
+    #         ops = [WriteToDoc(
+    #             keys=keys,
+    #             index_name=self.dest_rds.index_name,
+    #             documents=documents,
+    #         )]
+
+    #         self.dest_rds.run_pipeline(ops)
+
+
     @ensure_lock
-    async def refresh_cache(self, scan_size: int = 10000):
+    async def refresh_cache(self, scan_size: int = 100):
         """
         refresh the cache
         """
@@ -263,7 +284,7 @@ class RedisCacheStoreStrategy:
         self.redis_client.set(CACHE_STATUS_KEY, CacheStatus.VALID.value)
         logging.info("refresh cache done total cache entries updated %d", counter)
 
-    async def _read_batch(self, scan_size: int = 10000):
+    async def _read_batch(self, scan_size: int = 100):
         cursor = None
 
         while cursor != 0:
@@ -280,12 +301,12 @@ class RedisCacheStoreStrategy:
                         Document._metadata_key,  # pylint: disable=protected-access
                     )
                     obj = CacheMetadata.from_str(metadata)
-                    batch.append((k, content, vector, obj.version))
+                    batch.append((k, content, vector, obj))
                 yield batch
 
     async def _filter_versioning(self, version: str, batch):
         return [
-            (k, c, v, ver) for k, c, v, ver in batch if ver is None or ver != version
+            (k, c, v, obj) for k, c, v, obj in batch if not obj.version or obj.version != version
         ]
 
     async def _fetch_docs(self, vectors: List[List[float]]) -> List[List[Document]]:
@@ -298,8 +319,8 @@ class RedisCacheStoreStrategy:
         return documents
 
     async def _make_batch_http_req(self, allowance, ques, docs):
+        one_minute_limit = MODEL_LIMIT_PER_MINUTE[profile.qa.generative_model]
         c_s = profile.cache.fresh_batch_size
-        sleep_seconds = 5 * 60
         agent = QAagent.get_instance()
         answers = []
         statiss = OpenAICallbackHandler()
@@ -311,20 +332,23 @@ class RedisCacheStoreStrategy:
             est = self._estimate_total_tokens(prompts)
 
             if allowance < est:
-                one_minute_limit = MODEL_LIMIT_PER_MINUTE[profile.qa.generative_model]
                 logging.info(
                     "Allowance %d is less than Estimation %d sleeping for %d seconds",
                     allowance,
                     est,
-                    sleep_seconds
+                    profile.cache.cool_down_seconds
                 )
-                await sleep(sleep_seconds)
+                await sleep(profile.cache.cool_down_seconds)
                 logging.info(
                     "wake up reset the allowance to limit of %d", one_minute_limit
                 )
                 allowance = one_minute_limit
 
-            ans, stats = await agent.answer_question_in_batch(prompts)
+            ans, stats, limit_refreshed = await agent.answer_question_in_batch(prompts)
+
+            if limit_refreshed:
+                allowance = one_minute_limit
+                logging.info("limit refreshed resetting allowance to %d", allowance)
 
             allowance -= stats.total_tokens
             answers.extend(ans)
