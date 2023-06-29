@@ -2,7 +2,6 @@
 Redis Cache Interation module
 """
 import logging
-import threading
 import uuid
 from asyncio import sleep
 from typing import List, Optional
@@ -15,7 +14,8 @@ from redis.client import Redis as RedisType
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.lock import Lock
 
-from config import profile
+from config import profile as global_p
+from configs.profiles import Profile
 from kbgpt.lib.constants import (CACHE_STATUS_KEY, INDEX_VERSION_KEY,
                                  REDIS_DOCUMENT_LOCK_NAME, CacheStatus)
 from kbgpt.lib.db import (CacheMetadata, Document, IndexVersion, cache_status,
@@ -34,23 +34,10 @@ class VersionNotFound(Exception):
     """
 
 
-class RedisCacheStoreStrategy:
+class RedisCacheStoreStrategy():
     """
     A singleton thread-safe Redis cache store strategy
     """
-
-    _lock = threading.Lock()
-
-    @classmethod
-    def get_instance(cls, *args, **kwargs):
-        """
-        Get the singleton instance
-        """
-        if not hasattr(cls, "instance"):
-            with cls._lock:
-                if not hasattr(cls, "instance"):
-                    cls(*args, **kwargs)
-        return cls.instance
 
     @staticmethod
     def _check_index_exists(client: RedisType, index_name: str) -> bool:
@@ -64,34 +51,32 @@ class RedisCacheStoreStrategy:
         logger.info("Index already exists")
         return True
 
-    def __init__(self) -> None:
-        if hasattr(RedisCacheStoreStrategy, "instance"):
-            raise ValueError(
-                "An instantiation already exists!" + " Use get_instance() instead."
-            )
+    def __init__(self, profile:Profile=None) -> None:
+        super().__init__()
+        if profile:
+            self.profile = profile
         else:
-            super().__init__()
-            self.index_name = profile.cache.customer_service_cache_index
-            self.embeddings = get_embeddings()
-            self.redis_client = redis.from_url(profile.vector_store.redis_url)
-            # self.aredis = aioredis.from_url(profile.vector_store.redis_url)
-            self.scan_match = f"{MyRedis._redis_prefix(self.index_name)}*"
-            self._init_if_needed()
-            self.fpath = None
-            self.redis_lock = Lock(
-                self.redis_client, REDIS_DOCUMENT_LOCK_NAME, blocking=False
-            )
-            self.rds: MyRedis = MyRedis.from_existing_index(
-                redis_url=profile.vector_store.redis_url,
-                index_name=self.index_name,
-                embedding=self.embeddings,
-            )
-            self.doc_rds: MyRedis = MyRedis.from_existing_index(
-                redis_url=profile.vector_store.redis_url,
-                index_name=profile.indexing.customer_service_index,
-                embedding=self.embeddings,
-            )
-            RedisCacheStoreStrategy.instance = self
+            self.profile = global_p
+        self.index_name = self.profile.cache.customer_service_cache_index
+        self.embeddings = get_embeddings()
+        self.redis_client = redis.from_url(self.profile.vector_store.redis_url)
+        # self.aredis = aioredis.from_url(profile.vector_store.redis_url)
+        self.scan_match = f"{MyRedis._redis_prefix(self.index_name)}*"
+        self._init_if_needed()
+        self.fpath = None
+        self.redis_lock = Lock(
+            self.redis_client, REDIS_DOCUMENT_LOCK_NAME, blocking=False
+        )
+        self.rds: MyRedis = MyRedis.from_existing_index(
+            redis_url=self.profile.vector_store.redis_url,
+            index_name=self.index_name,
+            embedding=self.embeddings,
+        )
+        self.doc_rds: MyRedis = MyRedis.from_existing_index(
+            redis_url=self.profile.vector_store.redis_url,
+            index_name=self.profile.indexing.customer_service_index,
+            embedding=self.embeddings,
+        )
 
     def is_cache_valid(self) -> bool:
         """
@@ -160,7 +145,7 @@ class RedisCacheStoreStrategy:
             logging.info("query: %s", query)
             logging.info("question: %s", doc.content)
             logging.info("score %s", score)
-            threshold = profile.cache.redis_cache_similarity_threshold
+            threshold = self.profile.cache.redis_cache_similarity_threshold
             filtered = [
                 (doc, score) for doc, score in docs_n_scores if score < threshold
             ]
@@ -201,37 +186,9 @@ class RedisCacheStoreStrategy:
 
     def _estimate_total_tokens(self, prompts: List[str]) -> int:
         return sum(
-            token_counts(profile.qa.generative_model, p) + profile.qa.words_limit + 50
+            token_counts(self.profile.qa.generative_model, p) + self.profile.qa.words_limit + 50
             for p in prompts
         )
-
-
-    # @staticmethod
-    # async def copy_cache(self, scan_size: int = 10000):
-    #     """ copy cache between redis """
-
-    #     async for batch in self._read_batch(scan_size):
-
-    #         questions = [q for _, q, _, _, in batch]
-    #         keys = [k for k, _, _, _, in batch]
-    #         vectors = [
-    #             np.frombuffer(v, dtype=np.float32).tolist() for _, _, v, _, in batch
-    #         ]
-    #         meta = [obj for _, _, _, obj in batch]
-
-    #         documents = Document.from_lists(
-    #             contents=questions,
-    #             embeddings=vectors,
-    #             metadatas=meta,
-    #         )
-
-    #         ops = [WriteToDoc(
-    #             keys=keys,
-    #             index_name=self.dest_rds.index_name,
-    #             documents=documents,
-    #         )]
-
-    #         self.dest_rds.run_pipeline(ops)
 
 
     @ensure_lock
@@ -243,9 +200,9 @@ class RedisCacheStoreStrategy:
         logging.info("refresh cache for index versioin: %s", index_version.json())
         all_stats = OpenAICallbackHandler()
         counter = 0
-        allowance = MODEL_LIMIT_PER_MINUTE[profile.qa.generative_model]
+        allowance = MODEL_LIMIT_PER_MINUTE[self.profile.qa.generative_model]
         index_version = index_version.uuid
-        async for batch in self._read_batch(scan_size):
+        async for batch in self.read_cache_batch(scan_size):
             batch = await self._filter_versioning(index_version, batch)
             if not batch:
                 continue
@@ -284,7 +241,11 @@ class RedisCacheStoreStrategy:
         self.redis_client.set(CACHE_STATUS_KEY, CacheStatus.VALID.value)
         logging.info("refresh cache done total cache entries updated %d", counter)
 
-    async def _read_batch(self, scan_size: int = 100):
+
+    async def read_cache_batch(self, scan_size: int = 100):
+        """
+        read cache in batch
+        """
         cursor = None
 
         while cursor != 0:
@@ -313,14 +274,14 @@ class RedisCacheStoreStrategy:
         documents = []
         for vector in vectors:
             docs = self.doc_rds.similarity_search_by_vector_n(
-                vector, profile.vector_store.vector_retrival_k
+                vector, self.profile.vector_store.vector_retrival_k
             )
             documents.append(docs)
         return documents
 
     async def _make_batch_http_req(self, allowance, ques, docs):
-        one_minute_limit = MODEL_LIMIT_PER_MINUTE[profile.qa.generative_model]
-        c_s = profile.cache.fresh_batch_size
+        one_minute_limit = MODEL_LIMIT_PER_MINUTE[self.profile.qa.generative_model]
+        c_s = self.profile.cache.fresh_batch_size
         agent = QAagent.get_instance()
         answers = []
         statiss = OpenAICallbackHandler()
@@ -336,9 +297,9 @@ class RedisCacheStoreStrategy:
                     "Allowance %d is less than Estimation %d sleeping for %d seconds",
                     allowance,
                     est,
-                    profile.cache.cool_down_seconds
+                    self.profile.cache.cool_down_seconds
                 )
-                await sleep(profile.cache.cool_down_seconds)
+                await sleep(self.profile.cache.cool_down_seconds)
                 logging.info(
                     "wake up reset the allowance to limit of %d", one_minute_limit
                 )
@@ -353,7 +314,7 @@ class RedisCacheStoreStrategy:
             allowance -= stats.total_tokens
             answers.extend(ans)
             statiss = merge_stats(statiss, stats)
-            logging.info("Finished %d questions, Allowance left: %d ", c_s, allowance)
+            logging.info("Finished %d questions, Allowance left: %d ", len(ans), allowance)
 
         logging.info(
             "finished %d questions, with total cost %f total tokens %d",

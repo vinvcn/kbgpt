@@ -34,7 +34,7 @@ async def warmup_task():
     """
     kick off warm up task
     """
-    cache = RedisCacheStoreStrategy.get_instance()
+    cache:RedisCacheStoreStrategy = app.ctx.redicache
     # pylint: disable=broad-except
     try:
         await cache.refresh_cache()
@@ -63,7 +63,7 @@ async def doc_version(request):  # pylint: disable=unused-argument
     """
     get the doc version and timestamp
     """
-    cache = RedisCacheStoreStrategy.get_instance()
+    cache:RedisCacheStoreStrategy = app.ctx.redicache
     # pylint: disable=broad-except
     try:
         index_version = cache.get_index_version()
@@ -235,7 +235,7 @@ class ProxiedQAAgent:
     async def _answer_question_with_cache(
         self, question: str, **kwargs
     ) -> Tuple[str, OpenAICallbackHandler, bool]:
-        cache = RedisCacheStoreStrategy.get_instance()
+        cache:RedisCacheStoreStrategy = app.ctx.redicache
         cached = None
         try:
             cached = await cache.retrieve(query=question)
@@ -270,7 +270,7 @@ class ProxiedQAAgent:
         Answer a question as a customer service agent
         """
         question = question.strip()
-        cache = RedisCacheStoreStrategy.get_instance()
+        cache:RedisCacheStoreStrategy = app.ctx.redicache
         if len(question) == 0:
             raise ValueError(f"Empty question {question} provided")
         if not profile.cache.use_redis_cache or not cache.is_cache_valid():
@@ -300,6 +300,7 @@ async def setup_resources(sanic_app: Sanic, loop):
     await mgr.init_all()
     sanic_app.ctx.res = mgr
 
+    sanic_app.ctx.redicache = RedisCacheStoreStrategy()
     sanic_app.add_task(sql_emitter.aloop_drain(), name="sql_emitter_drain_loop")
 
 
