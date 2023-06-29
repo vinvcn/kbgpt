@@ -9,8 +9,7 @@ import time
 from typing import List, Tuple
 
 from langchain import PromptTemplate
-from langchain.callbacks.manager import OpenAICallbackHandler
-from langchain.chains import ConversationalRetrievalChain
+from langchain.callbacks import OpenAICallbackHandler
 from langchain.chains.combine_documents.base import BaseCombineDocumentsChain
 from langchain.chains.question_answering import load_qa_chain
 from langchain.chat_models import ChatOpenAI
@@ -270,8 +269,3 @@ class RefineAgent(AbstractAgent):
         return chain
 
 
-AGENT_STG = {
-    "refine": RefineAgent,
-    "stuff": QAagent,
-    "builtin": ConversationalRetrievalChain,
-}

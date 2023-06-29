@@ -4,49 +4,25 @@ define the Sanic app
 import logging
 import time
 from json import dumps
-from typing import List, Tuple
+from typing import List
 
-from aiofiles import open as aopen
-from aiofiles import tempfile
-from langchain.callbacks import OpenAICallbackHandler
 from pydantic import parse_obj_as
-from redis.exceptions import LockError
 from sanic import Request, Sanic
-from sanic.response import JSONResponse, json
+from sanic.response import json
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
-from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
+from kbgpt.svc.cached_qa_agent import ProxiedQAAgent
 from kbgpt.svc.comment_service import CommentAgent, Post
-from kbgpt.svc.file_services import add_files_to_customer_service
-from kbgpt.svc.qa_services import AbstractAgent, QAagent
+from kbgpt.svc.file_services import ProxiedDocAgent
+from kbgpt.svc.qa_services import QAagent
 from kbgpt.web.callbacks import StreamingAsyncHandler
 from kbgpt.web.resources import ResourceMgr
 
 app = Sanic(profile.sanic.app_name)
-
-
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
-async def warmup_task():
-    """
-    kick off warm up task
-    """
-    cache:RedisCacheStoreStrategy = app.ctx.redicache
-    # pylint: disable=broad-except
-    try:
-        await cache.refresh_cache()
-    except LockError as e:
-        logging.exception(e)
-        logging.warning(
-            "aquiring lock failed, another thread might be working aborting"
-        )
-    except Exception as e:
-        logging.exception(e)
-        logging.warning("cache refreshing cache encountered exception")
-        raise e
 
 
 @app.route("/warmup_cache", methods=["GET", "POST"])
@@ -97,7 +73,7 @@ async def answer_question_get(request):
     try:
         question = request.json["question"]
         logging.info("handling request: \n%s", dumps(request.json, indent=4))
-        agent = ProxiedQAAgent(QAagent.get_instance())
+        agent = ProxiedQAAgent(app, QAagent.get_instance())
         result = await agent.answer_question(question=question)
         return json(result)
     except Exception as e:
@@ -126,7 +102,7 @@ async def answer_question(request: Request):
     try:
         question = request.json["question"]
         logging.info("handling request: \n%s", dumps(request.json, indent=4))
-        agent = ProxiedQAAgent(QAagent.get_instance())
+        agent = ProxiedQAAgent(app, QAagent.get_instance())
         result = await agent.answer_question(
             question=question, streaming=True, callbacks=callbacks
         )
@@ -161,128 +137,6 @@ async def get_comments(request: Request):
             "End of answer_question_get request, total time %.3f",
             (time.perf_counter() - start_counter),
         )
-
-
-class ProxiedDocAgent:
-    """
-    Wrapper for all Doc and Cache logic
-    """
-
-    async def process_file_and_refresh_cache(
-        self, sanic_app: Sanic, request: Request
-    ) -> JSONResponse:
-        """
-        process file then refresh the cache
-        """
-        # pylint: disable=broad-except
-        try:
-            async with tempfile.TemporaryDirectory() as temp_dir:
-                paths = []
-                for file in request.files["file"]:
-                    if len(file.body) <= 0:
-                        raise ValueError(f"File {file.name} can not be empty")
-                    path = f"{temp_dir}/{file.name}"
-                    logging.debug("writing to temp file %s", path)
-                    async with aopen(path, "wb") as f:
-                        await f.write(file.body)
-                        await f.flush()
-                        paths.append(path)
-
-                logging.info("adding files to customer service %s\n", "\n".join(paths))
-                await add_files_to_customer_service(paths, flush_index=True)
-            sanic_app.add_task(warmup_task())
-            return json({"success": True})
-        except Exception as e:
-            logging.exception(e)
-            return json({"success": False, "error": str(e)})
-
-    async def refresh_cache(self, sanic_app: Sanic, request: Request) -> JSONResponse:
-        """
-        Trigger a refresh cache task
-        """
-        # pylint: disable=broad-except
-        try:
-            sanic_app.add_task(warmup_task())
-            return json({"success": True})
-        except Exception as e:
-            logging.exception(e)
-            return json({"success": False, "error": str(e)})
-
-
-class ProxiedQAAgent:
-    """
-    Proxy agent for the QA logic
-    """
-
-    def __init__(self, agent: AbstractAgent) -> None:
-        self.agent = agent
-
-    def _create_result(self, ans: str, stats: OpenAICallbackHandler, cached: bool):
-        """
-        Create the result
-        """
-        return {
-            "success": True,
-            "answer": ans,
-            "total_tokens": stats.total_tokens,
-            "total_cost": stats.total_cost,
-            "prompt_tokens": stats.prompt_tokens,
-            "completion_tokens": stats.completion_tokens,
-            "successful_requests": stats.successful_requests,
-            "hit_cache": cached,
-        }
-
-    async def _answer_question_with_cache(
-        self, question: str, **kwargs
-    ) -> Tuple[str, OpenAICallbackHandler, bool]:
-        cache:RedisCacheStoreStrategy = app.ctx.redicache
-        cached = None
-        try:
-            cached = await cache.retrieve(query=question)
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logging.error("exception while fetching cache for question %s", question)
-            logging.exception(e)
-            logging.warning(
-                "this should not stop normal process, continue without cache"
-            )
-
-        if cached:
-            return self._create_result(
-                cached.metadata.answer, OpenAICallbackHandler(), True
-            )
-        else:
-            ans, stats = await self.agent.answer_question(question=question, **kwargs)
-            try:
-                # try write to cache
-                await cache.write_to_store(question=question, answer=ans)
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                logging.error(
-                    "exception while writing to store for question %s",
-                    question,
-                )
-                logging.exception(e)
-            return self._create_result(ans, stats, False)
-
-    async def answer_question(
-        self, question: str, streaming: bool = False, callbacks=None
-    ) -> Tuple[str, OpenAICallbackHandler, bool]:
-        """
-        Answer a question as a customer service agent
-        """
-        question = question.strip()
-        cache:RedisCacheStoreStrategy = app.ctx.redicache
-        if len(question) == 0:
-            raise ValueError(f"Empty question {question} provided")
-        if not profile.cache.use_redis_cache or not cache.is_cache_valid():
-            # if not using redis cache or cache is not valid
-            ans, stats = await self.agent.answer_question(
-                question=question, streaming=streaming, callbacks=callbacks
-            )
-            return self._create_result(ans, stats, False)
-        else:
-            return await self._answer_question_with_cache(
-                question=question, streaming=streaming, callbacks=callbacks
-            )
 
 
 @app.before_server_start
