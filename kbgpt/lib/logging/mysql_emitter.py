@@ -33,7 +33,7 @@ class MySqlEmitter(Emitter, LifeCycleMixin):
         await self.queue.join()
 
 
-    async def aemit(self, events: List[Any] = None):
+    async def aemit(self, events: List[Any] | Any = None):
         if not events:
             return
         if not isinstance(events, list):

@@ -6,19 +6,21 @@ import logging
 import re
 from typing import List, Tuple
 
+import numpy as np
+from aiofiles import open as aopen
 from langchain.docstore.document import Document
-from langchain.document_loaders import (
-    PyPDFLoader,
-    TextLoader,
-    UnstructuredHTMLLoader,
-    UnstructuredURLLoader,
-    UnstructuredWordDocumentLoader,
-)
-from langchain.text_splitter import RecursiveCharacterTextSplitter, TextSplitter
+from langchain.document_loaders import (PyPDFLoader, TextLoader,
+                                        UnstructuredHTMLLoader,
+                                        UnstructuredURLLoader,
+                                        UnstructuredWordDocumentLoader)
+from langchain.text_splitter import (RecursiveCharacterTextSplitter,
+                                     TextSplitter)
 
 from config import profile
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
-from kbgpt.lib.indexing.double_line_breaks_splitter import PondAstonPondSplitter
+from kbgpt.lib.indexing.double_line_breaks_splitter import \
+    PondAstonPondSplitter
+from kbgpt.svc.utils import token_counts
 
 
 class AbstractIndexer(metaclass=abc.ABCMeta):
@@ -46,9 +48,7 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         r".*\.doc": (UnstructuredWordDocumentLoader, RECR_SPL),
     }
 
-    def _get_loader_and_split(
-        self, path: str
-    ) -> Tuple[TextLoader, TextSplitter]:
+    def _get_loader_and_split(self, path: str) -> Tuple[TextLoader, TextSplitter]:
         """
         get the loader for the given file
         """
@@ -56,9 +56,7 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
             loader, splitter = tup
             if re.match(regex, path):
                 logging.info("matching loader: %s for path: %s", loader, path)
-                logging.info(
-                    "matching splitter: %s for path: %s", splitter, path
-                )
+                logging.info("matching splitter: %s for path: %s", splitter, path)
                 return loader(path), splitter
         raise ValueError(f"no loader found for {path}")
 
@@ -82,9 +80,7 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         # load the data
         documents = self.load_and_split(path)
         store = create_vector_store_strategy(**kwargs)
-        await store.transctional_write_to_store(
-            documents, flush_index, **kwargs
-        )
+        await store.transctional_write_to_store(documents, flush_index, **kwargs)
 
     async def transactional_add_to_index(
         self,
@@ -98,13 +94,29 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         # with UniqueFilePerIndex(path, db_url, index_name):
         logging.debug("embedding the file")
         # load the data
-        documents = []
+        documents: List[Document] = []
         for path in paths:
             documents.extend(self.load_and_split(path))
         store = create_vector_store_strategy(**kwargs)
-        await store.transctional_write_to_store(
-            documents, flush_index, **kwargs
-        )
+        await store.transctional_write_to_store(documents, flush_index, **kwargs)
+
+        split_size = np.average([len(d.page_content) for d in documents])
+
+        file_bytes = 0
+        file_tokens = 0
+        for path in paths:
+            async with aopen(path, "r") as file:
+                async for line in file:
+                    file_bytes += len(line.encode("utf8"))
+                    file_tokens += token_counts(profile.qa.generative_model, line)
+
+        return {
+            "total_file_splits": len(documents),
+            "split_size": split_size,
+            "total_file_tokens": file_tokens,
+            "total_file_bytes": file_bytes,
+            "file_counts": len(paths),
+        }
 
 
 class CustomerServiceFilesIndexer(AbstractIndexer):

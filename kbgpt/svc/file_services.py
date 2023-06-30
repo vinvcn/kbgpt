@@ -15,7 +15,9 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.mysql.process_file_record import ProcessFileRecord
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
+from kbgpt.lib.logging import alog
 
 
 async def add_kb():
@@ -44,12 +46,13 @@ async def add_file_to_customer_service(path: str, **kwargs):
     await indexer.add_file_to_index(path=path, **kwargs)
 
 
+@alog(ProcessFileRecord)
 async def add_files_to_customer_service(paths: List[str], **kwargs):
     """
     transcational add files to the customer service index
     """
     indexer = CustomerServiceFilesIndexer()
-    await indexer.transactional_add_to_index(paths=paths, **kwargs)
+    return await indexer.transactional_add_to_index(paths=paths, **kwargs)
 
 
 async def a_add_file_to_customer_service(**kwargs):
@@ -84,7 +87,7 @@ class ProxiedDocAgent:
     """
 
     async def process_file_and_refresh_cache(
-        self, sanic_app: Sanic, request: Request
+        self, sanic_app: Sanic, request: Request, is_refresh: bool = False
     ) -> JSONResponse:
         """
         process file then refresh the cache
@@ -105,7 +108,8 @@ class ProxiedDocAgent:
 
                 logging.info("adding files to customer service %s\n", "\n".join(paths))
                 await add_files_to_customer_service(paths, flush_index=True)
-            sanic_app.add_task(warmup_task(sanic_app))
+            if is_refresh:
+                sanic_app.add_task(warmup_task(sanic_app))
             return json({"success": True})
         except Exception as e:
             logging.exception(e)

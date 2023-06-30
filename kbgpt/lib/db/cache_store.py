@@ -20,8 +20,10 @@ from kbgpt.lib.constants import (CACHE_STATUS_KEY, INDEX_VERSION_KEY,
                                  REDIS_DOCUMENT_LOCK_NAME, CacheStatus)
 from kbgpt.lib.db import (CacheMetadata, Document, IndexVersion, cache_status,
                           ensure_lock)
+from kbgpt.lib.db.mysql.cache_warmup_record import CacheWarmupRecord
 from kbgpt.lib.db.redis import MyRedis, WriteToDoc
 from kbgpt.lib.db.vector_store import get_embeddings
+from kbgpt.lib.logging import alog
 from kbgpt.svc.qa_services import QAagent
 from kbgpt.svc.utils import MODEL_LIMIT_PER_MINUTE, merge_stats, token_counts
 
@@ -34,7 +36,7 @@ class VersionNotFound(Exception):
     """
 
 
-class RedisCacheStoreStrategy():
+class RedisCacheStoreStrategy:
     """
     A singleton thread-safe Redis cache store strategy
     """
@@ -51,7 +53,7 @@ class RedisCacheStoreStrategy():
         logger.info("Index already exists")
         return True
 
-    def __init__(self, profile:Profile=None) -> None:
+    def __init__(self, profile: Profile = None) -> None:
         super().__init__()
         if profile:
             self.profile = profile
@@ -186,12 +188,14 @@ class RedisCacheStoreStrategy():
 
     def _estimate_total_tokens(self, prompts: List[str]) -> int:
         return sum(
-            token_counts(self.profile.qa.generative_model, p) + self.profile.qa.words_limit + 50
+            token_counts(self.profile.qa.generative_model, p)
+            + self.profile.qa.words_limit
+            + 50
             for p in prompts
         )
 
-
     @ensure_lock
+    @alog(CacheWarmupRecord)
     async def refresh_cache(self, scan_size: int = 100):
         """
         refresh the cache
@@ -202,6 +206,7 @@ class RedisCacheStoreStrategy():
         counter = 0
         allowance = MODEL_LIMIT_PER_MINUTE[self.profile.qa.generative_model]
         index_version = index_version.uuid
+        total_hits = 0
         async for batch in self.read_cache_batch(scan_size):
             batch = await self._filter_versioning(index_version, batch)
             if not batch:
@@ -212,12 +217,13 @@ class RedisCacheStoreStrategy():
             ]
             questions = [q for _, q, _, _, in batch]
             keys = [k for k, _, _, _, in batch]
-            answers, statis, allowance = await self._make_batch_http_req(
+            answers, statis, allowance, hits = await self._make_batch_http_req(
                 allowance,
                 questions,
                 await self._fetch_docs(vectors),
             )
             all_stats = merge_stats(all_stats, statis)
+            total_hits += hits
 
             documents = Document.from_lists(
                 contents=questions,
@@ -240,7 +246,12 @@ class RedisCacheStoreStrategy():
 
         self.redis_client.set(CACHE_STATUS_KEY, CacheStatus.VALID.value)
         logging.info("refresh cache done total cache entries updated %d", counter)
-
+        return {
+            "tokens": all_stats.total_tokens,
+            "cost": all_stats.total_cost,
+            "question_counts": counter,
+            "limit_hits": total_hits,
+        }
 
     async def read_cache_batch(self, scan_size: int = 100):
         """
@@ -267,7 +278,9 @@ class RedisCacheStoreStrategy():
 
     async def _filter_versioning(self, version: str, batch):
         return [
-            (k, c, v, obj) for k, c, v, obj in batch if not obj.version or obj.version != version
+            (k, c, v, obj)
+            for k, c, v, obj in batch
+            if not obj.version or obj.version != version
         ]
 
     async def _fetch_docs(self, vectors: List[List[float]]) -> List[List[Document]]:
@@ -285,6 +298,7 @@ class RedisCacheStoreStrategy():
         agent = QAagent.get_instance()
         answers = []
         statiss = OpenAICallbackHandler()
+        hits = 0
 
         for i in range(0, len(ques), c_s):
             prompts = await agent.get_prompts_in_batch(
@@ -297,12 +311,13 @@ class RedisCacheStoreStrategy():
                     "Allowance %d is less than Estimation %d sleeping for %d seconds",
                     allowance,
                     est,
-                    self.profile.cache.cool_down_seconds
+                    self.profile.cache.cool_down_seconds,
                 )
                 await sleep(self.profile.cache.cool_down_seconds)
                 logging.info(
                     "wake up reset the allowance to limit of %d", one_minute_limit
                 )
+                hits += 1
                 allowance = one_minute_limit
 
             ans, stats, limit_refreshed = await agent.answer_question_in_batch(prompts)
@@ -310,11 +325,14 @@ class RedisCacheStoreStrategy():
             if limit_refreshed:
                 allowance = one_minute_limit
                 logging.info("limit refreshed resetting allowance to %d", allowance)
+                hits += 1
 
             allowance -= stats.total_tokens
             answers.extend(ans)
             statiss = merge_stats(statiss, stats)
-            logging.info("Finished %d questions, Allowance left: %d ", len(ans), allowance)
+            logging.info(
+                "Finished %d questions, Allowance left: %d ", len(ans), allowance
+            )
 
         logging.info(
             "finished %d questions, with total cost %f total tokens %d",
@@ -322,4 +340,4 @@ class RedisCacheStoreStrategy():
             statiss.total_cost,
             statiss.total_tokens,
         )
-        return answers, statiss, allowance
+        return answers, statiss, allowance, hits

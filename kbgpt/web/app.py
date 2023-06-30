@@ -16,13 +16,13 @@ from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.svc.cached_qa_agent import ProxiedQAAgent
-from kbgpt.svc.comment_service import CommentAgent, Post
+from kbgpt.svc.comment_service import CommentAgent
 from kbgpt.svc.file_services import ProxiedDocAgent
+from kbgpt.svc.models.comment import Post
 from kbgpt.svc.qa_services import QAagent
 from kbgpt.web.callbacks import StreamingAsyncHandler
+from kbgpt.web.globals import app
 from kbgpt.web.resources import ResourceMgr
-
-app = Sanic(profile.sanic.app_name)
 
 
 @app.route("/warmup_cache", methods=["GET", "POST"])

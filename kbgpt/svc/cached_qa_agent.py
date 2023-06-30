@@ -6,6 +6,8 @@ from sanic import Sanic
 
 from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.mysql.qa_record import QARecord
+from kbgpt.lib.logging import alog
 from kbgpt.svc.qa_services import AbstractAgent
 
 
@@ -64,6 +66,7 @@ class ProxiedQAAgent:
                 logging.exception(e)
             return self._create_result(ans, stats, False)
 
+    @alog(QARecord)
     async def answer_question(
         self, question: str, streaming: bool = False, callbacks=None
     ) -> Tuple[str, OpenAICallbackHandler, bool]:
