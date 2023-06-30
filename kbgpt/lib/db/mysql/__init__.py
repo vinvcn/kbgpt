@@ -68,6 +68,8 @@ class Crud(LifeCycleMixin):
             self.session.commit()
         except SQLAlchemyError as e:
             logging.exception(e)
+            self.session.rollback()
+            raise e
 
     def __del__(self):
         self.close_all_connections()

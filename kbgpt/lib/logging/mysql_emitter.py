@@ -6,6 +6,7 @@ from asyncio.queues import Queue
 from typing import Any, List
 
 from sanic import Sanic
+from sqlalchemy.exc import SQLAlchemyError
 
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.logging.emitter import Emitter
@@ -61,11 +62,20 @@ class MySqlEmitter(Emitter, LifeCycleMixin):
         """
         loop draining the queue
         """
+        events = []
         while True:
             try:
-                events = await self.dequeue()
+                if not events:
+                    events = await self.dequeue()
+
                 self.crud.batch_insert(events)
-            except:
+                # batch insertion successful reset the events to empty
+                events = []
+            except SQLAlchemyError:
+                # sql errror while inserting do not clear the events
                 pass
+            except: # pylint: disable=bare-except
+                # other type of exceptions caught clear the events
+                events = []
             finally:
                 await asyncio.sleep(10)
