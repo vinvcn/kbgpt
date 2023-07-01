@@ -4,8 +4,8 @@ main entry point to the application
 
 import argparse
 
+from kbgpt.api.app import run
 from kbgpt.cmd.cli import add_knowledge_base, handle_qa
-from kbgpt.web.app import run
 
 # Define the argument parser with top-level help
 parser = argparse.ArgumentParser(description="Run the KBGPT application")

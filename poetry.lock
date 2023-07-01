@@ -2891,6 +2891,7 @@ aiofiles = ">=0.6.0"
 html5tagger = ">=1.2.1"
 httptools = ">=0.0.10"
 multidict = ">=5.0,<7.0"
+sanic-ext = {version = "*", optional = true, markers = "extra == \"ext\""}
 sanic-routing = ">=22.8.0"
 tracerite = ">=1.0.0"
 ujson = {version = ">=1.35", markers = "sys_platform != \"win32\" and implementation_name == \"cpython\""}
@@ -2904,6 +2905,30 @@ docs = ["docutils", "enum-tools[sphinx]", "m2r2", "mistune (<2.0.0)", "pygments"
 ext = ["sanic-ext"]
 http3 = ["aioquic"]
 test = ["bandit", "beautifulsoup4", "black", "chardet (>=3.0.0,<4.0.0)", "coverage", "docutils", "flake8", "isort (>=5.0.0)", "mypy (>=0.901,<0.910)", "pygments", "pytest (>=7.1.0,<7.2.0)", "pytest-benchmark", "pytest-sanic", "sanic-testing (>=23.3.0)", "slotscheck (>=0.8.0,<1)", "types-ujson", "uvicorn (<0.15.0)"]
+
+[package.source]
+type = "legacy"
+url = "http://mirrors.aliyun.com/pypi/simple"
+reference = "ali"
+
+[[package]]
+name = "sanic-ext"
+version = "23.3.0"
+description = "Extend your Sanic installation with some core functionality."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "sanic-ext-23.3.0.tar.gz", hash = "sha256:73c8b21061211cbfa8beb282b1cb052ec10033f3ab02fff854482b52bace5a4b"},
+    {file = "sanic_ext-23.3.0-py3-none-any.whl", hash = "sha256:263dce66c262f1e59f663dca6e115a1d3ad20b68fcaab04bf48f6cb70dcae9d0"},
+]
+
+[package.dependencies]
+pyyaml = ">=3.0.0"
+
+[package.extras]
+dev = ["Jinja2", "black (>=21.4b2)", "coverage", "flake8 (>=3.7.7)", "isort (>=5.0.0)", "pytest", "pytest-asyncio", "pytest-cov", "sanic-testing (>=22.9.0)", "tox"]
+test = ["Jinja2", "coverage", "pytest", "pytest-asyncio", "pytest-cov", "sanic-testing (>=22.9.0)", "tox"]
 
 [package.source]
 type = "legacy"
@@ -3929,4 +3954,4 @@ reference = "ali"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "6eeec5ddb33bfb48cb65c5ea2e5d4f4621dff0d3d2d947930c2708a6a72a51c0"
+content-hash = "d6d68491ea914486ec409f8cb29ba2a9e14b8d604b5a3744dcb1fddb0bc7566b"

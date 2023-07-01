@@ -1,3 +1,6 @@
+"""
+open ai callbacks
+"""
 from typing import Any, Callable
 
 from langchain.callbacks.base import AsyncCallbackHandler
@@ -5,6 +8,7 @@ from pydantic import BaseModel
 
 
 class Token(BaseModel):
+    """ OpenAI token """
     token: str
 
 
