@@ -14,7 +14,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from config import profile
-from kbgpt.web.resources import LifeCycleMixin
+from kbgpt.api.libs.resources import LifeCycleMixin
 
 # Create a base class for your models to inherit from
 Base = declarative_base()

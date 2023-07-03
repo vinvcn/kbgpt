@@ -8,7 +8,7 @@ from config import profile
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql.qa_record import QARecord
 from kbgpt.lib.logging import alog
-from kbgpt.svc.qa_services import AbstractAgent
+from kbgpt.svc.aigc.qa.qa_services import AbstractAgent
 
 
 class ProxiedQAAgent:

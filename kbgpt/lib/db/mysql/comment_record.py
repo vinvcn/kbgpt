@@ -7,7 +7,7 @@ from sqlalchemy import Column, Float, Integer, String, Text
 
 from kbgpt.lib.db.mysql import Base
 from kbgpt.lib.db.mysql.base import OBase
-from kbgpt.svc.models.comment import Category, Comment, Post
+from kbgpt.svc.aigc.comment.models import Category, Comment, Post
 
 
 class VirtualCommentRecord(OBase, Base):
