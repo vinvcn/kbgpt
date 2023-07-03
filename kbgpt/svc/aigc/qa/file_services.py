@@ -1,6 +1,5 @@
-"""
-file service
-"""
+
+
 import logging
 from os import listdir, pardir
 from os.path import abspath, dirname, isfile, join
@@ -20,13 +19,11 @@ from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 from kbgpt.lib.logging import alog
 
 
-async def add_kb():
+async def add_file_to_customer_service(path: str, **kwargs):
     """
-    add knowledge base in kb folder"""
-    kb_dir = join(dirname(abspath(__file__)), pardir, "kb")
-    files = [join(kb_dir, f) for f in listdir(kb_dir)]
-    files = [f for f in files if isfile(f) and f.endswith(".txt")]
-    await add_files(files)
+    add a file to the customer service index"""
+    indexer = CustomerServiceFilesIndexer()
+    await indexer.add_file_to_index(path=path, **kwargs)
 
 
 async def add_files(paths: List[str]):
@@ -39,11 +36,13 @@ async def add_files(paths: List[str]):
         flush = False
 
 
-async def add_file_to_customer_service(path: str, **kwargs):
+async def add_kb():
     """
-    add a file to the customer service index"""
-    indexer = CustomerServiceFilesIndexer()
-    await indexer.add_file_to_index(path=path, **kwargs)
+    add knowledge base in kb folder"""
+    kb_dir = join(dirname(abspath(__file__)), pardir, "kb")
+    files = [join(kb_dir, f) for f in listdir(kb_dir)]
+    files = [f for f in files if isfile(f) and f.endswith(".txt")]
+    await add_files(files)
 
 
 @alog(ProcessFileRecord)
@@ -126,5 +125,3 @@ class ProxiedDocAgent:
         except Exception as e:
             logging.exception(e)
             return json({"success": False, "error": str(e)})
-
-

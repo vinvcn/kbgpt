@@ -1,6 +1,3 @@
-"""
-QA agents
-"""
 import abc
 import asyncio
 import logging
@@ -20,7 +17,7 @@ from config import profile
 from kbgpt.lib.db import Document
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
 from kbgpt.lib.openai import chat_open_ai_llm
-from kbgpt.svc.utils import get_total_cost
+from kbgpt.svc.utils.openai import get_total_cost
 
 RULES = (
     "You should strictly follow the following rules:\n"
@@ -34,7 +31,6 @@ RULES = (
     "- Do not add anything except for the answer for your customer.\n"
     "- Do not provide information other than the ones you find from the context.\n"
 )
-
 STUFF_TEMPLATE = (
     "Pretend you are a customer service representative for an mobile App called Bullsmart. You were provided the following Context information.\n"
     "---------------------\n"
@@ -267,5 +263,3 @@ class RefineAgent(AbstractAgent):
             refine_prompt=refine_prompt,
         )
         return chain
-
-

@@ -8,9 +8,9 @@ from typing import Any, List
 from sanic import Sanic
 from sqlalchemy.exc import SQLAlchemyError
 
+from kbgpt.api.libs.resources import LifeCycleMixin
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.logging.emitter import Emitter
-from kbgpt.web.resources import LifeCycleMixin
 
 
 class MySqlEmitter(Emitter, LifeCycleMixin):

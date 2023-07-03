@@ -24,8 +24,9 @@ from kbgpt.lib.db.mysql.cache_warmup_record import CacheWarmupRecord
 from kbgpt.lib.db.redis import MyRedis, WriteToDoc
 from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.lib.logging import alog
-from kbgpt.svc.qa_services import QAagent
-from kbgpt.svc.utils import MODEL_LIMIT_PER_MINUTE, merge_stats, token_counts
+from kbgpt.svc.aigc.qa.qa_services import QAagent
+from kbgpt.svc.utils.openai import (MODEL_LIMIT_PER_MINUTE, merge_stats,
+                                    token_counts)
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,12 @@
+""" logging module """
 import functools
 import inspect
 import time
 from typing import Callable, Type
 
+from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.lib.db.mysql.base import OBase
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
-from kbgpt.web.globals import app
-from kbgpt.web.resources import ResourceMgr
 
 
 def alog(record_type: Type[OBase]):
@@ -24,6 +24,8 @@ def alog(record_type: Type[OBase]):
         @functools.wraps(func)
         async def inner_wrapper(*args, **kwargs):
             """inner wrapper"""
+            # pylint: disable=import-outside-toplevel
+            from kbgpt.api.app import app
             start_time = time.perf_counter()
             result = await func(*args, **kwargs)
             seconds_spent = time.perf_counter() - start_time

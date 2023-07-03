@@ -1,6 +1,3 @@
-"""
-define resource classes
-"""
 import abc
 from typing import Any, Dict, List
 
