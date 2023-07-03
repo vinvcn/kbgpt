@@ -3,8 +3,8 @@ Cli module for kbgpt
 """
 import asyncio
 
-from kbgpt.svc.file_services import add_kb
-from kbgpt.svc.qa_services import QAagent
+from kbgpt.svc.aigc.qa.file_services import add_kb
+from kbgpt.svc.aigc.qa.qa_services import QAagent
 
 
 def add_knowledge_base():

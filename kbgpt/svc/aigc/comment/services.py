@@ -1,7 +1,6 @@
 """
 service to comment forum posts
 """
-
 import asyncio
 import logging
 import re
@@ -17,8 +16,8 @@ from kbgpt.lib.logging import alog
 from kbgpt.lib.templates.comments import get_prompt_with_personality
 from kbgpt.lib.templates.post_classification import (CATEGORY_TO_IGNORE,
                                                      CLASSFIER_TEMPLATE)
-from kbgpt.svc.models.comment import Category, Comment, Post, RequestStep
-from kbgpt.svc.utils import get_total_cost
+from kbgpt.svc.aigc.comment.models import Category, Comment, Post, RequestStep
+from kbgpt.svc.utils.openai import get_total_cost
 
 
 class CommentAgent:
@@ -128,6 +127,3 @@ class CommentAgent:
             chunk_of_comments = await asyncio.gather(*requests)
             list_of_comments.extend(chunk_of_comments)
         return list_of_comments
-
-
-

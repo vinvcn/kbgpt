@@ -10,9 +10,9 @@ from sanic.response import json
 
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
-from kbgpt.svc.cached_qa_agent import ProxiedQAAgent
-from kbgpt.svc.file_services import ProxiedDocAgent
-from kbgpt.svc.qa_services import QAagent
+from kbgpt.svc.aigc.qa.cache_qa_services import ProxiedQAAgent
+from kbgpt.svc.aigc.qa.file_services import ProxiedDocAgent
+from kbgpt.svc.aigc.qa.qa_services import QAagent
 
 QA = Blueprint("qa", url_prefix="qa")
 

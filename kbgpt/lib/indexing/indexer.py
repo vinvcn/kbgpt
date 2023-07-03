@@ -20,7 +20,7 @@ from config import profile
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
 from kbgpt.lib.indexing.double_line_breaks_splitter import \
     PondAstonPondSplitter
-from kbgpt.svc.utils import token_counts
+from kbgpt.svc.utils.openai import token_counts
 
 
 class AbstractIndexer(metaclass=abc.ABCMeta):

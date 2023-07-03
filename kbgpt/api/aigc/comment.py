@@ -9,8 +9,8 @@ from pydantic import parse_obj_as
 from sanic import Blueprint, Request
 from sanic.response import json
 
-from kbgpt.svc.comment_service import CommentAgent
-from kbgpt.svc.models.comment import Post
+from kbgpt.svc.aigc.comment.models import Post
+from kbgpt.svc.aigc.comment.services import CommentAgent
 
 COMMENT = Blueprint("comment", url_prefix="comment")
 
