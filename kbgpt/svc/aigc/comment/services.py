@@ -13,9 +13,9 @@ from sanic import Sanic
 from config import profile
 from kbgpt.lib.db.mysql.comment_record import VirtualCommentRecord
 from kbgpt.lib.logging import alog
-from kbgpt.lib.templates.comments import get_prompt_with_personality
-from kbgpt.lib.templates.post_classification import (CATEGORY_TO_IGNORE,
-                                                     CLASSFIER_TEMPLATE)
+from kbgpt.lib.templates.engine import CommentEngine, SimpleEngine
+from kbgpt.lib.templates.rendering.repo.post_classification import \
+    CATEGORY_TO_IGNORE
 from kbgpt.svc.aigc.comment.models import Category, Comment, Post, RequestStep
 from kbgpt.svc.utils.openai import get_total_cost
 
@@ -29,11 +29,13 @@ class CommentAgent:
         self.lock = asyncio.Lock()
         self.log_list = []
         self.app = app
+        self.temp_engine = CommentEngine()
+        self.class_engine = SimpleEngine(name="post_classification")
 
     @alog(VirtualCommentRecord)
     async def classify(self, post: Post, uid: str) -> Category:
         """classify the post"""
-        prompt = CLASSFIER_TEMPLATE.format(title=post.title, content=post.content)
+        prompt = await self.class_engine.agenerate(title=post.title, content=post.content)
         completion = await openai.ChatCompletion.acreate(
             model=profile.comment.generative_model,
             messages=[{"role": "user", "content": prompt}],
@@ -58,7 +60,7 @@ class CommentAgent:
     @alog(VirtualCommentRecord)
     async def _get_the_comment(self, post: Post, uid: str) -> Comment:
         """get the comment"""
-        prompt = get_prompt_with_personality(content=post.content, title=post.title)
+        prompt = await self.temp_engine.agenerate(content=post.content, title=post.title)
         logging.debug("submitting request to openai")
         completion = await openai.ChatCompletion.acreate(
             model=profile.comment.generative_model,

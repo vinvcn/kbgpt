@@ -6,9 +6,13 @@ import time
 from json import dumps
 
 from sanic import Blueprint, Request
-from sanic.response import json
+from sanic_ext import openapi, validate
 
+from kbgpt.api.aigc.qa_models import DocInfo, QAResponse, Question
+from kbgpt.api.constants import API_CONTENT_TYPE
+from kbgpt.api.libs.base_model import ErrorResponse, ResponseBase
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
+from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.svc.aigc.qa.cache_qa_services import ProxiedQAAgent
 from kbgpt.svc.aigc.qa.file_services import ProxiedDocAgent
@@ -17,21 +21,35 @@ from kbgpt.svc.aigc.qa.qa_services import QAagent
 QA = Blueprint("qa", url_prefix="qa")
 
 
-@QA.route("/get_qa", methods=["GET", "POST"])
-async def answer_question_get(request: Request):
+@QA.route("/get_qa", methods=["GET"])
+@openapi.description(
+    "Get answer for the given question based on "
+    + "similarity matching with the knowledge base"
+)
+@openapi.definition(body={API_CONTENT_TYPE: Question.schema()})
+@openapi.response(
+    200,
+    {
+        API_CONTENT_TYPE: QAResponse.schema(),
+    },
+)
+@openapi.response(500, {API_CONTENT_TYPE: ErrorResponse.schema()})
+@validate(json=Question)
+async def answer_question_get(request: Request, body: Question):
     """
-    GET endpoint to answer a question"""
+    Get answer for the given question
+    """
     start_counter = time.perf_counter()
     # pylint: disable=broad-except
     try:
-        question = request.json["question"]
-        logging.info("handling request: \n%s", dumps(request.json, indent=4))
+        question = body.question
+        logging.info("handling request: \n%s", dumps(body.dict(), indent=4))
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        result = await agent.answer_question(question=question)
-        return json(result)
+        result: QAResponse = await agent.answer_question(question=question)
+        return jtext(result)
     except Exception as e:
         logging.exception(e)
-        return json({"success": False, "error": str(e)})
+        return jtext(ErrorResponse(success=False, error=str(e)))
     finally:
         logging.debug(
             "End of answer_question_get request, total time %.3f",
@@ -41,9 +59,15 @@ async def answer_question_get(request: Request):
 
 # pylint: disable=unused-argument
 @QA.route("/stream_qa", methods=["GET", "POST"])
-async def answer_question(request: Request):
+@openapi.description(
+    "In streaming, get answer for the given question based on "
+    + "similarity matching with the knowledge base"
+)
+@openapi.definition(body={API_CONTENT_TYPE: Question.schema()})
+@validate(json=Question)
+async def answer_question(request: Request, body: Question):
     """
-    Websocket endpoint to answer a question
+    Streaming endpoint to answer a question
     """
     headers = {"Cache-Control": "no-cache"}
     response = await request.respond(
@@ -53,8 +77,8 @@ async def answer_question(request: Request):
     start_counter = time.perf_counter()
     # pylint: disable=broad-except
     try:
-        question = request.json["question"]
-        logging.info("handling request: \n%s", dumps(request.json, indent=4))
+        question = body.question
+        logging.info("handling request: \n%s", dumps(body.dict(), indent=4))
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
         result = await agent.answer_question(
             question=question, streaming=True, callbacks=callbacks
@@ -73,6 +97,16 @@ async def answer_question(request: Request):
 
 
 @QA.route("/warmup_cache", methods=["GET", "POST"])
+@openapi.description(
+    "Warm up cached questions according to the latest documents" + " in knowledge base"
+)
+@openapi.response(
+    200,
+    {
+        API_CONTENT_TYPE: ResponseBase.schema(),
+    },
+)
+@openapi.response(500, {API_CONTENT_TYPE: ErrorResponse.schema()})
 async def warmup_cache(request: Request):
     """
     trigger warm up task without updating documents
@@ -82,6 +116,14 @@ async def warmup_cache(request: Request):
 
 
 @QA.route("/doc_version", methods=["GET"])
+@openapi.description("Get the information about the document in knowledge base.")
+@openapi.response(
+    200,
+    {
+        API_CONTENT_TYPE: DocInfo.schema(),
+    },
+)
+@openapi.response(500, {API_CONTENT_TYPE: ErrorResponse.schema()})
 async def doc_version(request: Request):  # pylint: disable=unused-argument
     """
     get the doc version and timestamp
@@ -90,19 +132,27 @@ async def doc_version(request: Request):  # pylint: disable=unused-argument
     # pylint: disable=broad-except
     try:
         index_version = cache.get_index_version()
-        return json(
-            {
-                "success": True,
-                "version": index_version.uuid,
-                "timestamp": str(index_version.timestamp),
-            }
+        return jtext(
+            DocInfo(
+                success=True,
+                version=index_version.uuid,
+                timestamp=index_version.timestamp,
+            )
         )
     except Exception as e:
         logging.exception(e)
-        return json({"success": False, "error": str(e)})
+        return jtext(ErrorResponse(success=False, error=str(e)))
 
 
 @QA.route("/process_file", methods=["POST"])
+@openapi.description("Upload file as the new knowledge base.")
+@openapi.response(
+    200,
+    {
+        API_CONTENT_TYPE: ResponseBase.schema(),
+    },
+)
+@openapi.response(500, {API_CONTENT_TYPE: ErrorResponse.schema()})
 async def process_file(request: Request):
     """
     POST endpoint to process file"""

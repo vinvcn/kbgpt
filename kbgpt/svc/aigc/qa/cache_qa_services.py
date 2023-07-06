@@ -1,10 +1,10 @@
 import logging
-from typing import Tuple
 
 from langchain.callbacks import OpenAICallbackHandler
 from sanic import Sanic
 
 from config import profile
+from kbgpt.api.aigc.qa_models import QAResponse
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql.qa_record import QARecord
 from kbgpt.lib.logging import alog
@@ -20,24 +20,24 @@ class ProxiedQAAgent:
         self.agent = agent
         self.app = app
 
-    def _create_result(self, ans: str, stats: OpenAICallbackHandler, cached: bool):
+    def _create_result(self, ans: str, stats: OpenAICallbackHandler, cached: bool) -> QAResponse:
         """
         Create the result
         """
-        return {
-            "success": True,
-            "answer": ans,
-            "total_tokens": stats.total_tokens,
-            "total_cost": stats.total_cost,
-            "prompt_tokens": stats.prompt_tokens,
-            "completion_tokens": stats.completion_tokens,
-            "successful_requests": stats.successful_requests,
-            "hit_cache": cached,
-        }
+        return QAResponse(
+            success=True,
+            answer=ans,
+            total_tokens=stats.total_tokens,
+            total_cost=stats.total_cost,
+            prompt_tokens=stats.prompt_tokens,
+            completion_tokens=stats.completion_tokens,
+            successful_requests=stats.successful_requests,
+            hit_cache=cached
+        )
 
     async def _answer_question_with_cache(
         self, question: str, **kwargs
-    ) -> Tuple[str, OpenAICallbackHandler, bool]:
+    ) -> QAResponse:
         cache:RedisCacheStoreStrategy = self.app.ctx.redicache
         cached = None
         try:
@@ -69,7 +69,7 @@ class ProxiedQAAgent:
     @alog(QARecord)
     async def answer_question(
         self, question: str, streaming: bool = False, callbacks=None
-    ) -> Tuple[str, OpenAICallbackHandler, bool]:
+    ) -> QAResponse:
         """
         Answer a question as a customer service agent
         """

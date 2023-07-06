@@ -207,10 +207,10 @@ class QAagent(AbstractAgent):
         """
         Load the stuff chain for the customer service agent"""
 
-        PROMPT = PromptTemplate(
+        prompt = PromptTemplate(
             template=STUFF_TEMPLATE, input_variables=["context", "question"]
         )
-        chain = load_qa_chain(llm, chain_type="stuff", verbose=True, prompt=PROMPT)
+        chain = load_qa_chain(llm, chain_type="stuff", verbose=True, prompt=prompt)
         return chain
 
 

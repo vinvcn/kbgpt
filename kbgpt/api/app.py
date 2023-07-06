@@ -12,11 +12,13 @@ from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 
 from .aigc import AIGC
 from .legacy.apis import LEGACY
+from .senti import SENSHIP
 
 app = Sanic(profile.sanic.app_name)
 
 
 app.blueprint(AIGC)
+app.blueprint(SENSHIP)
 app.blueprint(LEGACY)
 
 
