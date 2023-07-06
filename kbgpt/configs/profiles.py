@@ -78,12 +78,17 @@ class Indexing(SuperConfig):
     flush_before_write: bool
     customer_service_index: str
 
+class Sentiment(SuperConfig):
+    """ sentiment analysis """
+
+    analysis_model: str
 
 class Profile(SuperConfig):
     """Profile configs"""
 
     sanic: Sanic
     comment: COMMENT
+    sentiment: Sentiment
     qa: QA
     embedding: Embedding
     vector_store: VectorStore

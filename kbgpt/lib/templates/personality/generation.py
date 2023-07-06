@@ -1,54 +1,10 @@
-from typing import List
-from pydantic import BaseModel
-from random import sample, choices
-import abc
 from functools import partial
+from typing import List
 
-
-class Expandable(abc.ABC):
-    """represents a class that can be expand to text"""
-
-    @abc.abstractmethod
-    def expand(self) -> str:
-        """expand to text"""
-
-
-class Emoji(BaseModel, Expandable):
-    """emoji config"""
-
-    weight: float = 10.0
-    text: str = ""
-
-    def expand(self) -> str:
-        return self.text
-
-
-class Indexer(BaseModel):
-    """indexer"""
-
-    index: int
-    weight: float = 10.0
-
-
-class Tone(BaseModel, Expandable):
-    """tone configuration"""
-
-    weight: float = 10.0
-    texts: List[str]
-
-    def __add__(self, other):
-        wt = min(self.weight, other.weight)
-        tt = self.texts + other.texts
-        return Tone(weight=wt, texts=tt)
-
-    def expand(self) -> str:
-        if not self.texts:
-            return ""
-        if len(self.texts) == 1:
-            return self.texts[0]
-        else:
-            prefix = ", ".join(self.texts[:-1])
-            return f"{prefix} and {self.texts[-1]}"
+from kbgpt.lib.templates.personality.models import (Emoji, Indexer,
+                                                    Personality,
+                                                    PersonalityRepo,
+                                                    RandomStrategy, Tone)
 
 
 def index_and_update(tones: List[Tone], idx: Indexer) -> Tone:
@@ -71,40 +27,6 @@ def select_indexes(tones: List[Tone], selectors: List[List[Indexer]]) -> List[To
     """select all indexes"""
     selected = [select_and_merge(tones, ls_idx) for ls_idx in selectors]
     return [sel for sel in selected if sel]
-
-
-
-
-class Personality(BaseModel):
-    """personality"""
-
-    weight: float = 10.0
-    personality: List[str]
-    emoji: List[Emoji]
-    tone_of_voice: List[Tone]
-
-    def expand(self):
-        """expand it to text"""
-        per = sample(self.personality, 1)[0]
-        if self.emoji:
-            emo = choices(self.emoji, [e.weight for e in self.emoji])[0]
-            emo = emo.expand()
-        else:
-            emo = ""
-        if self.tone_of_voice:
-            ton = choices(self.tone_of_voice, [t.weight for t in self.tone_of_voice])[0]
-            ton = f"You are in a tone of {ton.expand()}."
-        else:
-            ton = ""
-        return f"{per} {emo} {ton}"
-
-    @staticmethod
-    def pick_one(lst_of_persons):
-        """randomly pick one from list"""
-        lst: List[Personality] = lst_of_persons
-        weights = [p.weight for p in lst]
-        results = choices(lst, weights=weights)
-        return results[0]
 
 
 EMO_NO = Emoji(text="", weight=5.0)
@@ -154,6 +76,7 @@ PER_CALL_ATT = Personality(
     personality=[
         "You don't know much about the topic, but you just want to call the attention of the audience."
     ],
+    name="attention_seeker",
     emoji=EMOJI_LIST,
     tone_of_voice=select_and_sum(
         [
@@ -172,6 +95,7 @@ confident", "persuasive", "professional", "authoritative", "informative",
 """
 PER_INSIDER = Personality(
     personality=["You know something inside about it and you want to share it."],
+    name="insider",
     emoji=EMOJI_LIST,
     tone_of_voice=select_and_sum(
         [
@@ -189,6 +113,7 @@ playful", "joyful", "friendly", "excited"
 """
 PER_SHARING = Personality(
     personality=["Generate some knowledge about the topic and share it."],
+    name="sharing",
     emoji=EMOJI_LIST,
     tone_of_voice=select_and_sum(
         [
@@ -206,6 +131,7 @@ PER_SHARING = Personality(
 """
 PER_DEMANDER = Personality(
     personality=["Appreciate it, and ask for more. "],
+    name="thanker",
     emoji=EMOJI_LIST,
     tone_of_voice=select_and_sum(
         [Indexer(index=3), Indexer(index=10), Indexer(index=0), Indexer(index=1)]
@@ -217,6 +143,7 @@ PER_DEMANDER = Personality(
 """
 PER_PRAISER = Personality(
     personality=["Use less than 5 words to say thanks."],
+    name="short_thanker",
     emoji=EMOJI_LIST,
     tone_of_voice=select_and_sum(
         [Indexer(index=10), Indexer(index=0), Indexer(index=1)]
@@ -230,6 +157,7 @@ PER_PICKER = Personality(
     personality=[
         "Find out something important that's missing and ask for it, using emoji. "
     ],
+    name="picker_emojist",
     emoji=EMOJI_LIST,
     tone_of_voice=select_and_sum(
         [Indexer(index=0), Indexer(index=11), Indexer(index=10)]
@@ -243,12 +171,14 @@ PER_LOCATE = Personality(
     personality=[
         "Pick a random state in india, tell that you are from there, and praise the post."
     ],
+    name="state_thanker",
     emoji=EMOJI_LIST,
     tone_of_voice=select_and_sum(
         [Indexer(index=0), Indexer(index=11), Indexer(index=4)]
     ),
     weight=1.0,
 )
+
 
 """
 "analytical", "serious", "confident"
@@ -263,6 +193,7 @@ You do it step by step:
 """
 PER_ANALYTICAL = Personality(
     personality=[TEMP_COT],
+    name="emojist",
     emoji=EMOJI_LIST,
     tone_of_voice=select_and_sum(
         [Indexer(index=12), Indexer(index=13), Indexer(index=5)]
@@ -280,27 +211,4 @@ PERSONALITY = [
     PER_ANALYTICAL,
 ]
 
-TEMPLATE_ALL_WAYS = """
-Now forget who you are. Your new role is human reading a post from a web forum, your job is to write a sentence for the post. 
-{personality}
-
-
-Post Content:
----
-
-{title}
-
-{content}
-
----
-
-Your reply:
-"""
-
-
-def get_prompt_with_personality(title: str, content: str) -> str:
-    """get prompt with personality"""
-    person = Personality.pick_one(PERSONALITY)
-    return TEMPLATE_ALL_WAYS.format(
-        content=content, title=title, personality=person.expand()
-    )
+PERSONALITY_REPO = PersonalityRepo(p_list=PERSONALITY, strategy=RandomStrategy.WEIGHT)

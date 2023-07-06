@@ -9,10 +9,12 @@ from aiofiles import open as aopen
 from aiofiles import tempfile
 from redis.exceptions import LockError
 from sanic import Request, Sanic
-from sanic.response import JSONResponse, json
+from sanic.response import JSONResponse
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
+from kbgpt.api.libs.base_model import ErrorResponse, ResponseBase
+from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql.process_file_record import ProcessFileRecord
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
@@ -109,10 +111,10 @@ class ProxiedDocAgent:
                 await add_files_to_customer_service(paths, flush_index=True)
             if is_refresh:
                 sanic_app.add_task(warmup_task(sanic_app))
-            return json({"success": True})
+            return jtext(ResponseBase(success=True))
         except Exception as e:
             logging.exception(e)
-            return json({"success": False, "error": str(e)})
+            return jtext(ErrorResponse(success=False, error=str(e)))
 
     async def refresh_cache(self, sanic_app: Sanic, request: Request) -> JSONResponse:
         """
@@ -121,7 +123,7 @@ class ProxiedDocAgent:
         # pylint: disable=broad-except
         try:
             sanic_app.add_task(warmup_task(sanic_app))
-            return json({"success": True})
+            return jtext(ResponseBase(success=True))
         except Exception as e:
             logging.exception(e)
-            return json({"success": False, "error": str(e)})
+            return jtext(ErrorResponse(success=False, error=str(e)))

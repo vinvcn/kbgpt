@@ -15,7 +15,7 @@ from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.lock import Lock
 
 from config import profile as global_p
-from configs.profiles import Profile
+from kbgpt.configs.profiles import Profile
 from kbgpt.lib.constants import (CACHE_STATUS_KEY, INDEX_VERSION_KEY,
                                  REDIS_DOCUMENT_LOCK_NAME, CacheStatus)
 from kbgpt.lib.db import (CacheMetadata, Document, IndexVersion, cache_status,

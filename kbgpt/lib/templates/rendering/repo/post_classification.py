@@ -8,7 +8,7 @@ OTHERS = "OTHERS"
 CATEGORIES = [
     INFORMATION, GREETINGS, MEANINGLESS, HARMFUL, OFFENSIVE, POLITICAL, OTHERS
 ]
-CLASSFIER_TEMPLATE = f"""
+TEMPLATE = f"""
     You are a maintainer of a internet forum, your job is to classify posts into categories. 
     The categories are: {", ".join(CATEGORIES)}
     Example:
@@ -26,3 +26,5 @@ CLASSFIER_TEMPLATE = f"""
 """
 
 CATEGORY_TO_IGNORE = [HARMFUL, OFFENSIVE, POLITICAL]
+
+KEYWORDS = ["title", "content"]

@@ -11,6 +11,8 @@ DEFAULT:
     WORKERS: 1
   COMMENT:
     GENERATIVE_MODEL: "gpt-3.5-turbo"
+  SENTIMENT:
+    ANALYSIS_MODEL: "gpt-3.5-turbo"
   QA:
     EMBEDDINGS_MODEL: "text-embedding-ada-002"
     GENERATIVE_MODEL: "gpt-3.5-turbo"
