@@ -1,7 +1,7 @@
 from typing import List
 
 import openai
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kbgpt.svc.utils.openai import get_total_cost
 
@@ -15,7 +15,7 @@ class Usage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
-    cost: float
+    cost: float = Field(0.0)
 
     def __init__(self, model: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -32,11 +32,22 @@ class OpenAI:
         pass
 
     async def chat_completion(self, model: str, messages: List[Message]) -> Completion:
-        """ chat completion """
-        completion = openai.ChatCompletion.acreate(
-            model=model, messages=[m.json() for m in messages]
+        """chat completion"""
+        completion = await openai.ChatCompletion.acreate(
+            model=model, messages=[m.dict() for m in messages]
         )
 
-        usage = Usage(**completion["usage"])
+        usage = Usage(model, **completion["usage"])
         content = completion.choices[0].message["content"]
         return Completion(usage=usage, content=content)
+
+    async def list_models(self):
+        result = await openai.Model.alist()
+        print(result)
+
+    async def completion(self, *args, **kwargs) -> Completion:
+        """
+        wrapper of https://platform.openai.com/docs/api-reference/completions/create
+        """
+
+        completion = await openai.Completion.acreate(*args, **kwargs)
