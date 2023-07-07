@@ -29,7 +29,7 @@ def select_indexes(tones: List[Tone], selectors: List[List[Indexer]]) -> List[To
     return [sel for sel in selected if sel]
 
 
-EMO_NO = Emoji(text="", weight=5.0)
+EMO_NO = Emoji(text="You do not use emoji.", weight=15.0)
 EMO_SOME = Emoji(text="You love to use emojis alot.", weight=20.0)
 EMO_ALL = Emoji(text="You only use emojis in your reply.", weight=10.0)
 
@@ -212,3 +212,10 @@ PERSONALITY = [
 ]
 
 PERSONALITY_REPO = PersonalityRepo(p_list=PERSONALITY, strategy=RandomStrategy.WEIGHT)
+
+def to_json():
+    """ dump to json """
+    print(PERSONALITY_REPO.json(indent=4))
+
+if __name__ == "__main__":
+    to_json()

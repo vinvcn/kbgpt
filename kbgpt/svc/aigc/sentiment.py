@@ -1,4 +1,10 @@
+import json
+import logging
+from json.decoder import JSONDecodeError
+
 import openai
+from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
+                      wait_fixed)
 
 from config import profile
 from kbgpt.api.senti.models import Sentiment, SentimentResponse
@@ -9,15 +15,21 @@ from kbgpt.svc.utils.openai import get_total_cost
 
 
 class SentimentAgent:
-    """ sentiment analysis agent """
+    """sentiment analysis agent"""
 
     def __init__(self) -> None:
         super().__init__()
         self.engine = SimpleEngine(name="sentiment")
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_fixed(3),
+        retry=retry_if_exception_type(JSONDecodeError),
+        reraise=True
+    )
     @alog(SentimentRecord)
     async def analyze(self, req: Sentiment) -> SentimentResponse:
-        """ analyze the sentiment according to the request """
+        """analyze the sentiment according to the request"""
 
         prompt = await self.engine.agenerate(**req.dict())
         completion = await openai.ChatCompletion.acreate(
@@ -31,12 +43,14 @@ class SentimentAgent:
         cost = get_total_cost(
             profile.comment.generative_model, promp_tokens, comp_tokens
         )
-        content = completion.choices[0].message["content"]
-        split = [s for s in content.split("\n") if s]
+        content:str = completion.choices[0].message["content"]
+        obj = json.loads(content)
+        logging.info("got result:")
+        logging.info(obj)
 
         return SentimentResponse(
-            level=split[0],
-            description=split[1],
+            level=obj["level"],
+            description=obj["description"],
             prompt_tokens=promp_tokens,
             comp_tokens=comp_tokens,
             total_tokens=total_tokens,
