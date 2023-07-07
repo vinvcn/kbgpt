@@ -83,7 +83,7 @@ async def answer_question(request: Request, body: Question):
         result = await agent.answer_question(
             question=question, streaming=True, callbacks=callbacks
         )
-        await response.send(f"data: {dumps(result)}")
+        await response.send(f"data: {result.json()}")
     except Exception as e:
         logging.exception(e)
         obj = {"success": False, "error": str(e)}

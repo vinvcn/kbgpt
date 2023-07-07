@@ -7,6 +7,8 @@ You need to decide whether or not the comment and ratings is malicious to the pr
 
 The result should be 0 for totally negative and 10 for totally positive. You also provide a description for the result. Do not provide any explaination.
 
+The result should be in json format.
+
 
 Example 1:
 comment:
@@ -14,8 +16,10 @@ As a football player myself, I'm really happy for the results, more importantly 
 rating:
 5
 result:
-10
-Totally Positive
+{{
+    "level": 10,
+    "description: "Totally Positive"
+}}
 
 Case 2:
 comment:
@@ -23,8 +27,10 @@ This product is a total waste of money! It broke after just a few uses and the c
 rating:
 0
 result:
-0
-Totally Negative
+{{
+    "level": 0,
+    "description": "Totally Negative"
+}}
 
 
 Case 3:
@@ -33,8 +39,10 @@ The product has both positive and negative aspects. While it offers good functio
 rating:
 3
 result:
-5
-Neutral
+{{
+    "level": 5,
+    "description": "Neutral"
+}}
 
 
 Case 4:

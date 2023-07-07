@@ -3,6 +3,7 @@ comment apis
 """
 
 import logging
+import traceback
 
 from sanic import Blueprint, Request
 from sanic_ext import openapi, validate
@@ -35,4 +36,5 @@ async def get_sentiment(request: Request, body: Sentiment):
         return jtext(result)
     except Exception as e: # pylint: disable=broad-exception-caught
         logging.exception(e)
-        return jtext(ErrorResponse(success=False, error=str(e)))
+        error_msg = "".join(traceback.format_exception(e))
+        return jtext(ErrorResponse(success=False, error=error_msg))
