@@ -1,6 +1,7 @@
 """
 base model module
 """
+
 from pydantic import BaseModel, Field
 
 
@@ -18,9 +19,17 @@ class ErrorResponse(BaseModel):
 
 
 class ResponseBase(BaseModel):
-    """base class of api response"""
+    """ response base """
 
     success: bool = Field(True)
+
+    def json(self, *args, **kwargs) -> str:
+        return super().json(*args, ensure_ascii=False, **kwargs)
+
+
+class OpenAIResponseBase(ResponseBase):
+    """base class of api response"""
+
     prompt_tokens: int = Field(0, exclude=True)
     comp_tokens: int = Field(0, exclude=True)
     total_tokens: int = Field(0, exclude=True)

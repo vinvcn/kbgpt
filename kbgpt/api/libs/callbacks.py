@@ -11,6 +11,9 @@ class Token(BaseModel):
     """ OpenAI token """
     token: str
 
+    def json(self, *args, **kwargs):
+        return super().json(*args, ensure_ascii=False, **kwargs)
+
 
 # pylint: disable = abstract-method
 class StreamingAsyncHandler(AsyncCallbackHandler):
