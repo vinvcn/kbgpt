@@ -7,11 +7,13 @@ from kbgpt.svc.utils.openai import get_total_cost
 
 
 class Message(BaseModel):
+    """ messages for a completion call """
     role: str
     content: str
 
 
 class Usage(BaseModel):
+    """ OpenAI usage object """
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -20,6 +22,15 @@ class Usage(BaseModel):
     def __init__(self, model: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.cost = get_total_cost(model, self.prompt_tokens, self.completion_tokens)
+
+    def __add__(self, val2: "Usage") -> "Usage":
+        """ add method """
+        return Usage(
+            self.prompt_tokens + val2.prompt_tokens,
+            self.completion_tokens + val2.completion_tokens,
+            self.total_tokens + val2.total_tokens,
+            self.cost + val2.cost,
+        )
 
 
 class Completion(BaseModel):

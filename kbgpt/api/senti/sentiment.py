@@ -2,15 +2,13 @@
 comment apis
 """
 
-import logging
-import traceback
 
 from sanic import Blueprint, Request
 from sanic_ext import openapi, validate
 
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse
-from kbgpt.api.libs.utils import jtext
+from kbgpt.api.libs.utils import invoke_agent
 from kbgpt.api.senti.models import Sentiment, SentimentResponse
 from kbgpt.svc.aigc.sentiment import SentimentAgent
 
@@ -30,11 +28,4 @@ SENTIMENT = Blueprint("sentiment", url_prefix="senti")
 @validate(json=Sentiment)
 async def get_sentiment(request: Request, body: Sentiment):
     """Get the sentiment for the given content"""
-    agent = SentimentAgent()
-    try:
-        result = await agent.analyze(body)
-        return jtext(result)
-    except Exception as e: # pylint: disable=broad-exception-caught
-        logging.exception(e)
-        error_msg = "".join(traceback.format_exception(e))
-        return jtext(ErrorResponse(success=False, error=error_msg))
+    return await invoke_agent(request.app, SentimentAgent, body)

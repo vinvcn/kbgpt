@@ -1,0 +1,23 @@
+{
+    "nifty50_index_stats": {
+        "entry_key": "kline:day:bfq:NSE-Nifty 50 Index",
+        "window_size_in_day": 1
+    },
+    "sensex50_index_stats": {
+        "entry_key": "kline:day:bfq:NSE-S&P BSE SENSEX 50 Index",
+        "window_size_in_day": 1
+    },
+    "equity_fund_stats": {
+        "entry_key": "market-data-crawling-service:fund:ranking:navchange:Equity",
+        "window_size_in_day": 1
+    },
+    "debts_fund_stats": {
+        "entry_key": "market-data-crawling-service:fund:ranking:navchange:Debt",
+        "window_size_in_day": 1
+    },
+    "top_fund_stats": {
+        "entry_key": "market-data-crawling-service:fund:ranking:navchange:All",
+        "info_key": "market-data-crawling-service:fund:info:base",
+        "window_size_in_day": 1
+    }
+}

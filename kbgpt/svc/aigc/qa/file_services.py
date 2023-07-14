@@ -13,7 +13,7 @@ from sanic.response import JSONResponse
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
-from kbgpt.api.libs.base_model import ErrorResponse, ResponseBase
+from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql.process_file_record import ProcessFileRecord
@@ -111,7 +111,7 @@ class ProxiedDocAgent:
                 await add_files_to_customer_service(paths, flush_index=True)
             if is_refresh:
                 sanic_app.add_task(warmup_task(sanic_app))
-            return jtext(ResponseBase(success=True))
+            return jtext(OpenAIResponseBase(success=True))
         except Exception as e:
             logging.exception(e)
             return jtext(ErrorResponse(success=False, error=str(e)))
@@ -123,7 +123,7 @@ class ProxiedDocAgent:
         # pylint: disable=broad-except
         try:
             sanic_app.add_task(warmup_task(sanic_app))
-            return jtext(ResponseBase(success=True))
+            return jtext(OpenAIResponseBase(success=True))
         except Exception as e:
             logging.exception(e)
             return jtext(ErrorResponse(success=False, error=str(e)))

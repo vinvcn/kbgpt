@@ -2,10 +2,10 @@
 
 from pydantic import BaseModel, Field
 
-from kbgpt.api.libs.base_model import ResponseBase
+from kbgpt.api.libs.base_model import OpenAIResponseBase
 
 
-class SentimentResponse(ResponseBase):
+class SentimentResponse(OpenAIResponseBase):
     """ sentiment response """
 
     level: int

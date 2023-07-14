@@ -83,16 +83,23 @@ class Sentiment(SuperConfig):
 
     analysis_model: str
 
+class Report(SuperConfig):
+    """ market report """
+
+    redis_url: RedisDsn
+    backend_admin_url: AnyUrl
+
 class Profile(SuperConfig):
     """Profile configs"""
 
     sanic: Sanic
     comment: COMMENT
     sentiment: Sentiment
+    report: Report
     qa: QA
     embedding: Embedding
     vector_store: VectorStore
     cache: Cache
     indexing: Indexing
     db_url: AnyUrl
-
+    generative_model: str

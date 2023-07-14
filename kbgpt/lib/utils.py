@@ -1,7 +1,9 @@
 import hashlib
+import logging
 from enum import Enum
 
 import requests
+import yaml
 
 
 def md5_url_content(url) -> str:
@@ -40,6 +42,14 @@ def md5_file_content(path) -> str:
     return hex_digest
 
 
+def snake_to_camel(snake_case: str):
+    """
+    convert snake case string to camel case
+    """
+    words = snake_case.split('_')
+    return ''.join(word.capitalize() for word in words)
+
+
 class ContentType(Enum):
     """
     create an enum for the different types of content:
@@ -72,3 +82,13 @@ class ContentType(Enum):
             return ContentType.DOCX
         else:
             raise ValueError(f"path {path} not supported")
+
+
+def load_yaml_config(path):
+    """Load a yaml file and return a dictionary of its contents."""
+    try:
+        with open(path, "r", encoding="utf-8") as stream:
+            return yaml.safe_load(stream)
+    except yaml.YAMLError as exc:
+        logging.exception(exc)
+        return None

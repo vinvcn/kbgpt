@@ -11,13 +11,14 @@ from kbgpt.api.senti.models import Sentiment, SentimentResponse
 from kbgpt.lib.db.mysql.sentiment_record import SentimentRecord
 from kbgpt.lib.logging import alog
 from kbgpt.lib.templates.engine import SimpleEngine
+from kbgpt.svc.aigc import Agent
 from kbgpt.svc.utils.openai import get_total_cost
 
 
-class SentimentAgent:
+class SentimentAgent(Agent):
     """sentiment analysis agent"""
 
-    def __init__(self) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__()
         self.engine = SimpleEngine(name="sentiment")
 
