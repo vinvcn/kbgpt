@@ -2,21 +2,15 @@
 engine module
 """
 import abc
-import asyncio
-from datetime import date, datetime, timedelta
-from textwrap import indent
-from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
+from datetime import date
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
-from kbgpt.api.aigc.report_models import Report, Type
-from kbgpt.lib.templates import personality
+from kbgpt.api.aigc.report_models import Report
 from kbgpt.lib.templates.personality.models import PersonalityRepo
 from kbgpt.lib.templates.rendering.models import TemplateRepo
-from kbgpt.lib.templates.report.models.daily_data import DailyData
-from kbgpt.lib.templates.report.models.weekly_data import WeeklyData
-from kbgpt.lib.templates.report.source import (DailyReport, StatsProvider,
-                                               WeeklyReport)
+from kbgpt.lib.templates.report.source import ReportDataSource
 
 # class Op(metaclass=abc.ABCMeta):
 #     """
@@ -96,18 +90,14 @@ class ReportEngine(Engine):
 
     def __init__(self, tmp_repo: TemplateRepo):
         self.tmp_repo = tmp_repo
+        self.data_source = ReportDataSource()
 
     async def agenerate(
-        self,
-        *args,
-        data_provider: Callable[..., Awaitable[BaseModel]],
-        name: str,
-        **kwargs
+        self, dt: date, req: Report, name: str, **kwargs
     ) -> EngineResult:
         """
         generate template
         """
-
-        data = await data_provider()
+        data = await self.data_source(dt, req)
         result = await self.tmp_repo.render(name=name, data=data.json(indent=4))
         return EngineResult(content=result, metadata={"data": data.json()})
