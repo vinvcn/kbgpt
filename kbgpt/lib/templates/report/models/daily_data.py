@@ -45,7 +45,7 @@ class Index(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.navChange = round(
-            100 * (self.closePrice - self.preClose) / self.preClose, 2
+            100 * (self.closePrice - self.openPrice) / self.openPrice, 2
         )
 
 

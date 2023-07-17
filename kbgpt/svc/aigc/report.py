@@ -16,13 +16,8 @@ from sanic import Sanic
 from config import profile
 from kbgpt.api.aigc.report_models import (Report, ReportResponse, ToVoice,
                                           ToVoiceResponse, Type)
-from kbgpt.api.libs.resources import ResourceMgr
-from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.llm.openai import Message, OpenAI
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
-from kbgpt.lib.templates.rendering.models import (MySqlTemplateProvider,
-                                                  TemplateRepo)
-from kbgpt.lib.templates.report.source import DailyReport, WeeklyReport
 from kbgpt.svc.aigc import Agent
 
 
@@ -39,11 +34,9 @@ class ReportAgent(Agent):
         """analyze the request and provide response"""
 
         dt = req.date if req.date else date.today()
-        data_provider = DailyReport() if req.type == Type.DAILY else WeeklyReport()
-        data_provider = partial(data_provider, dt=dt)
 
         engine_result = await self.report_engine.agenerate(
-            data_provider=data_provider, name=f"report_{req.type.value}"
+            dt, req, f"report_{req.type.value}"
         )
         prompt1 = engine_result.content
         completion1 = await self.openai.chat_completion(
