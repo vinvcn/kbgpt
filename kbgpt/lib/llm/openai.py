@@ -1,7 +1,6 @@
 from typing import List
 
 import openai
-import prompt_toolkit
 from pydantic import BaseModel, Field
 
 from kbgpt.svc.utils.openai import get_total_cost
