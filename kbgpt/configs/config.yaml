@@ -17,7 +17,6 @@ DEFAULT:
   REPORT:
     REDIS_URL: "redis://18.139.228.114:6380/0"
     BACKEND_ADMIN_URL: "http://test1.backend-admin.testbs.surfin.sg/v1/internal/aigc/create"
-    TRENDING_URL: "http://mb-api-gateway.testbs.surfin.sg"
   QA:
     EMBEDDINGS_MODEL: "text-embedding-ada-002"
     GENERATIVE_MODEL: "gpt-3.5-turbo"

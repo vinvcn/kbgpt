@@ -57,12 +57,12 @@ class WeeklyData(BaseModel):
     endTradeDate: date
     nifty50: Index
     sensex50: Index
-    # weekLyOpenAum: float
-    # weekLyCloseAum: float
-    # weekLyAumChange: float = Field(0.0)
+    weekLyOpenAum: float
+    weekLyCloseAum: float
+    weekLyAumChange: float = Field(0.0)
     weekLyCapitalFlow: float = Field(0.0)
-    # risingSectors: SectorsIndex
-    # downingSectors: SectorsIndex
+    risingSectors: SectorsIndex
+    downingSectors: SectorsIndex
     equityFundMarket: EquityFundMarket
     debtFundMarket: DebtFundMarket
     topRisingFunds: List[FundInfo]
@@ -70,7 +70,7 @@ class WeeklyData(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # self.weekLyCapitalFlow = (self.weekLyCloseAum - self.weekLyOpenAum) / 1000000000
-        # self.weekLyAumChange = round(
-        #     100 * (self.weekLyCloseAum - self.weekLyOpenAum) / self.weekLyOpenAum, 4
-        # )
+        self.weekLyCapitalFlow = (self.weekLyCloseAum - self.weekLyOpenAum) / 1000000000
+        self.weekLyAumChange = round(
+            100 * (self.weekLyCloseAum - self.weekLyOpenAum) / self.weekLyOpenAum, 4
+        )

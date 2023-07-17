@@ -88,7 +88,6 @@ class Report(SuperConfig):
 
     redis_url: RedisDsn
     backend_admin_url: AnyUrl
-    trending_url: AnyUrl
 
 class Profile(SuperConfig):
     """Profile configs"""
