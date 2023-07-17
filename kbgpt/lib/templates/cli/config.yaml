@@ -1,0 +1,14 @@
+config:
+  repo:
+    template:
+      path: "../rendering/repo/.repo/"
+  redis:
+    local: "redis://127.0.0.1:6379"
+    fat: "redis://debug.testbs.surfin.sg:30007"
+    pre: "redis://"
+    pro: "redis://3.6.141.226:6380"
+  mysql:
+    local: "mysql+pymysql://user:password@localhost:3306/db"
+    fat:
+    pre:
+    pro:

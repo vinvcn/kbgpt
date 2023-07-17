@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Awaitable, Callable, List, Optional
 
 from pydantic import BaseModel, Field
+from redis import Redis
 
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.db.mysql.prompt_template import PromptTemplate
@@ -64,9 +65,25 @@ class MySqlTemplateProvider:
         )
 
 
+class RedisTemplateKeyFactory:
+    def __call__(self, temp_id: str):
+        return f"template:bullsmart:{temp_id}"
+
+
+class RedisTemplateProvider:
+    def __init__(self, redis: Redis) -> None:
+        self.redis = redis
+        self.key_factory = RedisTemplateKeyFactory()
+
+    async def __call__(self, *args: Any, template_id: str, **kwds: Any) -> Template:
+        key = self.key_factory(template_id)
+        temp = Template.parse_raw(self.redis.json().get(key))
+        return temp
+
+
 class TemplateRepo:
     """template repository"""
-    
+
     def __init__(self, provider: Callable[[str], Awaitable[Template]]):
         self.provider = provider
 
@@ -74,11 +91,18 @@ class TemplateRepo:
         return await self.provider(template_id=name)
 
     async def render(self, name: str, *args, **kwargs) -> str:
-        temp_orm = await self.pick_one(name=name)
-        if not temp_orm:
+        template = await self.pick_one(name=name)
+        if not template:
             raise ValueError(f"template name {name} not found")
-        temp = Template.from_orm(temp_orm)
-        return temp.render(*args, **kwargs)
+        return template.render(*args, **kwargs)
 
 
-MOD_TMP_REPO = TemplateRepo(ModTemplateProvider())
+# class DataRepo:
+
+#     def __init__(self) -> None:
+#         pass
+
+
+#     async def pick_one(self, name: str) -> DataProvider:
+
+# MOD_TMP_REPO = TemplateRepo(ModTemplateProvider())

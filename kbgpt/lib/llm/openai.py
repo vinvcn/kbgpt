@@ -1,35 +1,41 @@
 from typing import List
 
 import openai
+import prompt_toolkit
 from pydantic import BaseModel, Field
 
 from kbgpt.svc.utils.openai import get_total_cost
 
 
 class Message(BaseModel):
-    """ messages for a completion call """
+    """messages for a completion call"""
+
     role: str
     content: str
 
 
 class Usage(BaseModel):
-    """ OpenAI usage object """
+    """OpenAI usage object"""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
     cost: float = Field(0.0)
 
-    def __init__(self, model: str, *args, **kwargs):
+    def __init__(self, model: str=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cost = get_total_cost(model, self.prompt_tokens, self.completion_tokens)
+        if model:
+            self.cost = get_total_cost(
+                model, self.prompt_tokens, self.completion_tokens
+            )
 
     def __add__(self, val2: "Usage") -> "Usage":
-        """ add method """
+        """add method"""
         return Usage(
-            self.prompt_tokens + val2.prompt_tokens,
-            self.completion_tokens + val2.completion_tokens,
-            self.total_tokens + val2.total_tokens,
-            self.cost + val2.cost,
+            prompt_tokens=self.prompt_tokens + val2.prompt_tokens,
+            completion_tokens=self.completion_tokens + val2.completion_tokens,
+            total_tokens=self.total_tokens + val2.total_tokens,
+            cost=self.cost + val2.cost,
         )
 
 

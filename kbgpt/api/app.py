@@ -1,6 +1,7 @@
 """
 web app
 """
+from redis import Redis
 from sanic import Sanic
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 
@@ -9,6 +10,9 @@ from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
+from kbgpt.lib.templates.rendering.models import (MySqlTemplateProvider,
+                                                  RedisTemplateProvider,
+                                                  TemplateRepo)
 
 from .aigc import AIGC
 from .legacy.apis import LEGACY
@@ -38,6 +42,8 @@ async def setup_resources(sanic_app: Sanic, loop):
     sanic_app.ctx.res = mgr
 
     sanic_app.ctx.redicache = RedisCacheStoreStrategy()
+    redis = Redis.from_url(profile.vector_store.redis_url)
+    sanic_app.ctx.temp_repo = TemplateRepo(RedisTemplateProvider(redis))
     sanic_app.add_task(sql_emitter.aloop_drain(), name="sql_emitter_drain_loop")
 
 

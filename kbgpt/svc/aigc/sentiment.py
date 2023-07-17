@@ -32,7 +32,8 @@ class SentimentAgent(Agent):
     async def analyze(self, req: Sentiment) -> SentimentResponse:
         """analyze the sentiment according to the request"""
 
-        prompt = await self.engine.agenerate(**req.dict())
+        engine_result = await self.engine.agenerate(**req.dict())
+        prompt = engine_result.content
         completion = await openai.ChatCompletion.acreate(
             model=profile.sentiment.analysis_model,
             messages=[{"role": "user", "content": prompt}],

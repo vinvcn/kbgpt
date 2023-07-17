@@ -2,6 +2,7 @@ import datetime
 import logging
 import tempfile
 from datetime import date, datetime, timedelta
+from functools import partial
 from os.path import basename
 from typing import Tuple
 from urllib.parse import urlsplit
@@ -21,6 +22,7 @@ from kbgpt.lib.llm.openai import Message, OpenAI
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
 from kbgpt.lib.templates.rendering.models import (MySqlTemplateProvider,
                                                   TemplateRepo)
+from kbgpt.lib.templates.report.source import DailyReport, WeeklyReport
 from kbgpt.svc.aigc import Agent
 
 
@@ -29,41 +31,48 @@ class ReportAgent(Agent):
 
     def __init__(self, app: Sanic) -> None:
         super().__init__()
-        res: ResourceMgr = app.ctx.res
-        crud = res.get(Crud.__name__)
-        self.report_engine = ReportEngine(TemplateRepo(MySqlTemplateProvider(crud)))
-        self.polish_engine = SimpleEngine(name="report_polish")
+        self.report_engine = ReportEngine(app.ctx.temp_repo)
+        self.polish_engine = SimpleEngine("report_polish", app.ctx.temp_repo)
         self.openai = OpenAI()
 
     async def analyze(self, req: Report) -> ReportResponse:
         """analyze the request and provide response"""
 
         dt = req.date if req.date else date.today()
+        data_provider = DailyReport() if req.type == Type.DAILY else WeeklyReport()
+        data_provider = partial(data_provider, dt=dt)
 
-        prompt1, data = await self.report_engine.agenerate(dt=dt, report_type=req.type)
+        engine_result = await self.report_engine.agenerate(
+            data_provider=data_provider, name=f"report_{req.type.value}"
+        )
+        prompt1 = engine_result.content
         completion1 = await self.openai.chat_completion(
             profile.generative_model, [Message(role="system", content=prompt1)]
         )
         logging.debug("filled template")
-        logging.debug("\n %s", prompt1)
-        logging.debug("\n %s", completion1)
+        logging.debug("\n%s", prompt1)
+        logging.debug("\n%s", completion1.content)
 
         if req.polish:
-            prompt2 = await self.polish_engine.agenerate(content=completion1.content)
+            engine_result2 = await self.polish_engine.agenerate(
+                content=completion1.content
+            )
+            prompt2 = engine_result2.content
             completion2 = await self.openai.chat_completion(
                 profile.generative_model, [Message(role="system", content=prompt2)]
             )
             logging.debug("result")
-            logging.debug("\n %s", prompt2)
-            logging.debug("\n %s", completion2)
+            logging.debug("\n%s", prompt2)
+            logging.debug("\n%s", completion2)
             usage = completion1.usage + completion2.usage
         else:
             completion2 = completion1
             usage = completion1.usage
 
         return ReportResponse(
-            content=completion2.content,
-            data=data.json(),
+            content=completion1.content,
+            polish_content=completion2.content,
+            data=engine_result.metadata["data"],
             comp_tokens=usage.completion_tokens,
             **usage.__dict__,
         )
@@ -84,9 +93,10 @@ class ToVoiceAgent(Agent):
             # await client.upload_from_filename(bucket_name, dest_blob_name, file_path)
             blob = await client.get_bucket(bucket_name).get_blob(dest_blob_name)
             exp_seconds = 604800
-            return await blob.get_signed_url(
-                expiration=exp_seconds
-            ), datetime.utcnow().timestamp() + exp_seconds
+            return (
+                await blob.get_signed_url(expiration=exp_seconds),
+                datetime.utcnow().timestamp() + exp_seconds,
+            )
 
     async def ssml_to_audio(self, ssml_text, lang_code, speak_rate=1):
         # Generates SSML text from plaintext.
@@ -134,7 +144,6 @@ class ToVoiceAgent(Agent):
         response = await client.synthesize_speech(request=request)
 
         return response.audio_content
-
 
     async def convert_to_ssml(self, content: str) -> str:
         return f"<speak>{content}</speak>"

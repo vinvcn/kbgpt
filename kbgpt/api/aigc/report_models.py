@@ -20,6 +20,7 @@ class Report(BaseModel):
 
 class ReportResponse(OpenAIResponseBase):
     content: str
+    polish_content: str
     data: str
     caption: Optional[str]
 
