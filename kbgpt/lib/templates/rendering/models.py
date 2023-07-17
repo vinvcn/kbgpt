@@ -19,7 +19,7 @@ class Template(BaseModel):
     template_id: str = Field("")
     body: str
     keywords: List[str]
-    timestamp: Optional[datetime]
+    timestamp: datetime = Field(datetime.utcnow())
 
     @classmethod
     def from_orm(cls, orm: PromptTemplate) -> "Template":

@@ -3,6 +3,8 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
+from kbgpt.lib.templates.constants import REPORT_BIGGEST_RATIO
+
 
 class TopRisingFund(BaseModel):
     isin: str
@@ -19,9 +21,12 @@ class EquityFundMarket(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.risingAndDowningRatio = round(
-            self.numberOfRising / self.numberOfDowning, 4
-        )
+        if self.numberOfDowning <= 0:
+            self.risingAndDowningRatio = REPORT_BIGGEST_RATIO
+        else:
+            self.risingAndDowningRatio = round(
+                self.numberOfRising / self.numberOfDowning, 4
+            )
 
 
 class DebtFundMarket(BaseModel):
@@ -31,9 +36,12 @@ class DebtFundMarket(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.risingAndDowningRatio = round(
-            self.numberOfRising / self.numberOfDowning, 4
-        )
+        if self.numberOfDowning <= 0:
+            self.risingAndDowningRatio = REPORT_BIGGEST_RATIO
+        else:
+            self.risingAndDowningRatio = round(
+                self.numberOfRising / self.numberOfDowning, 4
+            )
 
 
 class Index(BaseModel):

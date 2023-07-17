@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
@@ -13,9 +13,11 @@ class Type(Enum):
 
 
 class Report(BaseModel):
+
     type: Type
     date: Optional[date]
     polish: Optional[bool]
+    data: Optional[Dict[str, Any]]
 
 
 class ReportResponse(OpenAIResponseBase):

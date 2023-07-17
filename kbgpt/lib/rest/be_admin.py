@@ -11,6 +11,7 @@ class SourceType(Enum):
     TEMPLATE = 1
     AIGC = 2
 
+
 class ReportType(Enum):
     DAILY = 1
     WEEKLY = 2

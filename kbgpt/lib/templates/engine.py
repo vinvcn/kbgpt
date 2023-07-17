@@ -7,9 +7,11 @@ from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
-from kbgpt.api.aigc.report_models import Report
+from kbgpt.api.aigc.report_models import Report, Type
 from kbgpt.lib.templates.personality.models import PersonalityRepo
 from kbgpt.lib.templates.rendering.models import TemplateRepo
+from kbgpt.lib.templates.report.models.daily_data import DailyData
+from kbgpt.lib.templates.report.models.weekly_data import WeeklyData
 from kbgpt.lib.templates.report.source import ReportDataSource
 
 # class Op(metaclass=abc.ABCMeta):
@@ -98,6 +100,14 @@ class ReportEngine(Engine):
         """
         generate template
         """
-        data = await self.data_source(dt, req)
+
+        if req.data:
+            # if the request has data attached, use it
+            if req.type == Type.DAILY:
+                data = DailyData.parse_obj(req.data)
+            else:
+                data = WeeklyData.parse_obj(req.data)
+        else:
+            data = await self.data_source(dt, req)
         result = await self.tmp_repo.render(name=name, data=data.json(indent=4))
         return EngineResult(content=result, metadata={"data": data.json()})

@@ -4,8 +4,6 @@ import os
 import click
 from redis import Redis
 
-from config import profile
-from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.templates.rendering.models import (RedisTemplateKeyFactory,
                                                   Template)
 from kbgpt.lib.utils import load_yaml_config

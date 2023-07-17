@@ -33,7 +33,7 @@ class TrendingClient:
         target_url = urljoin(
             profile.report.trending_url, "mb-market-data-service/tob/fund/getAIGCReport"
         )
-        headers = {'content-type': API_CONTENT_TYPE}
+        headers = {"content-type": API_CONTENT_TYPE}
 
         async with aiohttp.ClientSession(headers=headers) as session:
             async with session.post(
