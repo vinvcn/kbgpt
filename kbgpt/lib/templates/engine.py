@@ -84,7 +84,7 @@ class CommentEngine(Engine):
 
     async def agenerate(self, *args, **kwargs) -> EngineResult:
         v_person = self.p_repo.pick_one()
-        rendered = self.tmp_repo.render(
+        rendered = await self.tmp_repo.render(
             *args, name=self.NAME, personality=v_person, **kwargs
         )
         # rendered = self.temp.render(*args, personality=v_person, **kwargs)

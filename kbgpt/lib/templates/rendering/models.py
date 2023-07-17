@@ -77,7 +77,10 @@ class RedisTemplateProvider:
 
     async def __call__(self, *args: Any, template_id: str, **kwds: Any) -> Template:
         key = self.key_factory(template_id)
-        temp = Template.parse_raw(self.redis.json().get(key))
+        temp_json = self.redis.json().get(key)
+        if not temp_json:
+            raise ValueError(f"template_id {template_id} not found")
+        temp = Template.parse_raw(temp_json)
         return temp
 
 

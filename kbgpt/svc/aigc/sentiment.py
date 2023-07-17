@@ -3,6 +3,7 @@ import logging
 from json.decoder import JSONDecodeError
 
 import openai
+from sanic import Sanic
 from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
                       wait_fixed)
 
@@ -18,9 +19,9 @@ from kbgpt.svc.utils.openai import get_total_cost
 class SentimentAgent(Agent):
     """sentiment analysis agent"""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, app:Sanic, *args, **kwargs) -> None:
         super().__init__()
-        self.engine = SimpleEngine(name="sentiment")
+        self.engine = SimpleEngine(name="sentiment", tmp_repo=app.ctx.temp_repo)
 
     @retry(
         stop=stop_after_attempt(3),

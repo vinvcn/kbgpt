@@ -14,6 +14,8 @@ from config import profile
 from kbgpt.lib.db.mysql.comment_record import VirtualCommentRecord
 from kbgpt.lib.logging import alog
 from kbgpt.lib.templates.engine import CommentEngine, SimpleEngine
+from kbgpt.lib.templates.rendering.models import (ModTemplateProvider,
+                                                  TemplateRepo)
 from kbgpt.lib.templates.rendering.repo.post_classification import \
     CATEGORY_TO_IGNORE
 from kbgpt.svc.aigc.comment.models import Category, Comment, Post, RequestStep
@@ -30,7 +32,8 @@ class CommentAgent:
         self.log_list = []
         self.app = app
         self.temp_engine = CommentEngine(app.ctx.temp_repo)
-        self.class_engine = SimpleEngine(name="post_classification", tmp_repo=app.ctx.temp_repo)
+        repo = TemplateRepo(ModTemplateProvider())
+        self.class_engine = SimpleEngine(name="post_classification", tmp_repo=repo)
 
     @alog(VirtualCommentRecord)
     async def classify(self, post: Post, uid: str) -> Category:
