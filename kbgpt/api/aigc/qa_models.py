@@ -25,6 +25,10 @@ class QAResponse(OpenAIResponseBase):
     successful_requests: int
     hit_cache: bool
 
+    def json(self, *args, **kwargs) -> str:
+        json_str = super().json(*args, ensure_ascii=False, **kwargs)
+        return json_str.replace("\\n","<br/>")
+
 
 class DocInfo(OpenAIResponseBase):
     """ document information """

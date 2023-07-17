@@ -23,8 +23,6 @@ class ResponseBase(BaseModel):
 
     success: bool = Field(True)
 
-    def json(self, *args, **kwargs) -> str:
-        return super().json(*args, ensure_ascii=False, **kwargs)
 
 
 class OpenAIResponseBase(ResponseBase):
