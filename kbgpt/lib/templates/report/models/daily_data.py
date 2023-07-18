@@ -11,6 +11,10 @@ class TopRisingFund(BaseModel):
     name: str
     navChange: float
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.navChange = round(self.navChange, 2)
+
 
 class EquityFundMarket(BaseModel):
     totalFundNumber: int

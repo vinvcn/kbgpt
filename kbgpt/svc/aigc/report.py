@@ -20,7 +20,7 @@ from kbgpt.api.aigc.report_models import (
     ToVoice,
     ToVoiceResponse,
 )
-from kbgpt.lib.llm.openai import Completion, Message, OpenAI
+from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
 from kbgpt.svc.aigc import Agent
 
@@ -50,7 +50,7 @@ class ReportAgent(Agent):
         # logging.debug("\n%s", prompt1)
         # logging.debug("\n%s", completion1.content)
 
-        completion1 = Completion(content=engine_result.content)
+        completion1 = Completion(content=engine_result.content, usage=Usage())
         if req.polish:
             engine_result2 = await self.polish_engine.agenerate(
                 content=completion1.content

@@ -16,9 +16,9 @@ class Message(BaseModel):
 class Usage(BaseModel):
     """OpenAI usage object"""
 
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
+    prompt_tokens: int = Field(0)
+    completion_tokens: int = Field(0)
+    total_tokens: int = Field(0)
     cost: float = Field(0.0)
 
     def __init__(self, model: str = None, *args, **kwargs):
