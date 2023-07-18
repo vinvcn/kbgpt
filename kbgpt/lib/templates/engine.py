@@ -5,6 +5,7 @@ import abc
 from datetime import date
 from typing import Any, Dict, Optional
 
+from jinja2 import Environment
 from pydantic import BaseModel
 
 from kbgpt.api.aigc.report_models import Report, Type
@@ -109,5 +110,6 @@ class ReportEngine(Engine):
                 data = WeeklyData.parse_obj(req.data)
         else:
             data = await self.data_source(dt, req)
-        result = await self.tmp_repo.render(name=name, data=data.json(indent=4))
-        return EngineResult(content=result, metadata={"data": data.json()})
+        template = await self.tmp_repo.pick_one(name=name)
+        jtemp = Environment().from_string(template.body)
+        return EngineResult(content=jtemp.render(data), metadata={"data": data.json()})

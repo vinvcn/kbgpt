@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -13,34 +13,52 @@ class TopRisingFund(BaseModel):
 
 
 class EquityFundMarket(BaseModel):
+    totalFundNumber: int
     numberOfRising: int
+    risingPercentage: float = Field(0.0)
     numberOfDowning: int
+    downingPercentage: float = Field(0.0)
     risingAndDowningRatio: float = Field(0.0)
     numberOfRisingOverOnePercent: int
     numberOfDowningOverOnePercent: int
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.risingPercentage = round(
+            100 * (self.numberOfRising / self.totalFundNumber), 2
+        )
+        self.downingPercentage = round(
+            100 * (self.numberOfDowning / self.totalFundNumber), 2
+        )
         if self.numberOfDowning <= 0:
             self.risingAndDowningRatio = REPORT_BIGGEST_RATIO
         else:
             self.risingAndDowningRatio = round(
-                self.numberOfRising / self.numberOfDowning, 4
+                self.numberOfRising / self.numberOfDowning, 2
             )
 
 
 class DebtFundMarket(BaseModel):
+    totalFundNumber: int
     numberOfRising: int
+    risingPercentage: float = Field(0.0)
     numberOfDowning: int
+    downingPercentage: float = Field(0.0)
     risingAndDowningRatio: float = Field(0.0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.risingPercentage = round(
+            100 * (self.numberOfRising / self.totalFundNumber), 2
+        )
+        self.downingPercentage = round(
+            100 * (self.numberOfDowning / self.totalFundNumber), 2
+        )
         if self.numberOfDowning <= 0:
             self.risingAndDowningRatio = REPORT_BIGGEST_RATIO
         else:
             self.risingAndDowningRatio = round(
-                self.numberOfRising / self.numberOfDowning, 4
+                self.numberOfRising / self.numberOfDowning, 2
             )
 
 
@@ -63,7 +81,4 @@ class DailyData(BaseModel):
     sensex50: Index
     equityFundMarket: EquityFundMarket
     debtFundMarket: DebtFundMarket
-    topRisingFunds: List[TopRisingFund]
-
-
-
+    topRisingFunds: Optional[List[TopRisingFund]]

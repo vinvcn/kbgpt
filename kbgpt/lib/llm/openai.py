@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import openai
 from pydantic import BaseModel, Field
@@ -21,7 +21,7 @@ class Usage(BaseModel):
     total_tokens: int
     cost: float = Field(0.0)
 
-    def __init__(self, model: str=None, *args, **kwargs):
+    def __init__(self, model: str = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if model:
             self.cost = get_total_cost(
@@ -30,6 +30,8 @@ class Usage(BaseModel):
 
     def __add__(self, val2: "Usage") -> "Usage":
         """add method"""
+        if not val2:
+            return Usage(**self.__dict__)
         return Usage(
             prompt_tokens=self.prompt_tokens + val2.prompt_tokens,
             completion_tokens=self.completion_tokens + val2.completion_tokens,
@@ -39,7 +41,7 @@ class Usage(BaseModel):
 
 
 class Completion(BaseModel):
-    usage: Usage
+    usage: Optional[Usage]
     content: str
 
 

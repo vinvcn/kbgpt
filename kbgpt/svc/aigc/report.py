@@ -14,9 +14,13 @@ from gcloud.aio.storage import Blob, Storage
 from sanic import Sanic
 
 from config import profile
-from kbgpt.api.aigc.report_models import (Report, ReportResponse, ToVoice,
-                                          ToVoiceResponse, Type)
-from kbgpt.lib.llm.openai import Message, OpenAI
+from kbgpt.api.aigc.report_models import (
+    Report,
+    ReportResponse,
+    ToVoice,
+    ToVoiceResponse,
+)
+from kbgpt.lib.llm.openai import Completion, Message, OpenAI
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
 from kbgpt.svc.aigc import Agent
 
@@ -38,14 +42,15 @@ class ReportAgent(Agent):
         engine_result = await self.report_engine.agenerate(
             dt, req, f"report_{req.type.value}"
         )
-        prompt1 = engine_result.content
-        completion1 = await self.openai.chat_completion(
-            profile.generative_model, [Message(role="system", content=prompt1)]
-        )
-        logging.debug("filled template")
-        logging.debug("\n%s", prompt1)
-        logging.debug("\n%s", completion1.content)
+        # prompt1 = engine_result.content
+        # completion1 = await self.openai.chat_completion(
+        #     profile.generative_model, [Message(role="system", content=prompt1)]
+        # )
+        # logging.debug("filled template")
+        # logging.debug("\n%s", prompt1)
+        # logging.debug("\n%s", completion1.content)
 
+        completion1 = Completion(content=engine_result.content)
         if req.polish:
             engine_result2 = await self.polish_engine.agenerate(
                 content=completion1.content
@@ -57,7 +62,7 @@ class ReportAgent(Agent):
             logging.debug("result")
             logging.debug("\n%s", prompt2)
             logging.debug("\n%s", completion2)
-            usage = completion1.usage + completion2.usage
+            usage = completion2.usage + completion1.usage
         else:
             completion2 = completion1
             usage = completion1.usage
