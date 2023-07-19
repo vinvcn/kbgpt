@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from enum import Enum
 from typing import Optional
@@ -34,6 +35,7 @@ class TrendingClient:
         target_url = urljoin(
             profile.report.trending_url, "mb-market-data-service/tob/fund/getAIGCReport"
         )
+        logging.info(target_url)
         headers = {"content-type": API_CONTENT_TYPE}
 
         async with aiohttp.ClientSession(headers=headers) as session:

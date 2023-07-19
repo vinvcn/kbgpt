@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from sanic import Blueprint, Request, Sanic
 from sanic_ext import openapi, validate
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from kbgpt.api.aigc.report_models import Report, ReportResponse, ToVoice, Type
 from kbgpt.api.constants import API_CONTENT_TYPE
@@ -46,6 +47,7 @@ async def get_report(request: Request, body: Report):
         return jtext(ErrorResponse(success=False, error=error_msg))
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
 async def reporting_task(app: Sanic, body: Report):
     """
     kick off reporting
