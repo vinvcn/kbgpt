@@ -9,9 +9,7 @@ from typing import List, Optional
 
 from sanic import Blueprint, Request, Sanic
 from sanic_ext import openapi, validate
-from tenacity import retry, stop_after_attempt, wait_fixed
 
-from kbgpt.api.aigc.qa_models import DocInfo, QAResponse, Question
 from kbgpt.api.aigc.report_models import Report, ReportResponse, ToVoice, Type
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse, ResponseBase

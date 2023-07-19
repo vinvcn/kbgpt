@@ -3,7 +3,7 @@ PROFILE: FAT
 DEFAULT:
   DB_URL: mysql+pymysql://user:password@localhost:3306/db
   GENERATIVE_MODEL: "gpt-3.5-turbo"
-# ----- SANIC SERVER PORT ----
+  # ----- SANIC SERVER PORT ----
   SANIC:
     APP_NAME: kbgpt
     PORT: 8081
@@ -15,7 +15,6 @@ DEFAULT:
   SENTIMENT:
     ANALYSIS_MODEL: "gpt-3.5-turbo"
   REPORT:
-    REDIS_URL: "redis://18.139.228.114:6380/0"
     BACKEND_ADMIN_URL: "http://test1.backend-admin.testbs.surfin.sg/v1/internal/aigc/create"
     TRENDING_URL: "http://mb-api-gateway.testbs.surfin.sg"
   QA:
@@ -27,13 +26,13 @@ DEFAULT:
     REQUEST_RETRY: 2
     keep_msg_history: True
     words_limit: 50
-# ----- DOCUMENT EMBEDDING CONFIG -----
+  # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536
     TEXT_EMBEDDING_CHUNK_SIZE: 1000
     TEXT_EMBEDDING_CHUNK_OVERLAP: 200
     EMBEDDINGS_FUNCTION: openai
-# ----- VECTOR STORE CONFIG -----
+  # ----- VECTOR STORE CONFIG -----
   VECTOR_STORE:
     VECTOR_STORE_CLASS: redis
     VECTOR_RETRIVAL_K: 3
@@ -61,9 +60,15 @@ PRE:
     DEBUG: True
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
+  REPORT:
+    BACKEND_ADMIN_URL: "http://backend-admin-pre.bullsmart.in/v1/internal/aigc/create"
+    TRENDING_URL: "https://mb-market-data-pre.bullsmart.in"
 
 PROD:
   SANIC:
     DEBUG: False
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
+  REPORT:
+    BACKEND_ADMIN_URL: "http://backend-admin.bullsmart.in/v1/internal/aigc/create"
+    TRENDING_URL: "https://mb-market-data.bullsmart.in"
