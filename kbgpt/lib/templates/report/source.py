@@ -12,7 +12,6 @@ class DataFetchingError(Exception):
     """fetching data failed"""
 
 
-
 class ReportDataSource:
     """report data source"""
 
@@ -25,6 +24,9 @@ class ReportDataSource:
         )
         if result_obj["errCode"] != 0:
             raise DataFetchingError(result_obj["message"])
+
+        if "data" not in result_obj:
+            raise DataFetchingError("No data Present")
 
         if r_type is ReportType.DAILY:
             return DailyData.parse_obj(result_obj["data"])

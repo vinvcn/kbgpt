@@ -1,5 +1,6 @@
 from datetime import date
 from enum import Enum
+from typing import Optional
 from urllib.parse import urljoin
 
 import aiohttp
@@ -13,7 +14,7 @@ from kbgpt.lib.rest.be_admin import ReportType
 class TrendParam(BaseModel):
     """trend param"""
 
-    dateParam: date
+    dateParam: Optional[date]
     reportType: ReportType
 
     class Config:

@@ -32,25 +32,29 @@ class ReportAgent(Agent):
         super().__init__()
         self.report_engine = ReportEngine(app.ctx.temp_repo)
         self.polish_engine = SimpleEngine("report_polish", app.ctx.temp_repo)
+        self.adjust_format = SimpleEngine(
+            "report_adjust_space_and_breaks", app.ctx.temp_repo
+        )
         self.openai = OpenAI()
 
     async def analyze(self, req: Report) -> ReportResponse:
         """analyze the request and provide response"""
 
-        dt = req.date if req.date else date.today()
+        dt = req.date
 
         engine_result = await self.report_engine.agenerate(
             dt, req, f"report_{req.type.value}"
         )
-        # prompt1 = engine_result.content
-        # completion1 = await self.openai.chat_completion(
-        #     profile.generative_model, [Message(role="system", content=prompt1)]
-        # )
-        # logging.debug("filled template")
-        # logging.debug("\n%s", prompt1)
-        # logging.debug("\n%s", completion1.content)
-
-        completion1 = Completion(content=engine_result.content, usage=Usage())
+        adjust_result = await self.adjust_format.agenerate(
+            content=engine_result.content
+        )
+        prompt1 = adjust_result.content
+        completion1 = await self.openai.chat_completion(
+            profile.generative_model, [Message(role="system", content=prompt1)]
+        )
+        logging.debug("filled template")
+        logging.debug("\n%s", prompt1)
+        logging.debug("\n%s", completion1.content)
         if req.polish:
             engine_result2 = await self.polish_engine.agenerate(
                 content=completion1.content
