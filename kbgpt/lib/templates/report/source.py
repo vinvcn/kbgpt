@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 from typing import Any
 
@@ -22,6 +23,7 @@ class ReportDataSource:
         result_obj = await TrendingClient().fetch_data(
             TrendRequest(params=TrendParam(dateParam=dt, reportType=r_type))
         )
+        logging.info(result_obj)
         if result_obj["errCode"] != 0:
             raise DataFetchingError(result_obj["message"])
 

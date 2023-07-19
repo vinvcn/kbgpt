@@ -2,9 +2,7 @@
 report api
 """
 import logging
-import time
 import traceback
-from json import dumps
 from typing import List, Optional
 
 from sanic import Blueprint, Request, Sanic
