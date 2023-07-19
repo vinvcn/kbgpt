@@ -4,8 +4,7 @@ import os
 import click
 from redis import Redis
 
-from kbgpt.lib.templates.rendering.models import (RedisTemplateKeyFactory,
-                                                  Template)
+from kbgpt.lib.templates.rendering.models import RedisTemplateKeyFactory, Template
 from kbgpt.lib.utils import load_yaml_config
 
 
@@ -42,12 +41,13 @@ def sync_redis(env: str):
     repo_path = config["config"]["repo"]["template"]["path"]
     url = redis_config[env.lower()]
 
+    print(f"redis url {url}")
     redis = Redis.from_url(url)
     key_builder = RedisTemplateKeyFactory()
 
     repo_path = os.path.join(os.path.dirname(__file__), repo_path)
 
     for tmp in list_temp(repo_path):
-        click.echo(f"template {tmp.template_id} saved")
         redis.json().delete(key_builder(tmp.template_id))
         redis.json().set(key_builder(tmp.template_id), "$", tmp.json(exclude_none=True))
+        click.echo(f"template {tmp.template_id} saved")
