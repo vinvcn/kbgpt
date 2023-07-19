@@ -71,6 +71,7 @@ class ReportAgent(Agent):
                 **usage.__dict__,
             )
         else:
+            usage = completion1.usage
             return ReportResponse(
                 content=completion1.content,
                 polish_content=completion1.content,
