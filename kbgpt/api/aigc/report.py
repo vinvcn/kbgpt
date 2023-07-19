@@ -38,9 +38,12 @@ class GetReportResponse(ResponseBase):
 @validate(json=Report)
 async def get_report(request: Request, body: Report):
     try:
-        # request.app.add_task(reporting_task(request.app, body))
-        resp = await reporting_task(request.app, body)
-        return jtext(resp)
+        if body.sync:
+            resp = await reporting_task(request.app, body)
+            return jtext(resp)
+        else:
+            request.app.add_task(reporting_task(request.app, body))
+            return jtext(ResponseBase(success=True))
     except Exception as e:  # pylint: disable=broad-exception-caught
         logging.exception(e)
         error_msg = "".join(traceback.format_exception(e))
@@ -48,8 +51,8 @@ async def get_report(request: Request, body: Report):
 
 
 @retry(
-    stop=stop_after_attempt(4),
-    wait=wait_chain(*[wait_fixed(1), wait_fixed(6), wait_fixed(60), wait_fixed(600)]),
+    stop=stop_after_attempt(3),
+    wait=wait_chain(*[wait_fixed(1), wait_fixed(6), wait_fixed(60)]),
 )
 async def reporting_task(app: Sanic, body: Report):
     """

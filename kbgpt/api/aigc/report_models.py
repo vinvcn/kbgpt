@@ -2,7 +2,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kbgpt.api.libs.base_model import OpenAIResponseBase, ResponseBase
 
@@ -17,6 +17,7 @@ class Report(BaseModel):
     date: date
     polish: Optional[bool]
     data: Optional[Dict[str, Any]]
+    sync: bool = Field(False)
 
 
 class ReportResponse(OpenAIResponseBase):
