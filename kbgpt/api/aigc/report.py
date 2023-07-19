@@ -55,6 +55,7 @@ async def reporting_task(app: Sanic, body: Report):
     # pylint: disable=broad-except
     try:
         results = []
+        date_str = body.date.strftime("%Y-%m-%d")
         if body.type == Type.WEEKLY:
             agent = ReportAgent(app=app)
             txt_result: ReportResponse = await agent.analyze(body)
@@ -64,6 +65,7 @@ async def reporting_task(app: Sanic, body: Report):
                 CreateReport(
                     content=txt_result.content,
                     data=txt_result.data,
+                    date=date_str,
                     voice=vic_result.uri,
                     source=SourceType.TEMPLATE.value,
                     type=ReportType.WEEKLY.value,
@@ -71,6 +73,7 @@ async def reporting_task(app: Sanic, body: Report):
                 CreateReport(
                     content=txt_result.polish_content,
                     data=txt_result.data,
+                    date=date_str,
                     voice=vic_result.uri,
                     source=SourceType.AIGC.value,
                     type=ReportType.WEEKLY.value,
@@ -83,12 +86,14 @@ async def reporting_task(app: Sanic, body: Report):
                 CreateReport(
                     content=txt_result.content,
                     data=txt_result.data,
+                    date=date_str,
                     source=SourceType.TEMPLATE.value,
                     type=ReportType.DAILY.value,
                 ),
                 CreateReport(
                     content=txt_result.polish_content,
                     data=txt_result.data,
+                    date=date_str,
                     source=SourceType.AIGC.value,
                     type=ReportType.DAILY.value,
                 ),

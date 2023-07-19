@@ -13,9 +13,8 @@ class Type(Enum):
 
 
 class Report(BaseModel):
-
     type: Type
-    date: Optional[date]
+    date: date
     polish: Optional[bool]
     data: Optional[Dict[str, Any]]
 

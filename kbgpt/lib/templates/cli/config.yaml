@@ -5,7 +5,7 @@ config:
   redis:
     local: "redis://127.0.0.1:6379"
     fat: "redis://debug.testbs.surfin.sg:30007"
-    pre: "redis://"
+    pre: "redis://3.7.240.54:6379"
     pro: "redis://3.6.141.226:6380"
   mysql:
     local: "mysql+pymysql://user:password@localhost:3306/db"

@@ -21,6 +21,7 @@ class CreateReport(BaseModel):
     caption: Optional[str]
     content: Optional[str]
     data: Optional[str]
+    date: Optional[str]
     image: Optional[str]
     source: Optional[int]
     type: Optional[int]
