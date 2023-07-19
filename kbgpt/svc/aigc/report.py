@@ -40,14 +40,10 @@ class ReportAgent(Agent):
     async def analyze(self, req: Report) -> ReportResponse:
         """analyze the request and provide response"""
 
-        dt = req.date
-
-        engine_result = await self.report_engine.agenerate(
-            dt, req, f"report_{req.type.value}"
+        jinja_result = await self.report_engine.agenerate(
+            req.date, req, f"report_{req.type.value}"
         )
-        adjust_result = await self.adjust_format.agenerate(
-            content=engine_result.content
-        )
+        adjust_result = await self.adjust_format.agenerate(content=jinja_result.content)
         prompt1 = adjust_result.content
         completion1 = await self.openai.chat_completion(
             profile.generative_model, [Message(role="system", content=prompt1)]
@@ -67,17 +63,21 @@ class ReportAgent(Agent):
             logging.debug("\n%s", prompt2)
             logging.debug("\n%s", completion2)
             usage = completion2.usage + completion1.usage
+            return ReportResponse(
+                content=completion1.content,
+                polish_content=completion2.content,
+                data=jinja_result.metadata["data"],
+                comp_tokens=usage.completion_tokens,
+                **usage.__dict__,
+            )
         else:
-            completion2 = completion1
-            usage = completion1.usage
-
-        return ReportResponse(
-            content=completion1.content,
-            polish_content=completion2.content,
-            data=engine_result.metadata["data"],
-            comp_tokens=usage.completion_tokens,
-            **usage.__dict__,
-        )
+            return ReportResponse(
+                content=completion1.content,
+                polish_content=completion1.content,
+                data=jinja_result.metadata["data"],
+                comp_tokens=usage.completion_tokens,
+                **usage.__dict__,
+            )
 
 
 class ToVoiceAgent(Agent):
