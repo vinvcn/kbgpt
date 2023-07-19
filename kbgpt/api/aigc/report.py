@@ -50,7 +50,6 @@ async def get_report(request: Request, body: Report):
         return jtext(ErrorResponse(success=False, error=error_msg))
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
 async def reporting_task(app: Sanic, body: Report):
     """
     kick off reporting
