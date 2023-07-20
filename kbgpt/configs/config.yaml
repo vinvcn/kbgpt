@@ -70,5 +70,5 @@ PROD:
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
   REPORT:
-    BACKEND_ADMIN_URL: "http://backend-admin.bullsmart.in/v1/internal/aigc/create"
+    BACKEND_ADMIN_URL: "https://backend-admin.bullsmart.in/v1/internal/aigc/create"
     TRENDING_URL: "https://mb-api-gateway.bullsmart.in"
