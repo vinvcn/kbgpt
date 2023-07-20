@@ -10,7 +10,7 @@ from sanic_ext import openapi, validate
 
 from kbgpt.api.aigc.qa_models import DocInfo, QAResponse, Question
 from kbgpt.api.constants import API_CONTENT_TYPE
-from kbgpt.api.libs.base_model import ErrorResponse, ResponseBase
+from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
@@ -103,7 +103,7 @@ async def answer_question(request: Request, body: Question):
 @openapi.response(
     200,
     {
-        API_CONTENT_TYPE: ResponseBase.schema(),
+        API_CONTENT_TYPE: OpenAIResponseBase.schema(),
     },
 )
 @openapi.response(500, {API_CONTENT_TYPE: ErrorResponse.schema()})
@@ -149,7 +149,7 @@ async def doc_version(request: Request):  # pylint: disable=unused-argument
 @openapi.response(
     200,
     {
-        API_CONTENT_TYPE: ResponseBase.schema(),
+        API_CONTENT_TYPE: OpenAIResponseBase.schema(),
     },
 )
 @openapi.response(500, {API_CONTENT_TYPE: ErrorResponse.schema()})

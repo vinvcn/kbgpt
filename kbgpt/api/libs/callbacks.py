@@ -1,6 +1,7 @@
 """
 open ai callbacks
 """
+import logging
 from typing import Any, Callable
 
 from langchain.callbacks.base import AsyncCallbackHandler
@@ -10,6 +11,11 @@ from pydantic import BaseModel
 class Token(BaseModel):
     """ OpenAI token """
     token: str
+
+    def json(self, *args, **kwargs) -> str:
+        json_str = super().json(*args, ensure_ascii=False, **kwargs)
+        result = json_str.replace("\\n","<br/>")
+        return result
 
 
 # pylint: disable = abstract-method

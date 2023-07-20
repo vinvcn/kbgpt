@@ -9,10 +9,10 @@ from json import dumps
 from os import environ
 from pathlib import Path
 
-import yaml
 from mergedeep import merge
 
 from kbgpt.configs.profiles import Profile
+from kbgpt.lib.utils import load_yaml_config
 
 
 class ProfileManager():
@@ -43,14 +43,6 @@ class ProfileManager():
         return self._secondary_profile
 
 
-    def load_yaml_config(self, path):
-        """Load a yaml file and return a dictionary of its contents."""
-        try:
-            with open(path, "r", encoding="utf-8") as stream:
-                return yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            logging.exception(exc)
-            return None
 
 
     def load_config(self, file_name=None):
@@ -67,7 +59,7 @@ class ProfileManager():
             yaml_path = yaml_dir / "configs" / file_name
 
         # Load the config and update the global variables
-        yaml_config = self.load_yaml_config(yaml_path)
+        yaml_config = load_yaml_config(yaml_path)
         prof = None
         if yaml_config is not None:
             logging.info("Loaded config from %s:", yaml_path)
