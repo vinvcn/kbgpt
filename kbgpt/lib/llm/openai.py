@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import openai
 from pydantic import BaseModel, Field
@@ -42,7 +42,9 @@ class Usage(BaseModel):
 
 class Completion(BaseModel):
     usage: Optional[Usage]
+    prompt: Optional[str]
     content: str
+    metadata: Optional[Dict[str, Any]]
 
 
 class OpenAI:

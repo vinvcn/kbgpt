@@ -14,12 +14,8 @@ from gcloud.aio.storage import Blob, Storage
 from sanic import Sanic
 
 from config import profile
-from kbgpt.api.aigc.report_models import (
-    Report,
-    ReportResponse,
-    ToVoice,
-    ToVoiceResponse,
-)
+from kbgpt.api.aigc.report_models import (Report, ReportResponse, ToVoice,
+                                          ToVoiceResponse)
 from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
 from kbgpt.svc.aigc import Agent
@@ -40,33 +36,27 @@ class ReportAgent(Agent):
     async def analyze(self, req: Report) -> ReportResponse:
         """analyze the request and provide response"""
 
-        jinja_result = await self.report_engine.agenerate(
+        jinja_completion = await self.report_engine.agenerate(
             req.date, req, f"report_{req.type.value}"
         )
-        adjust_result = await self.adjust_format.agenerate(content=jinja_result.content)
-        prompt1 = adjust_result.content
-        completion1 = await self.openai.chat_completion(
-            profile.generative_model, [Message(role="system", content=prompt1)]
+        completion1 = await self.adjust_format.agenerate(
+            content=jinja_completion.content
         )
         logging.debug("filled template")
-        logging.debug("\n%s", prompt1)
+        logging.debug("\n%s", completion1.prompt)
         logging.debug("\n%s", completion1.content)
         if req.polish:
-            engine_result2 = await self.polish_engine.agenerate(
+            completion2 = await self.polish_engine.agenerate(
                 content=completion1.content
             )
-            prompt2 = engine_result2.content
-            completion2 = await self.openai.chat_completion(
-                profile.generative_model, [Message(role="system", content=prompt2)]
-            )
+
             logging.debug("result")
-            logging.debug("\n%s", prompt2)
             logging.debug("\n%s", completion2)
             usage = completion2.usage + completion1.usage
             return ReportResponse(
                 content=completion1.content,
                 polish_content=completion2.content,
-                data=jinja_result.metadata["data"],
+                data=jinja_completion.metadata["data"],
                 comp_tokens=usage.completion_tokens,
                 **usage.__dict__,
             )
@@ -75,7 +65,7 @@ class ReportAgent(Agent):
             return ReportResponse(
                 content=completion1.content,
                 polish_content=completion1.content,
-                data=jinja_result.metadata["data"],
+                data=jinja_completion.metadata["data"],
                 comp_tokens=usage.completion_tokens,
                 **usage.__dict__,
             )

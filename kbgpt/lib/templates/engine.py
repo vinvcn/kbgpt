@@ -8,7 +8,9 @@ from typing import Any, Dict, Optional
 from jinja2 import Environment
 from pydantic import BaseModel
 
+from config import profile
 from kbgpt.api.aigc.report_models import Report, Type
+from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
 from kbgpt.lib.templates.personality.models import PersonalityRepo
 from kbgpt.lib.templates.rendering.models import TemplateRepo
 from kbgpt.lib.templates.report.models.daily_data import DailyData
@@ -63,10 +65,15 @@ class SimpleEngine(Engine):
         super().__init__()
         self.name = name
         self.tmp_repo = tmp_repo
+        self.openai = OpenAI()
 
-    async def agenerate(self, *args, **kwargs) -> EngineResult:
+    async def agenerate(self, *args, **kwargs) -> Completion:
         rendered = await self.tmp_repo.render(*args, name=self.name, **kwargs)
-        return EngineResult(content=rendered)
+        completion = await self.openai.chat_completion(
+            profile.generative_model, [Message(role="system", content=rendered)]
+        )
+        completion.prompt = rendered
+        return completion
 
 
 class CommentEngine(Engine):
@@ -78,14 +85,18 @@ class CommentEngine(Engine):
         super().__init__()
         self.tmp_repo = tmp_repo
         self.p_repo = PersonalityRepo.from_file(self.NAME)
+        self.openai = OpenAI()
 
-    async def agenerate(self, *args, **kwargs) -> EngineResult:
+    async def agenerate(self, *args, **kwargs) -> Completion:
         v_person = self.p_repo.pick_one()
         rendered = await self.tmp_repo.render(
             *args, name=self.NAME, personality=v_person, **kwargs
         )
-        # rendered = self.temp.render(*args, personality=v_person, **kwargs)
-        return EngineResult(content=rendered)
+        completion = await self.openai.chat_completion(
+            profile.generative_model, messages=[Message(role="user", content=rendered)]
+        )
+        completion.prompt = rendered
+        return completion
 
 
 class ReportEngine(Engine):
@@ -112,4 +123,10 @@ class ReportEngine(Engine):
             data = await self.data_source(dt, req)
         template = await self.tmp_repo.pick_one(name=name)
         jtemp = Environment().from_string(template.body)
-        return EngineResult(content=jtemp.render(data), metadata={"data": data.json()})
+
+        return Completion(
+            prompt=template.body,
+            content=jtemp.render(data),
+            usage=Usage(),
+            metadata={"data": data.json()},
+        )
