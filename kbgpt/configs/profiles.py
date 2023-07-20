@@ -38,10 +38,12 @@ class QA(SuperConfig):
     words_limit: int = Field(..., gt=1, lt=1000)
     keep_msg_history: bool
 
+
 class COMMENT(SuperConfig):
     """Comment Configs"""
 
     generative_model: str
+
 
 class Embedding(SuperConfig):
     """Embedding Configs"""
@@ -78,10 +80,19 @@ class Indexing(SuperConfig):
     flush_before_write: bool
     customer_service_index: str
 
+
 class Sentiment(SuperConfig):
-    """ sentiment analysis """
+    """sentiment analysis"""
 
     analysis_model: str
+
+
+class Report(SuperConfig):
+    """market report"""
+
+    backend_admin_url: AnyUrl
+    trending_url: AnyUrl
+
 
 class Profile(SuperConfig):
     """Profile configs"""
@@ -89,10 +100,11 @@ class Profile(SuperConfig):
     sanic: Sanic
     comment: COMMENT
     sentiment: Sentiment
+    report: Report
     qa: QA
     embedding: Embedding
     vector_store: VectorStore
     cache: Cache
     indexing: Indexing
     db_url: AnyUrl
-
+    generative_model: str

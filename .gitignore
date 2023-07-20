@@ -10,4 +10,4 @@ dockerfile/mysql-db
 dockerfile/mysql-db.bak
 dockerfile/redis_persist
 debug.log
-
+.repo/

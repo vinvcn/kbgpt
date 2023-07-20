@@ -3,6 +3,7 @@ import logging
 from json.decoder import JSONDecodeError
 
 import openai
+from sanic import Sanic
 from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
                       wait_fixed)
 
@@ -11,15 +12,16 @@ from kbgpt.api.senti.models import Sentiment, SentimentResponse
 from kbgpt.lib.db.mysql.sentiment_record import SentimentRecord
 from kbgpt.lib.logging import alog
 from kbgpt.lib.templates.engine import SimpleEngine
+from kbgpt.svc.aigc import Agent
 from kbgpt.svc.utils.openai import get_total_cost
 
 
-class SentimentAgent:
+class SentimentAgent(Agent):
     """sentiment analysis agent"""
 
-    def __init__(self) -> None:
+    def __init__(self, app:Sanic, *args, **kwargs) -> None:
         super().__init__()
-        self.engine = SimpleEngine(name="sentiment")
+        self.engine = SimpleEngine(name="sentiment", tmp_repo=app.ctx.temp_repo)
 
     @retry(
         stop=stop_after_attempt(3),
@@ -31,7 +33,8 @@ class SentimentAgent:
     async def analyze(self, req: Sentiment) -> SentimentResponse:
         """analyze the sentiment according to the request"""
 
-        prompt = await self.engine.agenerate(**req.dict())
+        engine_result = await self.engine.agenerate(**req.dict())
+        prompt = engine_result.content
         completion = await openai.ChatCompletion.acreate(
             model=profile.sentiment.analysis_model,
             messages=[{"role": "user", "content": prompt}],

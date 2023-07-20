@@ -14,6 +14,8 @@ from config import profile
 from kbgpt.lib.db.mysql.comment_record import VirtualCommentRecord
 from kbgpt.lib.logging import alog
 from kbgpt.lib.templates.engine import CommentEngine, SimpleEngine
+from kbgpt.lib.templates.rendering.models import (ModTemplateProvider,
+                                                  TemplateRepo)
 from kbgpt.lib.templates.rendering.repo.post_classification import \
     CATEGORY_TO_IGNORE
 from kbgpt.svc.aigc.comment.models import Category, Comment, Post, RequestStep
@@ -29,13 +31,15 @@ class CommentAgent:
         self.lock = asyncio.Lock()
         self.log_list = []
         self.app = app
-        self.temp_engine = CommentEngine()
-        self.class_engine = SimpleEngine(name="post_classification")
+        self.temp_engine = CommentEngine(app.ctx.temp_repo)
+        repo = TemplateRepo(ModTemplateProvider())
+        self.class_engine = SimpleEngine(name="post_classification", tmp_repo=repo)
 
     @alog(VirtualCommentRecord)
     async def classify(self, post: Post, uid: str) -> Category:
         """classify the post"""
-        prompt = await self.class_engine.agenerate(title=post.title, content=post.content)
+        engine_result = await self.class_engine.agenerate(title=post.title, content=post.content)
+        prompt = engine_result.content
         completion = await openai.ChatCompletion.acreate(
             model=profile.comment.generative_model,
             messages=[{"role": "user", "content": prompt}],
@@ -60,7 +64,8 @@ class CommentAgent:
     @alog(VirtualCommentRecord)
     async def _get_the_comment(self, post: Post, uid: str) -> Comment:
         """get the comment"""
-        prompt = await self.temp_engine.agenerate(content=post.content, title=post.title)
+        engine_result = await self.temp_engine.agenerate(content=post.content, title=post.title)
+        prompt = engine_result.content
         logging.debug("submitting request to openai")
         completion = await openai.ChatCompletion.acreate(
             model=profile.comment.generative_model,

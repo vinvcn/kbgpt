@@ -5,7 +5,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from kbgpt.api.libs.base_model import ResponseBase
+from kbgpt.api.libs.base_model import OpenAIResponseBase
 
 
 class Question(BaseModel):
@@ -14,7 +14,7 @@ class Question(BaseModel):
     question: str
 
 
-class QAResponse(ResponseBase):
+class QAResponse(OpenAIResponseBase):
     """qa response"""
 
     answer: str
@@ -25,8 +25,12 @@ class QAResponse(ResponseBase):
     successful_requests: int
     hit_cache: bool
 
+    def json(self, *args, **kwargs) -> str:
+        json_str = super().json(*args, ensure_ascii=False, **kwargs)
+        return json_str.replace("\\n","<br/>")
 
-class DocInfo(ResponseBase):
+
+class DocInfo(OpenAIResponseBase):
     """ document information """
 
     version: str
