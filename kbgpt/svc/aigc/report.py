@@ -14,8 +14,12 @@ from gcloud.aio.storage import Blob, Storage
 from sanic import Sanic
 
 from config import profile
-from kbgpt.api.aigc.report_models import (Report, ReportResponse, ToVoice,
-                                          ToVoiceResponse)
+from kbgpt.api.aigc.report_models import (
+    Report,
+    ReportResponse,
+    ToVoice,
+    ToVoiceResponse,
+)
 from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
 from kbgpt.svc.aigc import Agent

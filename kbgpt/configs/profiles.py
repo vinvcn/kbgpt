@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import AnyUrl, BaseModel, Field, RedisDsn, root_validator
 
 
@@ -14,6 +16,14 @@ class SuperConfig(BaseModel):
     def check_and_convert_key_names(cls, values):
         """Convert all keys to lowercase"""
         return dict((k.lower(), v) for k, v in values.items())
+
+
+class OpenAI(SuperConfig):
+    """openai configuration"""
+
+    proxied: bool = Field(False)
+    proxy_url: Optional[AnyUrl]
+    api_base_url: Optional[AnyUrl]
 
 
 class Sanic(SuperConfig):
@@ -108,3 +118,5 @@ class Profile(SuperConfig):
     indexing: Indexing
     db_url: AnyUrl
     generative_model: str
+    openai: OpenAI
+    name: str = Field("DEFAULT")

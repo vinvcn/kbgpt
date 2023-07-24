@@ -12,7 +12,6 @@ from kbgpt.lib.db.mysql.sentiment_record import SentimentRecord
 from kbgpt.lib.logging import alog
 from kbgpt.lib.templates.engine import SimpleEngine
 from kbgpt.svc.aigc import Agent
-from kbgpt.svc.utils.openai import get_total_cost
 
 
 class SentimentAgent(Agent):

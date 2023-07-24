@@ -3,6 +3,10 @@ PROFILE: FAT
 DEFAULT:
   DB_URL: mysql+pymysql://user:password@localhost:3306/db
   GENERATIVE_MODEL: "gpt-3.5-turbo"
+  OPENAI:
+    PROXIED: True
+    PROXY_URL: http://18.139.228.114:81
+    API_BASE_URL: http://api.openai.com/v1
   # ----- SANIC SERVER PORT ----
   SANIC:
     APP_NAME: kbgpt
@@ -50,12 +54,16 @@ DEFAULT:
     CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 
 FAT:
+  OPENAI:
+    PROXIED: False
   SANIC:
     DEBUG: True
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
 
 PRE:
+  OPENAI:
+    PROXIED: False
   SANIC:
     DEBUG: True
   VECTOR_STORE:
@@ -65,6 +73,8 @@ PRE:
     TRENDING_URL: "https://mb-api-gateway-pre.bullsmart.in"
 
 PROD:
+  OPENAI:
+    PROXIED: False
   SANIC:
     DEBUG: False
   VECTOR_STORE:

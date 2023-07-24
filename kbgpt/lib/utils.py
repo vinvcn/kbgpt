@@ -1,9 +1,13 @@
 import hashlib
+import json
 import logging
 from enum import Enum
+from os.path import dirname, join
 
 import requests
 import yaml
+
+from kbgpt.lib.constants import CONFIG_FILE_NAME
 
 
 def md5_url_content(url) -> str:
@@ -46,8 +50,8 @@ def snake_to_camel(snake_case: str):
     """
     convert snake case string to camel case
     """
-    words = snake_case.split('_')
-    return ''.join(word.capitalize() for word in words)
+    words = snake_case.split("_")
+    return "".join(word.capitalize() for word in words)
 
 
 class ContentType(Enum):
@@ -92,3 +96,9 @@ def load_yaml_config(path):
     except yaml.YAMLError as exc:
         logging.exception(exc)
         return None
+
+
+def load_config(file_path: str):
+    conf_file = join(dirname(file_path), CONFIG_FILE_NAME)
+    with open(conf_file, "r") as fp:
+        return json.load(fp=fp)

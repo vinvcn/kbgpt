@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 import openai
 from pydantic import BaseModel, Field
 
+from config import profile
 from kbgpt.svc.utils.openai import get_total_cost
 
 
@@ -49,7 +50,9 @@ class Completion(BaseModel):
 
 class OpenAI:
     def __init__(self) -> None:
-        pass
+        if profile.openai.proxied:
+            openai.api_base = profile.openai.api_base_url
+            openai.proxy = profile.openai.proxy_url
 
     async def chat_completion(self, model: str, messages: List[Message]) -> Completion:
         """chat completion"""
