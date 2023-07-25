@@ -20,6 +20,13 @@ class ReportDataSource:
         r_type: ReportType = (
             ReportType.DAILY if req.type.value == "daily" else ReportType.WEEKLY
         )
+
+        if req.data:
+            if r_type == ReportType.DAILY:
+                return DailyData.parse_obj(req.data)
+            else:
+                return WeeklyData.parse_obj(req.data)
+
         result_obj = await TrendingClient().fetch_data(
             TrendRequest(params=TrendParam(dateParam=dt, reportType=r_type))
         )

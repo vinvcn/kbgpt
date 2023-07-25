@@ -51,8 +51,8 @@ class Completion(BaseModel):
 class OpenAI:
     def __init__(self) -> None:
         if profile.openai.proxied:
-            openai.api_base = profile.openai.api_base_url
-            openai.proxy = profile.openai.proxy_url
+            openai.api_base = str(profile.openai.api_base_url)
+            openai.proxy = str(profile.openai.proxy_url)
 
     async def chat_completion(self, model: str, messages: List[Message]) -> Completion:
         """chat completion"""

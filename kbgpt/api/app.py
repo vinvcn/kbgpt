@@ -6,17 +6,13 @@ from sanic import Sanic
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 
 from config import profile
-from kbgpt.api.aigc.report import TestTask
+from kbgpt.api.aigc.report import DailyReport, WeeklyReport
 from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.lib.tasks.manager import TaskManager
-from kbgpt.lib.templates.rendering.models import (
-    MySqlTemplateProvider,
-    RedisTemplateProvider,
-    TemplateRepo,
-)
+from kbgpt.lib.templates.rendering.models import RedisTemplateProvider, TemplateRepo
 
 from .admin import ADMIN
 from .aigc import AIGC
@@ -45,7 +41,8 @@ async def setup_resources(sanic_app: Sanic, loop):
     mgr.add(sql_emitter)
 
     task_manager = TaskManager(app=app, crud=crud)
-    task_manager.register_task_name_handle(TestTask)
+    task_manager.register_task_name_handle(DailyReport, DailyReport.__name__)
+    task_manager.register_task_name_handle(WeeklyReport, WeeklyReport.__name__)
 
     mgr.add(task_manager)
 
