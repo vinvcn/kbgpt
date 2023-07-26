@@ -94,13 +94,10 @@ class ReportEngine(Engine):
         self.tmp_repo = tmp_repo
         self.data_source = ReportDataSource()
         self.render_config = render_config
-        # self.render_config = {
-        #     "coverBreakSec": 1.7,
-        #     "pageBreakSec": 1,
-        #     "listingBreakSec": 2,
-        # }
 
-    async def agenerate(self, req: Report, **kwargs) -> EngineResult:
+    async def agenerate(
+        self, dt: date, req: Report, name: str, show_listing=True, **kwargs
+    ) -> EngineResult:
         """
         generate template
         """
@@ -113,7 +110,9 @@ class ReportEngine(Engine):
 
         return Completion(
             prompt=template.body,
-            content=jtemp.render(jinja_params),
+            content=jtemp.render(
+                {**data.dict(), **self.render_config, "showListings": show_listing}
+            ),
             usage=Usage(),
             metadata={"data": data.json()},
         )
