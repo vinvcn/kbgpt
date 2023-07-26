@@ -1,4 +1,5 @@
 from datetime import date
+from math import gcd
 from typing import List
 
 from pydantic import BaseModel, Field
@@ -19,6 +20,7 @@ class SectorsIndex(BaseModel):
 
 class EquityFundMarket(BaseModel):
     avgReturn: float
+    totalFundNumber: int
     numberOfRising: int
     risingPercentage: float = Field(0.0)
     numberOfDowning: int
@@ -30,9 +32,14 @@ class EquityFundMarket(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        divisor = sum([self.numberOfRising, self.numberOfDowning])
-        self.risingPercentage = round(100 * self.numberOfRising / divisor, 4)
-        self.downingPercentage = round(100 * self.numberOfDowning / divisor, 4)
+        self.risingPercentage = round(
+            100 * self.numberOfRising / self.totalFundNumber, 2
+        )
+        self.downingPercentage = round(
+            100 * self.numberOfDowning / self.totalFundNumber, 2
+        )
+        self.avgReturn = round(self.avgReturn, 2)
+        self.topRisingChange = round(self.topRisingChange, 2)
 
 
 class DebtFundMarket(BaseModel):
@@ -43,13 +50,24 @@ class DebtFundMarket(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fundsRoseVSFundsFell = f"{self.numberOfRising}:{self.numberOfDowning}"
+        if self.numberOfDowning == 0:
+            self.fundsRoseVSFundsFell = f"{self.numberOfRising}:{self.numberOfDowning}"
+        else:
+            divisor = gcd(self.numberOfRising, self.numberOfDowning)
+            self.fundsRoseVSFundsFell = (
+                f"{self.numberOfRising/divisor}:{self.numberOfDowning/divisor}"
+            )
+        self.avgReturn = round(self.avgReturn, 2)
 
 
 class FundInfo(BaseModel):
     isin: str
     name: str
     navChange: float
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.navChange = round(self.navChange, 2)
 
 
 class WeeklyData(BaseModel):
@@ -60,7 +78,7 @@ class WeeklyData(BaseModel):
     # weekLyOpenAum: float
     # weekLyCloseAum: float
     # weekLyAumChange: float = Field(0.0)
-    weekLyCapitalFlow: float = Field(0.0)
+    # weekLyCapitalFlow: float = Field(0.0)
     # risingSectors: SectorsIndex
     # downingSectors: SectorsIndex
     equityFundMarket: EquityFundMarket

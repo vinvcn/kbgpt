@@ -15,7 +15,7 @@ from kbgpt.api.libs.base_model import ErrorResponse, ResponseBase
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.rest.be_admin import BackendAdmin, CreateReport, ReportType, SourceType
 from kbgpt.lib.tasks.manager import FuncWrapper, TaskManager, TaskRecord
-from kbgpt.svc.aigc.report import ReportAgent, ToVoiceAgent
+from kbgpt.svc.aigc.report import ReportAgent, ToVoiceAgent, WeeklyAgent
 
 RP = Blueprint("report", url_prefix="rp")
 
@@ -131,10 +131,12 @@ class WeeklyReport(FuncWrapper):
         try:
             results = []
             date_str = body.date.strftime("%Y-%m-%d")
-            agent = ReportAgent(app=app)
+            agent = WeeklyAgent(app=app)
             txt_result: ReportResponse = await agent.analyze(body)
             tv_agent = ToVoiceAgent(app=app)
-            vic_result = await tv_agent.analyze(ToVoice(**txt_result.__dict__))
+            vic_result = await tv_agent.analyze(
+                ToVoice(pages=txt_result.pages, ssml=txt_result.ssml)
+            )
             results = [
                 CreateReport(
                     content=txt_result.content,

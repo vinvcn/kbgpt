@@ -114,12 +114,13 @@ class CommentEngine(Engine):
 class ReportEngine(Engine):
     """report engine"""
 
-    def __init__(self, tmp_repo: TemplateRepo):
+    def __init__(self, tmp_repo: TemplateRepo, render_config: Dict[str, Any]):
         self.tmp_repo = tmp_repo
         self.data_source = ReportDataSource()
+        self.render_config = render_config
 
     async def agenerate(
-        self, dt: date, req: Report, name: str, **kwargs
+        self, dt: date, req: Report, name: str, show_listing=True, **kwargs
     ) -> EngineResult:
         """
         generate template
@@ -131,7 +132,9 @@ class ReportEngine(Engine):
 
         return Completion(
             prompt=template.body,
-            content=jtemp.render(data),
+            content=jtemp.render(
+                {**data.dict(), **self.render_config, "showListings": show_listing}
+            ),
             usage=Usage(),
             metadata={"data": data.json()},
         )
