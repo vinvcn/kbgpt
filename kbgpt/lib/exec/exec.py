@@ -17,11 +17,10 @@ from kbgpt.lib.exec.models import (
 class NodeEval:
     async def aeval(self, ctx: Dict[str, Any], node: "Node", params: Dict[str, Any]):
         factory: engine_factory = ctx["factory"]
-        node.validate_input(**params)
+        await node.validate_input(**params)
         engine: Engine = factory.create_from_model(node.engine)
         oup = await engine.agenerate(**params)
-        node.validate_output(**oup)
-        return node.ou_mapper.map_to(oup)
+        return oup
 
 
 class Mapper(BaseModel):
@@ -34,25 +33,35 @@ class Mapper(BaseModel):
         pass
 
 
-# class RenameMapper(BaseModel):
-#     type: Literal["rename_mapper"]
+class Selector(BaseModel):
+    type: Literal["selector"]
 
-#     in_mapping: Dict[str, str]
-#     ou_mapping: Dict[str, str]
+    def select(self, **params):
 
-#     def map_ou_to(self, ou_obj: Dict[str, Any]) -> Dict[str, Any]:
-#         return self._map_to(ou_obj, self.ou_mapping)
 
-#     def map_in_to(self, in_obj: Dict[str, Any]) -> Dict[str, Any]:
-#         return self._map_to(in_obj, self.in_mapping)
 
-#     def _map_to(self, obj: Dict[str, Any], mapping: Dict[str, Any]) -> Dict[str, Any]:
-#         renamed = {}
-#         for k, v in mapping:
-#             renamed[v] = obj[k]
+class Mapper(BaseModel):
+    type: Literal["mapper"]
 
-#         restof = {k: v for k, v in obj.items() if k not in mapping}
-#         return {**renamed, **restof}
+class RenameMapper(BaseModel):
+    type: Literal["rename_mapper"]
+
+    in_mapping: Dict[str, str]
+    ou_mapping: Dict[str, str]
+
+    def map_ou_to(self, ou_obj: Dict[str, Any]) -> Dict[str, Any]:
+        return self._map_to(ou_obj, self.ou_mapping)
+
+    def map_in_to(self, in_obj: Dict[str, Any]) -> Dict[str, Any]:
+        return self._map_to(in_obj, self.in_mapping)
+
+    def _map_to(self, obj: Dict[str, Any], mapping: Dict[str, Any]) -> Dict[str, Any]:
+        renamed = {}
+        for k, v in mapping:
+            renamed[v] = obj[k]
+
+        restof = {k: v for k, v in obj.items() if k not in mapping}
+        return {**renamed, **restof}
 
 
 class Node(BaseModel):
@@ -64,6 +73,7 @@ class Node(BaseModel):
         MapperEngineMod,
     ] = Field(..., discriminator="type")
     pass_through: bool = Field(True)
+    in_selector: 
     in_keys: Optional[List[str]]
     # mapper: Optional[Union[RenameMapper, Mapper]] = Field(None, discriminator="type")
 

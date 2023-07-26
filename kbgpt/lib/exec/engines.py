@@ -36,7 +36,7 @@ class MapperEngine(Engine):
     async def agenerate(self, **kwargs) -> Dict[str, Any]:
         obj = kwargs
         renamed = {}
-        for k, v in self.mapping:
+        for k, v in self.mapping.items():
             renamed[v] = obj[k]
 
         restof = {k: v for k, v in obj.items() if k not in self.mapping}
@@ -93,16 +93,14 @@ class ReportEngine(Engine):
         self.data_source = ReportDataSource()
         self.render_config = render_config
 
-    async def agenerate(
-        self, dt: date, req: Report, name: str, **kwargs
-    ) -> Dict[str, Any]:
+    async def agenerate(self, req: Report, name: str, **kwargs) -> Dict[str, Any]:
         """
         generate template
         """
 
-        data = await self.data_source(dt, req)
+        data = await self.data_source(req)
         template = await self.tmp_repo.pick_one(name=name)
-        jinja_params = {**data.dict(), **self.render_config}
+        jinja_params = {**data.dict(), **self.render_config, **kwargs}
         jtemp = Environment().from_string(template.body)
 
         completion = Completion(

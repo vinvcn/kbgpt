@@ -4,12 +4,14 @@ from sanic import Sanic
 
 from kbgpt.lib.exec.engines import (
     CommentEngine,
+    MapperEngine,
     ReportEngine,
     SimpleEngine,
     ToVoiceEngine,
 )
 from kbgpt.lib.exec.models import (
     CommentEngineMod,
+    MapperEngineMod,
     ReportEngineMod,
     SimpleEngineMod,
     ToVoiceEngineMod,
@@ -24,6 +26,10 @@ class EngineFactory:
     @singledispatchmethod
     def create_from_model(self, mod):
         raise NotImplementedError("No implementation for this data type")
+
+    @create_from_model.register
+    def create_from_model_to_voice(self, mod: MapperEngineMod) -> "MapperEngine":
+        return MapperEngine(mapping=mod.mapping)
 
     @create_from_model.register
     def create_from_model_simple(self, mod: SimpleEngineMod) -> "SimpleEngine":

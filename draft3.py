@@ -58,8 +58,10 @@ asyncio.run(
         engine_factory=factory,
         seed={
             "req": Report(
-                type=Type.DAILY, date=date.today() - timedelta(days=1), polish=True
+                type=Type.WEEKLY, date=date.fromisoformat("2023-07-21"), polish=True
             ),
+            "name": "report.weekly.jinja",
+            "showListings": False,
         },
     )
 )

@@ -29,11 +29,6 @@ class Template(BaseModel):
 
     def render(self, *args, **kwargs) -> str:
         """rendering the template"""
-        if len(args) + len(kwargs.keys()) > len(self.keywords):
-            raise ValueError("Number of argument does not match")
-        for k in kwargs:
-            if k not in self.keywords:
-                raise ValueError(f"key {k} is not expected. ")
         params = dict(zip(self.keywords[: len(args)], args))
         params.update(kwargs)
         return self.body.format(**params)
