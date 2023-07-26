@@ -16,7 +16,7 @@ class DataFetchingError(Exception):
 class ReportDataSource:
     """report data source"""
 
-    async def __call__(self, dt: date, req: Report) -> Any:
+    async def __call__(self, req: Report) -> Any:
         r_type: ReportType = (
             ReportType.DAILY if req.type.value == "daily" else ReportType.WEEKLY
         )
@@ -28,7 +28,7 @@ class ReportDataSource:
                 return WeeklyData.parse_obj(req.data)
 
         result_obj = await TrendingClient().fetch_data(
-            TrendRequest(params=TrendParam(dateParam=dt, reportType=r_type))
+            TrendRequest(params=TrendParam(dateParam=req.date, reportType=r_type))
         )
         logging.info(result_obj)
         if result_obj["errCode"] != 0:

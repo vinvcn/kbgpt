@@ -19,7 +19,7 @@ from sqlalchemy import (
 from config import profile
 from kbgpt.api.libs.resources import LifeCycleMixin
 from kbgpt.lib.db.mysql import Base, Crud
-from kbgpt.lib.utils import load_config
+from kbgpt.lib.utils import load_json_config
 
 
 class TaskStatus(Enum):
@@ -128,7 +128,7 @@ class TaskManager(LifeCycleMixin):
     async def init(self, app: Sanic):
         configs = [
             AttemptConfigRecord(**con)
-            for con in load_config(__file__)[profile.name.lower()]
+            for con in load_json_config(__file__)[profile.name.lower()]
         ]
         self.crud.truncate_table(AttemptConfigRecord.__tablename__)
         self.crud.batch_insert(configs)
@@ -212,6 +212,7 @@ class TaskManager(LifeCycleMixin):
             else:
                 # mark all done tasks without exception to be success
                 record.status = TaskStatus.SUCCESS.value
+                record.completed_at = datetime.utcnow()
                 logging.info("task %s was done mark it to %s", task.name, record.status)
 
             self.crud.session.add(record)

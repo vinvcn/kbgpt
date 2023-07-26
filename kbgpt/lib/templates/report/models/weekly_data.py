@@ -1,4 +1,5 @@
 from datetime import date
+from math import gcd
 from typing import List
 
 from pydantic import BaseModel, Field
@@ -31,8 +32,10 @@ class EquityFundMarket(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         divisor = sum([self.numberOfRising, self.numberOfDowning])
-        self.risingPercentage = round(100 * self.numberOfRising / divisor, 4)
-        self.downingPercentage = round(100 * self.numberOfDowning / divisor, 4)
+        self.risingPercentage = round(100 * self.numberOfRising / divisor, 2)
+        self.downingPercentage = round(100 * self.numberOfDowning / divisor, 2)
+        self.avgReturn = round(self.avgReturn, 2)
+        self.topRisingChange = round(self.topRisingChange, 2)
 
 
 class DebtFundMarket(BaseModel):
@@ -43,13 +46,25 @@ class DebtFundMarket(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fundsRoseVSFundsFell = f"{self.numberOfRising}:{self.numberOfDowning}"
+        if self.numberOfRising == 0 or self.numberOfDowning == 0:
+            self.fundsRoseVSFundsFell = f"{self.numberOfRising}:{self.numberOfDowning}"
+        else:
+            div = gcd(self.numberOfRising, self.numberOfDowning)
+            self.fundsRoseVSFundsFell = (
+                f"{self.numberOfRising/div}:{self.numberOfDowning/div}"
+            )
+
+        self.avgReturn = round(self.avgReturn, 2)
 
 
 class FundInfo(BaseModel):
     isin: str
     name: str
     navChange: float
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.navChange = round(self.navChange, 2)
 
 
 class WeeklyData(BaseModel):

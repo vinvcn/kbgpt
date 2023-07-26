@@ -98,7 +98,11 @@ def load_yaml_config(path):
         return None
 
 
-def load_config(file_path: str):
-    conf_file = join(dirname(file_path), CONFIG_FILE_NAME)
+def load_json_config(file_path: str, sub_dir: str = None) -> dict:
+    conf_file = None
+    if sub_dir:
+        conf_file = join(dirname(file_path), sub_dir, CONFIG_FILE_NAME)
+    else:
+        conf_file = join(dirname(file_path), CONFIG_FILE_NAME)
     with open(conf_file, "r") as fp:
         return json.load(fp=fp)

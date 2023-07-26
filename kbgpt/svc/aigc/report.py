@@ -1,16 +1,12 @@
 import datetime
 import logging
-import tempfile
-from datetime import date, datetime, timedelta
-from functools import partial
+from datetime import datetime
 from os.path import basename
-from typing import Tuple
-from urllib.parse import urlsplit
+from typing import Any, Dict, List, Tuple
 from uuid import uuid4
 
 import google.cloud.texttospeech_v1beta1 as texttospeech
-from aiofiles import open as aopen
-from gcloud.aio.storage import Blob, Storage
+from gcloud.aio.storage import Storage
 from sanic import Sanic
 
 from config import profile
@@ -19,8 +15,10 @@ from kbgpt.api.aigc.report_models import (
     ReportResponse,
     ToVoice,
     ToVoiceResponse,
+    Type,
 )
-from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
+from kbgpt.lib.llm.openai import OpenAI
+from kbgpt.lib.rest.be_admin import ReportType
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
 from kbgpt.svc.aigc import Agent
 
@@ -33,7 +31,10 @@ class ReportAgent(Agent):
         self.report_engine = ReportEngine(app.ctx.temp_repo)
         self.polish_engine = SimpleEngine("report_polish", app.ctx.temp_repo)
         self.adjust_format = SimpleEngine(
-            "report_adjust_space_and_breaks", app.ctx.temp_repo
+            "report.daily.adjust_space_and_breaks", app.ctx.temp_repo
+        )
+        self.weekly_format = SimpleEngine(
+            "report.weekly.adjust_format", app.ctx.temp_repo
         )
         self.openai = OpenAI()
 
@@ -43,9 +44,13 @@ class ReportAgent(Agent):
         jinja_completion = await self.report_engine.agenerate(
             req.date, req, f"report_{req.type.value}"
         )
-        completion1 = await self.adjust_format.agenerate(
-            content=jinja_completion.content
-        )
+        if req.type == Type.DAILY:
+            completion1 = await self.adjust_format.agenerate(
+                content=jinja_completion.content
+            )
+        else:
+            pass
+
         logging.debug("filled template")
         logging.debug("\n%s", completion1.prompt)
         logging.debug("\n%s", completion1.content)
