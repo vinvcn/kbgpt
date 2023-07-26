@@ -31,6 +31,7 @@ class MediaReportResp(OpenAIResponseBase):
     content: str
     ssml: str
     pages: List[str]
+    polish_content: str
     data: str
 
 

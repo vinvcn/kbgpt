@@ -139,6 +139,7 @@ class WeeklyReport(FuncWrapper):
             )
             results = [
                 CreateReport(
+                    caption=vic_result.timepoints,
                     content=txt_result.content,
                     data=txt_result.data,
                     date=date_str,

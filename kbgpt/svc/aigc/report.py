@@ -50,6 +50,9 @@ class WeeklyAgent(Agent):
         adjustformat = SimpleEngine(
             self.adjust_template.format(ty), self.app.ctx.temp_repo
         )
+        polishengine = SimpleEngine(
+            self.polish_template.format(ty), self.app.ctx.temp_repo
+        )
         jinja_with_listing = await self.report_engine.agenerate(
             req.date,
             req,
@@ -64,6 +67,7 @@ class WeeklyAgent(Agent):
         )
         jinja_with_listing.content.split("\n")
         adjust1 = await adjustformat.agenerate(content=jinja_with_listing.content)
+        polish1 = await polishengine.agenerate(content=adjust1.content)
         pages = [
             l.strip()
             for l in re.split(r"#PB-.*-PB#", jinja_wiz_listing.content)
@@ -75,7 +79,7 @@ class WeeklyAgent(Agent):
             content=adjust1.content,
             pages=pages,
             ssml=ssml,
-            polish_content=adjust1.content,
+            polish_content=polish1.content,
             data=jinja_with_listing.metadata["data"],
             **adjust1.usage.__dict__,
         )
@@ -91,7 +95,7 @@ class ReportAgent(Agent):
     def __init__(self, app: Sanic) -> None:
         super().__init__()
         self.app = app
-        self.report_engine = ReportEngine(app.ctx.temp_repo)
+        self.report_engine = ReportEngine(app.ctx.temp_repo, render_config={})
 
     async def analyze(self, req: Report) -> ReportResponse:
         """analyze the request and provide response"""

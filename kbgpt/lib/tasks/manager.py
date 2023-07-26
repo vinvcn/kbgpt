@@ -212,6 +212,7 @@ class TaskManager(LifeCycleMixin):
             else:
                 # mark all done tasks without exception to be success
                 record.status = TaskStatus.SUCCESS.value
+                record.completed_at = datetime.utcnow()
                 logging.info("task %s was done mark it to %s", task.name, record.status)
 
             self.crud.session.add(record)
