@@ -53,7 +53,7 @@ class Crud(LifeCycleMixin):
         self.close_all_connections()
 
     def _create_engine(self):
-        self.engine = sqlalchemy.create_engine(self.connection_string, echo=True)
+        self.engine = sqlalchemy.create_engine(self.connection_string, echo=False)
 
     def _create_session(self):
         session = sessionmaker(bind=self.engine)

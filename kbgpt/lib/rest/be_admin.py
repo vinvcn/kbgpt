@@ -15,6 +15,7 @@ class SourceType(Enum):
 class ReportType(Enum):
     DAILY = 1
     WEEKLY = 2
+    MONTHLY = 3
 
 
 class CreateReport(BaseModel):

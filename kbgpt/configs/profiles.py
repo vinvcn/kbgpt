@@ -102,6 +102,7 @@ class Report(SuperConfig):
 
     backend_admin_url: AnyUrl
     trending_url: AnyUrl
+    openai_model: str
 
 
 class Profile(SuperConfig):

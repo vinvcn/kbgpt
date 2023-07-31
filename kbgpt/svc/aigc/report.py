@@ -1,6 +1,10 @@
 import datetime
+import json
 import logging
-from datetime import datetime
+import re
+import tempfile
+from datetime import date, datetime, timedelta
+from functools import partial
 from os.path import basename
 from typing import Any, Dict, List, Tuple
 from uuid import uuid4
@@ -11,6 +15,7 @@ from sanic import Sanic
 
 from config import profile
 from kbgpt.api.aigc.report_models import (
+    MediaReportResp,
     Report,
     ReportResponse,
     ToVoice,
@@ -23,41 +28,99 @@ from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
 from kbgpt.svc.aigc import Agent
 
 
-class ReportAgent(Agent):
-    """report agent"""
+class WeeklyAgent(Agent):
+    jinja_template = "report.{}.jinja"
+    adjust_template = "report.{}.adjust"
+    polish_template = "report.{}.polish"
 
     def __init__(self, app: Sanic) -> None:
         super().__init__()
-        self.report_engine = ReportEngine(app.ctx.temp_repo)
-        self.polish_engine = SimpleEngine("report_polish", app.ctx.temp_repo)
-        self.adjust_format = SimpleEngine(
-            "report.daily.adjust_space_and_breaks", app.ctx.temp_repo
+        self.app = app
+        self.report_engine = ReportEngine(
+            app.ctx.temp_repo,
+            render_config={
+                "coverBreakSec": 1.9,
+                "pageBreakSec": 1,
+                "listingBreakSec": 2,
+                "listingBreakSec1": 1.9,
+                "listingBreakSec2": 3,
+            },
         )
-        self.weekly_format = SimpleEngine(
-            "report.weekly.adjust_format", app.ctx.temp_repo
+
+    async def analyze(self, req: Report) -> MediaReportResp:
+        ty = req.type.value.lower()
+        adjustformat = SimpleEngine(
+            self.adjust_template.format(ty),
+            self.app.ctx.temp_repo,
+            model=profile.report.openai_model,
         )
-        self.openai = OpenAI()
+        polishengine = SimpleEngine(
+            self.polish_template.format(ty),
+            self.app.ctx.temp_repo,
+            model=profile.report.openai_model,
+        )
+        jinja_with_listing = await self.report_engine.agenerate(
+            req.date,
+            req,
+            self.jinja_template.format(req.type.value.lower()),
+            show_listing=True,
+        )
+        jinja_no_listing = await self.report_engine.agenerate(
+            req.date,
+            req,
+            self.jinja_template.format(req.type.value.lower()),
+            show_listing=False,
+        )
+        jinja_with_listing.content.split("\n")
+        adjust1 = await adjustformat.agenerate(content=jinja_with_listing.content)
+        polish1 = await polishengine.agenerate(content=adjust1.content)
+        pages = [
+            l.strip()
+            for l in re.split(r"#PB-.*-PB#", jinja_with_listing.content)
+            if l.strip()
+        ]
+        ssml = jinja_no_listing.content.replace("#PB-", "").replace("-PB#", "")
+
+        return MediaReportResp(
+            content=adjust1.content,
+            pages=pages,
+            ssml=ssml,
+            polish_content=polish1.content,
+            data=jinja_with_listing.metadata["data"],
+            **adjust1.usage.__dict__,
+        )
+
+
+class ReportAgent(Agent):
+    """report agent"""
+
+    jinja_template = "report.{}.jinja"
+    adjust_template = "report.{}.adjust"
+    polish_template = "report.{}.polish"
+
+    def __init__(self, app: Sanic) -> None:
+        super().__init__()
+        self.app = app
+        self.report_engine = ReportEngine(app.ctx.temp_repo, render_config={})
 
     async def analyze(self, req: Report) -> ReportResponse:
         """analyze the request and provide response"""
-
-        jinja_completion = await self.report_engine.agenerate(
-            req.date, req, f"report_{req.type.value}"
+        ty = req.type.value.lower()
+        polish_engine = SimpleEngine(
+            self.polish_template.format(ty), self.app.ctx.temp_repo
         )
-        if req.type == Type.DAILY:
-            completion1 = await self.adjust_format.agenerate(
-                content=jinja_completion.content
-            )
-        else:
-            pass
-
+        adjust_format = SimpleEngine(
+            self.adjust_template.format(ty), self.app.ctx.temp_repo
+        )
+        jinja_completion = await self.report_engine.agenerate(
+            req.date, req, self.jinja_template.format(req.type.value.lower())
+        )
+        completion1 = await adjust_format.agenerate(content=jinja_completion.content)
         logging.debug("filled template")
         logging.debug("\n%s", completion1.prompt)
         logging.debug("\n%s", completion1.content)
         if req.polish:
-            completion2 = await self.polish_engine.agenerate(
-                content=completion1.content
-            )
+            completion2 = await polish_engine.agenerate(content=completion1.content)
 
             logging.debug("result")
             logging.debug("\n%s", completion2)
@@ -145,17 +208,33 @@ class ToVoiceAgent(Agent):
         # voice parameters and audio file type
         response = await client.synthesize_speech(request=request)
 
-        return response.audio_content
+        return response.audio_content, response.timepoints
 
-    async def convert_to_ssml(self, content: str) -> str:
-        return f"<speak>{content}</speak>"
+    def divide_chunks(self, l, n):
+        # looping till length l
+        for i in range(0, len(l), n):
+            yield l[i : i + n]
+
+    def timepoints_to_json(self, timepoints, pages):
+        for times, txt in zip(self.divide_chunks(timepoints, 2), pages):
+            start = round(times[0].time_seconds, 3)
+            end = round(times[1].time_seconds, 3)
+            idx = re.findall("\d+", times[0].mark_name)[0]
+            yield {"startTime": start, "index": int(idx), "text": txt, "endTime": end}
+
+    def gen_timepoints(self, time_result, pages):
+        lst = list(self.timepoints_to_json(time_result, pages))
+        return {"totalTime": lst[-1]["endTime"], "timepoints": lst}
 
     async def analyze(self, req: ToVoice) -> ToVoiceResponse:
-        ssml_str = await self.convert_to_ssml(req.content)
-        audio_content = await self.ssml_to_audio(ssml_str, "en_IN", 1.25)
+        audio_content, timepoints = await self.ssml_to_audio(req.ssml, "en_IN", 1.25)
 
         object_name = f"test/{uuid4()}.wav"
         public_url, exp_at = await self.upload_file(
             audio_content, "kbgpt_reference_bucket", object_name
         )
-        return ToVoiceResponse(uri=public_url, expires=exp_at)
+        json_timepoints = self.gen_timepoints(timepoints, req.pages)
+
+        return ToVoiceResponse(
+            uri=public_url, timepoints=json.dumps(json_timepoints), expires=exp_at
+        )
