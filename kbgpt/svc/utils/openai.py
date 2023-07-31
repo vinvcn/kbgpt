@@ -5,16 +5,34 @@ import tiktoken
 from langchain.callbacks.manager import OpenAICallbackHandler
 
 MODEL_COST_PER_1K_TOKENS = {
+    # GPT-4 input
     "gpt-4": 0.03,
     "gpt-4-0314": 0.03,
-    "gpt-4-completion": 0.06,
-    "gpt-4-0314-completion": 0.06,
+    "gpt-4-0613": 0.03,
     "gpt-4-32k": 0.06,
     "gpt-4-32k-0314": 0.06,
+    "gpt-4-32k-0613": 0.06,
+    # GPT-4 output
+    "gpt-4-completion": 0.06,
+    "gpt-4-0314-completion": 0.06,
+    "gpt-4-0613-completion": 0.06,
     "gpt-4-32k-completion": 0.12,
     "gpt-4-32k-0314-completion": 0.12,
-    "gpt-3.5-turbo": 0.002,
-    "gpt-3.5-turbo-0301": 0.002,
+    "gpt-4-32k-0613-completion": 0.12,
+    # GPT-3.5 input
+    "gpt-3.5-turbo": 0.0015,
+    "gpt-3.5-turbo-0301": 0.0015,
+    "gpt-3.5-turbo-0613": 0.0015,
+    "gpt-3.5-turbo-16k": 0.003,
+    "gpt-3.5-turbo-16k-0613": 0.003,
+    # GPT-3.5 output
+    "gpt-3.5-turbo-completion": 0.002,
+    "gpt-3.5-turbo-0301-completion": 0.002,
+    "gpt-3.5-turbo-0613-completion": 0.002,
+    "gpt-3.5-turbo-16k-completion": 0.004,
+    "gpt-3.5-turbo-16k-0613-completion": 0.004,
+    # Others
+    "gpt-35-turbo": 0.002,  # Azure OpenAI version of ChatGPT
     "text-ada-001": 0.0004,
     "ada": 0.0004,
     "text-babbage-001": 0.0005,
@@ -24,15 +42,21 @@ MODEL_COST_PER_1K_TOKENS = {
     "text-davinci-003": 0.02,
     "text-davinci-002": 0.02,
     "code-davinci-002": 0.02,
+    "ada-finetuned": 0.0016,
+    "babbage-finetuned": 0.0024,
+    "curie-finetuned": 0.012,
+    "davinci-finetuned": 0.12,
 }
+
+
 MODEL_LIMIT_PER_MINUTE = {
-    "gpt-3.5-turbo" : 90000 - 40000,
-    "gpt-3.5-turbo-0301": 90000 - 40000
+    "gpt-3.5-turbo": 90000 - 40000,
+    "gpt-3.5-turbo-0301": 90000 - 40000,
 }
 
 
 def tokenize(model_name: str, text: str) -> str:
-    """ tokenize the given text """
+    """tokenize the given text"""
     # create a GPT-3.5-Turbo encoder instance
     enc = tiktoken.encoding_for_model(model_name)
     # encode the text using the GPT-3.5-Turbo encoder
@@ -40,8 +64,8 @@ def tokenize(model_name: str, text: str) -> str:
     return tokenized_text
 
 
-def token_counts(model_name:str, text: str) -> int:
-    """ get the token counts """
+def token_counts(model_name: str, text: str) -> int:
+    """get the token counts"""
     return len(tokenize(model_name, text))
 
 
@@ -73,8 +97,8 @@ def get_total_cost(model_name: str, prompt_token: int, completion_token: int) ->
     )
 
 
-def get_total_cost_for_text(model_name: str, prompt: str, completion:str) -> float:
-    """ get cost for text """
+def get_total_cost_for_text(model_name: str, prompt: str, completion: str) -> float:
+    """get cost for text"""
     prompt_counts = token_counts(model_name, prompt)
     completion_counts = token_counts(model_name, completion)
     return get_total_cost(model_name, prompt_counts, completion_counts)
@@ -92,15 +116,17 @@ def merge_stats(
         return stats_a
     else:
         stat = OpenAICallbackHandler()
-        stat.total_tokens=stats_a.total_tokens + stats_b.total_tokens
-        stat.prompt_tokens=stats_a.prompt_tokens + stats_b.prompt_tokens
-        stat.completion_tokens=stats_a.completion_tokens + stats_b.completion_tokens
-        stat.successful_requests=stats_a.successful_requests + stats_b.successful_requests
-        stat.total_cost=stats_a.total_cost + stats_b.total_cost
+        stat.total_tokens = stats_a.total_tokens + stats_b.total_tokens
+        stat.prompt_tokens = stats_a.prompt_tokens + stats_b.prompt_tokens
+        stat.completion_tokens = stats_a.completion_tokens + stats_b.completion_tokens
+        stat.successful_requests = (
+            stats_a.successful_requests + stats_b.successful_requests
+        )
+        stat.total_cost = stats_a.total_cost + stats_b.total_cost
         return stat
 
 
-def merge_all_stats(stats_list:List[OpenAICallbackHandler]) -> OpenAICallbackHandler:
+def merge_all_stats(stats_list: List[OpenAICallbackHandler]) -> OpenAICallbackHandler:
     """
     merge all stats
     """
