@@ -64,6 +64,22 @@ class RenameMapper(BaseModel):
         return {**renamed, **restof}
 
 
+class ExecutionContext(BaseModel):
+
+    outputs: Optional[Dict['Addresser', Any]]
+    # seed: Optional[Dict[str, Any]]
+
+
+
+class Addresser(BaseModel):
+
+    node: str
+    key: str
+
+    class Config: allow_mutation=False
+
+
+
 class Node(BaseModel):
     engine: Union[
         ToVoiceEngineMod,
@@ -72,14 +88,30 @@ class Node(BaseModel):
         SimpleEngineMod,
         MapperEngineMod,
     ] = Field(..., discriminator="type")
-    pass_through: bool = Field(True)
-    in_selector: 
-    in_keys: Optional[List[str]]
-    # mapper: Optional[Union[RenameMapper, Mapper]] = Field(None, discriminator="type")
+    id: str
+    frm: Optional[Dict[Addresser, str]]
+    sel: Optional[Dict[str, str]]
 
     async def validate_input(self, **kwargs):
         if any([k not in kwargs for k in self.in_keys]):
             raise ValueError(" key not in input keys")
+
+
+class NodeExecutor():
+
+    node: Node
+    enginefact: engine_factory.EngineFactory
+
+    async def exec(self, ctx: ExecutionContext):
+        # create engine from config
+        engine = self.enginefact.create_from_model(self.node.engine)
+        # prepare input values
+        engine_in = {targ: ctx.outputs[addr] for addr, targ in self.node.frm}
+        # execute the engine
+        engine_out = await engine.agenerate(**engine_in)
+        # save output to context
+        for k,v in engine_out.items():
+            ctx.outputs[Addresser(node=f'{self.node.engine.type}_{self.node.id}', key=k)] = v
 
 
 class SerialPipe(BaseModel):

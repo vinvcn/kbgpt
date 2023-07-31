@@ -4,6 +4,7 @@ from sanic import Sanic
 
 from kbgpt.lib.exec.engines import (
     CommentEngine,
+    Engine,
     MapperEngine,
     ReportEngine,
     SimpleEngine,
@@ -24,7 +25,7 @@ class EngineFactory:
         self.temp_repo: TemplateRepo = temp_repo
 
     @singledispatchmethod
-    def create_from_model(self, mod):
+    def create_from_model(self, mod) -> "Engine":
         raise NotImplementedError("No implementation for this data type")
 
     @create_from_model.register
