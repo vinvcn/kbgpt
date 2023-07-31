@@ -90,6 +90,9 @@ class ProfileManager:
                     logging.StreamHandler(sys.stdout),
                 ],
             )
+            logging.getLogger("sqlalchemy.engine.Engine").setLevel(
+                logging.INFO if prof.sanic.debug else logging.WARN
+            )
             logging.debug(dumps(merged_profile, indent=4))
             return prof
         else:

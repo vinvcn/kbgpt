@@ -42,13 +42,22 @@ class WeeklyAgent(Agent):
                 "coverBreakSec": 1.9,
                 "pageBreakSec": 1,
                 "listingBreakSec": 2,
+                "listingBreakSec1": 1.9,
+                "listingBreakSec2": 3,
             },
         )
 
     async def analyze(self, req: Report) -> MediaReportResp:
         ty = req.type.value.lower()
         adjustformat = SimpleEngine(
-            self.adjust_template.format(ty), self.app.ctx.temp_repo
+            self.adjust_template.format(ty),
+            self.app.ctx.temp_repo,
+            model=profile.report.openai_model,
+        )
+        polishengine = SimpleEngine(
+            self.polish_template.format(ty),
+            self.app.ctx.temp_repo,
+            model=profile.report.openai_model,
         )
         jinja_with_listing = await self.report_engine.agenerate(
             req.date,
@@ -56,7 +65,7 @@ class WeeklyAgent(Agent):
             self.jinja_template.format(req.type.value.lower()),
             show_listing=True,
         )
-        jinja_wiz_listing = await self.report_engine.agenerate(
+        jinja_no_listing = await self.report_engine.agenerate(
             req.date,
             req,
             self.jinja_template.format(req.type.value.lower()),
@@ -64,18 +73,19 @@ class WeeklyAgent(Agent):
         )
         jinja_with_listing.content.split("\n")
         adjust1 = await adjustformat.agenerate(content=jinja_with_listing.content)
+        polish1 = await polishengine.agenerate(content=adjust1.content)
         pages = [
             l.strip()
-            for l in re.split(r"#PB-.*-PB#", jinja_wiz_listing.content)
+            for l in re.split(r"#PB-.*-PB#", jinja_with_listing.content)
             if l.strip()
         ]
-        ssml = jinja_wiz_listing.content.replace("#PB-", "").replace("-PB#", "")
+        ssml = jinja_no_listing.content.replace("#PB-", "").replace("-PB#", "")
 
         return MediaReportResp(
             content=adjust1.content,
             pages=pages,
             ssml=ssml,
-            polish_content=adjust1.content,
+            polish_content=polish1.content,
             data=jinja_with_listing.metadata["data"],
             **adjust1.usage.__dict__,
         )
@@ -91,7 +101,7 @@ class ReportAgent(Agent):
     def __init__(self, app: Sanic) -> None:
         super().__init__()
         self.app = app
-        self.report_engine = ReportEngine(app.ctx.temp_repo)
+        self.report_engine = ReportEngine(app.ctx.temp_repo, render_config={})
 
     async def analyze(self, req: Report) -> ReportResponse:
         """analyze the request and provide response"""

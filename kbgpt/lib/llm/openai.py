@@ -66,7 +66,7 @@ class OpenAI:
 
     async def list_models(self):
         result = await openai.Model.alist()
-        print(result)
+        return result
 
     async def completion(self, *args, **kwargs) -> Completion:
         """

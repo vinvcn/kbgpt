@@ -48,16 +48,19 @@ class Engine(metaclass=abc.ABCMeta):
 class SimpleEngine(Engine):
     """clasify engine"""
 
-    def __init__(self, name: str, tmp_repo: TemplateRepo) -> None:
+    def __init__(
+        self, name: str, tmp_repo: TemplateRepo, model: str = profile.generative_model
+    ) -> None:
         super().__init__()
         self.name = name
         self.tmp_repo = tmp_repo
+        self.model = model
         self.openai = OpenAI()
 
     async def agenerate(self, *args, **kwargs) -> Completion:
         rendered = await self.tmp_repo.render(*args, name=self.name, **kwargs)
         completion = await self.openai.chat_completion(
-            profile.generative_model, [Message(role="system", content=rendered)]
+            self.model, [Message(role="system", content=rendered)]
         )
         completion.prompt = rendered
         return completion
@@ -105,8 +108,7 @@ class ReportEngine(Engine):
 
         data = await self.data_source(req)
         template = await self.tmp_repo.pick_one(name=name)
-        jinja_params = {**data.dict(), **self.render_config}
-        jtemp = Environment().from_string(template.body)
+        jtemp = Environment(autoescape=True).from_string(template.body)
 
         return Completion(
             prompt=template.body,
