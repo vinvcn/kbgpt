@@ -68,7 +68,6 @@ class WeeklyAgent(Agent):
         )
         adjust1 = await adjustformat.agenerate(content=jinja_with_listing.content)
         polish1 = await polishengine.agenerate(content=adjust1.content)
-        # remove the markers and split the pages
         pages = [
             re.sub(r"#TB-.*?-TB#", "", l.strip())
             for l in re.split(r"#PB-.*-PB#", jinja_with_listing.content)
@@ -114,7 +113,10 @@ class ReportAgent(Agent):
             self.adjust_template.format(ty), self.app.ctx.temp_repo
         )
         jinja_completion = await self.report_engine.agenerate(
-            req.date, req, self.jinja_template.format(req.type.value.lower())
+            req.date,
+            req,
+            self.jinja_template.format(req.type.value.lower()),
+            escape=False,
         )
         completion1 = await adjust_format.agenerate(content=jinja_completion.content)
         logging.debug("filled template")
