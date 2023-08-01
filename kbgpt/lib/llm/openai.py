@@ -1,7 +1,7 @@
-import functools
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import openai
+from async_lru import alru_cache
 from pydantic import BaseModel, Field
 
 from config import profile
@@ -58,7 +58,7 @@ class OpenAI:
             openai.api_base = str(profile.openai.api_base_url)
             openai.proxy = str(profile.openai.proxy_url)
 
-    @functools.lru_cache
+    @alru_cache(maxsize=256, typed=True)
     async def chat_completion(
         self, model: str, messages: Tuple[Message, ...]
     ) -> Completion:
@@ -81,3 +81,6 @@ class OpenAI:
         """
 
         completion = await openai.Completion.acreate(*args, **kwargs)
+
+
+client = OpenAI()

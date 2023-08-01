@@ -16,7 +16,7 @@ from config import profile
 from kbgpt.api.aigc.report_models import Report, Type
 from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.lib.db.mysql import Base, Crud
-from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
+from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage, client
 from kbgpt.lib.templates.personality.models import PersonalityRepo
 from kbgpt.lib.templates.rendering.models import TemplateRepo
 from kbgpt.lib.templates.report.source import ReportDataSource
@@ -79,7 +79,7 @@ class SimpleEngine(Engine):
         self.name = name
         self.tmp_repo = tmp_repo
         self.model = model
-        self.openai = OpenAI()
+        self.openai = client
 
     async def agenerate(self, *args, **kwargs) -> Completion:
         rendered = await self.tmp_repo.render(*args, name=self.name, **kwargs)
