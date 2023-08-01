@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 from kbgpt.lib.templates.constants import REPORT_BIGGEST_RATIO
 
+from .utils import round  # pylint: disable=redefined-builtin
+
 
 class TopRisingFund(BaseModel):
     isin: str

@@ -84,7 +84,7 @@ class SimpleEngine(Engine):
     async def agenerate(self, *args, **kwargs) -> Completion:
         rendered = await self.tmp_repo.render(*args, name=self.name, **kwargs)
         completion = await self.openai.chat_completion(
-            self.model, [Message(role="system", content=rendered)]
+            self.model, tuple([Message(role="system", content=rendered)])
         )
         completion.prompt = rendered
         return completion
@@ -123,7 +123,7 @@ class ReportEngine(Engine):
         self.render_config = render_config
 
     async def agenerate(
-        self, dt: date, req: Report, name: str, show_listing=True, **kwargs
+        self, dt: date, req: Report, name: str, escape=True, show_listing=True, **kwargs
     ) -> EngineResult:
         """
         generate template
@@ -131,7 +131,7 @@ class ReportEngine(Engine):
 
         data = await self.data_source(dt, req)
         template = await self.tmp_repo.pick_one(name=name)
-        jtemp = Environment(autoescape=True).from_string(template.body)
+        jtemp = Environment(autoescape=escape).from_string(template.body)
 
         return Completion(
             prompt=template.body,

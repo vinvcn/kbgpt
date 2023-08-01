@@ -6,7 +6,7 @@ import tempfile
 from datetime import date, datetime, timedelta
 from functools import partial
 from os.path import basename
-from typing import Tuple
+from typing import Any, Dict, Tuple
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -33,18 +33,12 @@ class WeeklyAgent(Agent):
     adjust_template = "report.{}.adjust"
     polish_template = "report.{}.polish"
 
-    def __init__(self, app: Sanic) -> None:
+    def __init__(self, app: Sanic, render_config: Dict[str, Any]) -> None:
         super().__init__()
         self.app = app
         self.report_engine = ReportEngine(
             app.ctx.temp_repo,
-            render_config={
-                "coverBreakSec": 1.9,
-                "pageBreakSec": 1,
-                "listingBreakSec": 2,
-                "listingBreakSec1": 1.9,
-                "listingBreakSec2": 3,
-            },
+            render_config=render_config,
         )
 
     async def analyze(self, req: Report) -> MediaReportResp:
@@ -63,6 +57,7 @@ class WeeklyAgent(Agent):
             req.date,
             req,
             self.jinja_template.format(req.type.value.lower()),
+            escape=False,
             show_listing=True,
         )
         jinja_no_listing = await self.report_engine.agenerate(
@@ -71,15 +66,21 @@ class WeeklyAgent(Agent):
             self.jinja_template.format(req.type.value.lower()),
             show_listing=False,
         )
-        jinja_with_listing.content.split("\n")
         adjust1 = await adjustformat.agenerate(content=jinja_with_listing.content)
         polish1 = await polishengine.agenerate(content=adjust1.content)
+        # remove the markers and split the pages
         pages = [
-            l.strip()
+            re.sub(r"#TB-.*?-TB#", "", l.strip())
             for l in re.split(r"#PB-.*-PB#", jinja_with_listing.content)
             if l.strip()
         ]
-        ssml = jinja_no_listing.content.replace("#PB-", "").replace("-PB#", "")
+        # keep the ssml tags but remove the marker
+        ssml = (
+            jinja_no_listing.content.replace("#PB-", "")
+            .replace("-PB#", "")
+            .replace("#TB-", "")
+            .replace("-TB#", "")
+        )
 
         return MediaReportResp(
             content=adjust1.content,
@@ -236,5 +237,5 @@ class ToVoiceAgent(Agent):
         json_timepoints = self.gen_timepoints(timepoints, req.pages)
 
         return ToVoiceResponse(
-            uri=public_url, timepoints=json.dumps(json_timepoints), expires=exp_at
+            uri=public_url, timepoints=json_timepoints, expires=exp_at
         )

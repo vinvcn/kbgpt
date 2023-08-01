@@ -5,6 +5,7 @@ from typing import List
 from pydantic import BaseModel, Field
 
 from .daily_data import Index
+from .utils import round  # pylint: disable=redefined-builtin
 
 
 class SectorsIndex(BaseModel):
@@ -38,7 +39,9 @@ class EquityFundMarket(BaseModel):
         self.downingPercentage = round(
             100 * self.numberOfDowning / self.totalFundNumber, 2
         )
+        #
         self.avgReturn = round(self.avgReturn, 2)
+        #
         self.topRisingChange = round(self.topRisingChange, 2)
 
 
@@ -54,9 +57,7 @@ class DebtFundMarket(BaseModel):
             self.fundsRoseVSFundsFell = f"{self.numberOfRising}:{self.numberOfDowning}"
         else:
             divisor = gcd(self.numberOfRising, self.numberOfDowning)
-            self.fundsRoseVSFundsFell = (
-                f"{self.numberOfRising/divisor}:{self.numberOfDowning/divisor}"
-            )
+            self.fundsRoseVSFundsFell = f"{int(self.numberOfRising/divisor)}:{int(self.numberOfDowning/divisor)}"
         self.avgReturn = round(self.avgReturn, 2)
 
 
@@ -67,6 +68,7 @@ class FundInfo(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        #
         self.navChange = round(self.navChange, 2)
 
 

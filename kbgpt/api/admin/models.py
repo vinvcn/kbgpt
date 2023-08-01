@@ -34,6 +34,7 @@ class TaskStatusResponse(ResponseBase):
     max_attempt: Optional[int]
     attempt: Optional[int]
     status: Optional[TaskStatus]
+    error: Optional[str]
     exclusive: Optional[TaskMutExclusive]
     created_at: Optional[datetime]
     completed_at: Optional[datetime]

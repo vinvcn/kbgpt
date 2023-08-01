@@ -51,6 +51,7 @@ class TaskRecord(Base):
     attempt = Column(Integer, default=0)
     exclusive = Column(Integer, default=0)
     status = Column(Integer, default=0)  # 0 not complete, 1 successfull, 2 failed
+    error = Column(String(200, collation="utf8mb4_unicode_ci"))
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
 
@@ -192,6 +193,7 @@ class TaskManager(LifeCycleMixin):
                 if record.attempt > record.max_attempt:
                     record.completed_at = datetime.utcnow()
                     record.status = TaskStatus.FAIL.value
+                    record.error = repr(exc)[:200]
                     logging.warning(
                         "task %s has exceeded max attempt of %d, set it to status %s",
                         task.name,

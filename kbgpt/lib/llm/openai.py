@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional
+import functools
+from typing import Any, Dict, List, Optional, Tuple
 
 import openai
 from pydantic import BaseModel, Field
@@ -12,6 +13,9 @@ class Message(BaseModel):
 
     role: str
     content: str
+
+    class Config:
+        frozen = True
 
 
 class Usage(BaseModel):
@@ -54,7 +58,10 @@ class OpenAI:
             openai.api_base = str(profile.openai.api_base_url)
             openai.proxy = str(profile.openai.proxy_url)
 
-    async def chat_completion(self, model: str, messages: List[Message]) -> Completion:
+    @functools.lru_cache
+    async def chat_completion(
+        self, model: str, messages: Tuple[Message, ...]
+    ) -> Completion:
         """chat completion"""
         completion = await openai.ChatCompletion.acreate(
             model=model, messages=[m.dict() for m in messages]

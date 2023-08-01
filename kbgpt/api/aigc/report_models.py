@@ -55,5 +55,5 @@ class ToVoice(BaseModel):
 
 class ToVoiceResponse(ResponseBase):
     uri: str
-    timepoints: str
+    timepoints: Dict[str, Any]
     expires: int

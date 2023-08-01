@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 from kbgpt.lib.templates.constants import REPORT_BIGGEST_RATIO
 
+from .utils import round  # pylint: disable=redefined-builtin
+
 
 class MonthlyChangeMarket(BaseModel):
     firstSector: Optional[str]
@@ -75,19 +77,50 @@ class MonthlyAumMarket(BaseModel):
     debt: MonthlyAum
     topRisingSector: Optional[TopDrivingSector]
     topRisingContrib: float = Field(0.0)
+    topRisingContribStr: Optional[str]
     topDowningSector: Optional[TopDrivingSector]
     topDowningContrib: float = Field(0.0)
+    topDowningContribStr: Optional[str]
+    contraryFlowStr: Optional[str]
+    contraryTopContribStr: Optional[str]
+    contraryDownContribStr: Optional[str]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.total.diff == 0:
             self.topRisingContrib = REPORT_BIGGEST_RATIO
+            self.topRisingContribStr = ""
             self.topDowningContrib = REPORT_BIGGEST_RATIO
+            self.topDowningContribStr = ""
         else:
             self.topRisingContrib = self.topRisingSector.diff / self.total.diff
             self.topRisingContrib = round(100 * self.topRisingContrib, 2)
+            self.topRisingContribStr = f"or {self.topRisingContrib}%"
             self.topDowningContrib = self.topDowningSector.diff / self.total.diff
             self.topDowningContrib = round(100 * self.topDowningContrib, 2)
+            self.topDowningContribStr = f"or {self.topDowningContrib}%"
+
+        if self.total.trend >= 0:
+            # if total aum increase and top downing dropping
+            self.contraryFlowStr = (
+                "most outflow" if self.topDowningSector.trend < 0 else "least inflow"
+            )
+            self.contraryDownContribStr = (
+                f"or {self.topDowningContrib}%"
+                if self.total.diff == 0 and self.topDowningSector.trend >= 0
+                else ""
+            )
+
+        else:
+            # if total aum drop and top rising go up
+            self.contraryFlowStr = (
+                "most inflow" if self.topRisingSector.trend > 0 else "least outflow"
+            )
+            self.contraryTopContribStr = (
+                f"or {self.topRisingContrib}%"
+                if self.total.diff == 0 and self.topRisingSector.trend < 0
+                else ""
+            )
 
 
 class Fund(BaseModel):
@@ -108,6 +141,11 @@ class MonthlyNFOInfo(BaseModel):
 
 class MonthlyData(BaseModel):
     date: date
+    month_str: Optional[str]
     monthlyChangeMarket: MonthlyChangeMarket
     monthlyAumMarket: MonthlyAumMarket
     monthlyNFOInfo: MonthlyNFOInfo
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.month_str = self.date.strftime("%B")

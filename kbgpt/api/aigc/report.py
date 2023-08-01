@@ -1,8 +1,9 @@
 """
 report api
 """
+import json
 import logging
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
 from sanic import Blueprint, Request, Sanic
@@ -124,32 +125,65 @@ class DailyReport(FuncWrapper):
 
 
 class WeeklyReport(FuncWrapper):
+    def __init__(self, name: str, handle: str):
+        super().__init__(name, handle)
+        self.config = {
+            "coverBreakSec": 1.9,
+            "pageBreakSec": 1,
+            "listingBreakSec": 2,
+            "listingBreakSec1": 1.9,
+            "listingBreakSec2": 3,
+        }
+
     async def __call__(
         self, *args: Any, app: Sanic, record: TaskRecord, **kwds: Any
     ) -> Any:
         body = Report.parse_raw(record.parameters)
         return await self.invoke(app=app, body=body)
 
+    def pad_timepoints_for_pages(self, timepoints: Dict[str, Any], pages: List[str]):
+        series = timepoints["timepoints"]
+        turnpage = self.config["pageBreakSec"]
+        page_reading = self.config["listingBreakSec2"]
+        offset = series[-1]["endTime"]
+        for i in range(len(series), len(pages)):
+            series.append(
+                {
+                    "startTime": offset + turnpage,
+                    "index": i,
+                    "text": pages[i],
+                    "endTime": offset + turnpage + page_reading,
+                }
+            )
+            offset += turnpage + page_reading
+        timepoints["totalTime"] = series[-1]["endTime"]
+        return json.dumps(timepoints)
+
     async def invoke(self, app: Sanic, body: Report):
         # pylint: disable=broad-except
         try:
             results = []
             date_str = body.date.strftime("%Y-%m-%d")
-            agent = WeeklyAgent(app=app)
+            agent = WeeklyAgent(app=app, render_config=self.config)
             txt_result: ReportResponse = await agent.analyze(body)
             tv_agent = ToVoiceAgent(app=app)
             vic_result = await tv_agent.analyze(
                 ToVoice(pages=txt_result.pages, ssml=txt_result.ssml)
             )
+            report_type = (
+                ReportType.WEEKLY if body.type == Type.WEEKLY else ReportType.MONTHLY
+            )
             results = [
                 CreateReport(
-                    caption=vic_result.timepoints,
+                    caption=self.pad_timepoints_for_pages(
+                        vic_result.timepoints, txt_result.pages
+                    ),
                     content=txt_result.content,
                     data=txt_result.data,
                     date=date_str,
                     voice=vic_result.uri,
                     source=SourceType.TEMPLATE.value,
-                    type=ReportType.WEEKLY.value,
+                    type=report_type.value,
                 ),
                 CreateReport(
                     content=txt_result.polish_content,
@@ -157,7 +191,7 @@ class WeeklyReport(FuncWrapper):
                     date=date_str,
                     voice=vic_result.uri,
                     source=SourceType.AIGC.value,
-                    type=ReportType.WEEKLY.value,
+                    type=report_type.value,
                 ),
             ]
             bac_result = await BackendAdmin().create_report(results)
