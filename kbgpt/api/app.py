@@ -1,13 +1,16 @@
 """
 web app
 """
+from jinja2 import FileSystemLoader
 from redis import Redis
 from sanic import Sanic
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
+from sanic_jinja2 import SanicJinja2
 
 from config import profile
 from kbgpt.api.aigc.report import DailyReport, WeeklyReport
 from kbgpt.api.libs.resources import ResourceMgr
+from kbgpt.fe.fe import FE
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
@@ -19,13 +22,22 @@ from .aigc import AIGC
 from .legacy.apis import LEGACY
 from .senti import SENSHIP
 
-app = Sanic(profile.sanic.app_name)
-
+app = Sanic(
+    profile.sanic.app_name,
+)
+app.static("/static", "kbgpt/fe/static")
 
 app.blueprint(AIGC)
 app.blueprint(ADMIN)
 app.blueprint(SENSHIP)
 app.blueprint(LEGACY)
+app.blueprint(FE)
+
+app.ctx.jinja = SanicJinja2(
+    app=app,
+    loader=FileSystemLoader(searchpath=["kbgpt/fe/templates"]),
+    enable_async=True,
+)
 
 
 @app.before_server_start

@@ -3570,6 +3570,27 @@ url = "http://mirrors.aliyun.com/pypi/simple"
 reference = "ali"
 
 [[package]]
+name = "sanic-jinja2"
+version = "2022.11.11"
+description = "Jinja2 support for sanic"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "sanic-jinja2-2022.11.11.tar.gz", hash = "sha256:b410ec88854d4c938de26fd9de95b1f3e7391f2f008b217868faab76afda294f"},
+    {file = "sanic_jinja2-2022.11.11-py3-none-any.whl", hash = "sha256:ce8fc220087e9dc71370f1698eab9f4d53e5636791c87ceac7a13f10da8af714"},
+]
+
+[package.dependencies]
+jinja2 = "*"
+sanic = ">=21.3"
+
+[package.source]
+type = "legacy"
+url = "http://mirrors.aliyun.com/pypi/simple"
+reference = "ali"
+
+[[package]]
 name = "sanic-routing"
 version = "22.8.0"
 description = "Core routing component for Sanic"
@@ -4588,4 +4609,4 @@ reference = "ali"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "1a21b5d0cb6d725662084573daa78f8c07a4797c750a79da8969bf483c142b30"
+content-hash = "b607b9b4176480f7d850f6ce30c7867d233ecdb03d47fe50438bc70c29d57275"

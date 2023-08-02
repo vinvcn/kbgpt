@@ -1,6 +1,7 @@
 from datetime import date
 from typing import List, Optional
 
+from dateutil import relativedelta
 from pydantic import BaseModel, Field
 
 from kbgpt.lib.templates.constants import REPORT_BIGGEST_RATIO
@@ -142,6 +143,7 @@ class MonthlyNFOInfo(BaseModel):
 class MonthlyData(BaseModel):
     date: date
     month_str: Optional[str]
+    nextMonthStr: Optional[str]
     monthlyChangeMarket: MonthlyChangeMarket
     monthlyAumMarket: MonthlyAumMarket
     monthlyNFOInfo: MonthlyNFOInfo
@@ -149,3 +151,6 @@ class MonthlyData(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.month_str = self.date.strftime("%B")
+        self.nextMonthStr = (
+            self.date + relativedelta.relativedelta(months=1)
+        ).strftime("%B")
