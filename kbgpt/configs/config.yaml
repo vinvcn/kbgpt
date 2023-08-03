@@ -2,6 +2,7 @@ PROFILE: FAT
 
 DEFAULT:
   DB_URL: mysql+pymysql://user:password@localhost:3306/db
+  BASEURL: http://localhost:8081
   GENERATIVE_MODEL: "gpt-3.5-turbo"
   OPENAI:
     PROXIED: True
@@ -14,6 +15,7 @@ DEFAULT:
     IP: "0.0.0.0"
     DEBUG: True
     WORKERS: 1
+    RESPONSE_TIMEOUT: 600
   COMMENT:
     GENERATIVE_MODEL: "gpt-3.5-turbo"
   SENTIMENT:
@@ -55,6 +57,7 @@ DEFAULT:
     CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 
 FAT:
+  BASEURL: http://py-kbgpt.testbs.surfin.sg
   OPENAI:
     PROXIED: False
   SANIC:
@@ -63,6 +66,7 @@ FAT:
     REDIS_URL: "redis://redis-stack.ops:6379"
 
 PRE:
+  BASEURL: http://py-kbgpt-pre.bullsmart.in
   OPENAI:
     PROXIED: False
   SANIC:
@@ -74,6 +78,7 @@ PRE:
     TRENDING_URL: "https://mb-api-gateway-pre.bullsmart.in"
 
 PROD:
+  BASEURL: http://py-kbgpt.bullsmart.in
   OPENAI:
     PROXIED: False
   SANIC:

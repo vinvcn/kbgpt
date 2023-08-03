@@ -5,6 +5,7 @@ from jinja2 import FileSystemLoader
 from redis import Redis
 from sanic import Sanic
 from sanic.server.protocols.websocket_protocol import WebSocketProtocol
+from sanic_ext import Extend
 from sanic_jinja2 import SanicJinja2
 
 from config import profile
@@ -25,7 +26,10 @@ from .senti import SENSHIP
 app = Sanic(
     profile.sanic.app_name,
 )
-app.static("/static", "kbgpt/fe/static")
+app.config.RESPONSE_TIMEOUT = profile.sanic.response_timeout
+app.config.CORS_ORIGINS = "http://foobar.com,http://localhost:8082"
+Extend(app)
+app.static("/", "kbgpt/fe/dist")
 
 app.blueprint(AIGC)
 app.blueprint(ADMIN)
@@ -35,7 +39,7 @@ app.blueprint(FE)
 
 app.ctx.jinja = SanicJinja2(
     app=app,
-    loader=FileSystemLoader(searchpath=["kbgpt/fe/templates"]),
+    loader=FileSystemLoader(searchpath=["kbgpt/fe/dist"]),
     enable_async=True,
 )
 

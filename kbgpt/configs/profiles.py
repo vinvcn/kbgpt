@@ -34,6 +34,7 @@ class Sanic(SuperConfig):
     ip: str = Field("0.0.0.0")
     debug: bool = Field(False)
     workers: int = Field(1)
+    response_timeout: int = Field(300)
 
 
 class QA(SuperConfig):
@@ -120,4 +121,5 @@ class Profile(SuperConfig):
     db_url: AnyUrl
     generative_model: str
     openai: OpenAI
+    baseurl: AnyUrl
     name: str = Field("DEFAULT")
