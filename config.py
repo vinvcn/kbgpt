@@ -15,37 +15,31 @@ from kbgpt.configs.profiles import Profile
 from kbgpt.lib.utils import load_yaml_config
 
 
-class ProfileManager():
-    """ profile manager """
+class ProfileManager:
+    """profile manager"""
 
     CONFIG = "config.yaml"
     SECOND_CONFIG = "config_secondary.yaml"
-
 
     def __init__(self) -> None:
         self._primary_profile = None
         self._secondary_profile = None
 
-
     @property
     def primary_profile(self):
-        """ primary profile """
+        """primary profile"""
         if not self._primary_profile:
             self._primary_profile = self.load_config(self.CONFIG)
         return self._primary_profile
 
-
     @property
     def secondary_profile(self):
-        """ secondary profile """
+        """secondary profile"""
         if not self._secondary_profile:
             self._secondary_profile = self.load_config(self.SECOND_CONFIG)
         return self._secondary_profile
 
-
-
-
-    def load_config(self, file_name=None):
+    def load_config(self, file_name=None, env: str = None):
         """
         load the config from specified path
         """
@@ -54,7 +48,9 @@ class ProfileManager():
         # Use Path.resolve() to get the absolute path of the parent directory
         yaml_dir = Path(__file__).resolve().parent / "kbgpt"
         if not file_name:
-            yaml_path = yaml_dir / "configs" / "config.yaml"  # Use Path / operator to join paths
+            yaml_path = (
+                yaml_dir / "configs" / "config.yaml"
+            )  # Use Path / operator to join paths
         else:
             yaml_path = yaml_dir / "configs" / file_name
 
@@ -64,14 +60,21 @@ class ProfileManager():
         if yaml_config is not None:
             logging.info("Loaded config from %s:", yaml_path)
             default_config = yaml_config["DEFAULT"]
-            active_profile = (
-                environ["KBGPT_APP_ACTIVE_PROFILE"]
-                if "KBGPT_APP_ACTIVE_PROFILE" in environ
-                else yaml_config["PROFILE"]
+            if env:
+                active_profile = env.upper()
+            else:
+                active_profile = (
+                    environ["KBGPT_APP_ACTIVE_PROFILE"]
+                    if "KBGPT_APP_ACTIVE_PROFILE" in environ
+                    else yaml_config["PROFILE"]
+                )
+            merged_profile = merge(
+                {"name": active_profile}, default_config, yaml_config[active_profile]
             )
-            merged_profile = merge({}, default_config, yaml_config[active_profile])
             db_url = (
-                environ["KBGPT_MYSQL_DB_URL"] if "KBGPT_MYSQL_DB_URL" in environ else None
+                environ["KBGPT_MYSQL_DB_URL"]
+                if "KBGPT_MYSQL_DB_URL" in environ
+                else None
             )
             if db_url:
                 merged_profile["DB_URL"] = db_url
@@ -87,11 +90,15 @@ class ProfileManager():
                     logging.StreamHandler(sys.stdout),
                 ],
             )
+            logging.getLogger("sqlalchemy.engine.Engine").setLevel(
+                logging.INFO if prof.sanic.debug else logging.WARN
+            )
             logging.debug(dumps(merged_profile, indent=4))
             return prof
         else:
             logging.error("Could not load config from %s.", yaml_path)
             return None
+
 
 PROF_MGR = ProfileManager()
 profile = PROF_MGR.primary_profile

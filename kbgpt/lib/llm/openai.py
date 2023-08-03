@@ -1,8 +1,10 @@
-from typing import List, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import openai
+from async_lru import alru_cache
 from pydantic import BaseModel, Field
 
+from config import profile
 from kbgpt.svc.utils.openai import get_total_cost
 
 
@@ -11,6 +13,9 @@ class Message(BaseModel):
 
     role: str
     content: str
+
+    class Config:
+        frozen = True
 
 
 class Usage(BaseModel):
@@ -42,14 +47,21 @@ class Usage(BaseModel):
 
 class Completion(BaseModel):
     usage: Optional[Usage]
+    prompt: Optional[str]
     content: str
+    metadata: Optional[Dict[str, Any]]
 
 
 class OpenAI:
     def __init__(self) -> None:
-        pass
+        if profile.openai.proxied:
+            openai.api_base = str(profile.openai.api_base_url)
+            openai.proxy = str(profile.openai.proxy_url)
 
-    async def chat_completion(self, model: str, messages: List[Message]) -> Completion:
+    @alru_cache(maxsize=256, typed=True)
+    async def chat_completion(
+        self, model: str, messages: Tuple[Message, ...]
+    ) -> Completion:
         """chat completion"""
         completion = await openai.ChatCompletion.acreate(
             model=model, messages=[m.dict() for m in messages]
@@ -61,7 +73,7 @@ class OpenAI:
 
     async def list_models(self):
         result = await openai.Model.alist()
-        print(result)
+        return result
 
     async def completion(self, *args, **kwargs) -> Completion:
         """
@@ -69,3 +81,6 @@ class OpenAI:
         """
 
         completion = await openai.Completion.acreate(*args, **kwargs)
+
+
+client = OpenAI()

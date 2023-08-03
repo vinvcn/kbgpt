@@ -1,11 +1,11 @@
 import logging
 from datetime import date
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional, Union
 from urllib.parse import urljoin
 
 import aiohttp
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from config import profile
 from kbgpt.api.constants import API_CONTENT_TYPE
@@ -15,19 +15,22 @@ from kbgpt.lib.rest.be_admin import ReportType
 class TrendParam(BaseModel):
     """trend param"""
 
-    dateParam: Optional[date]
-    reportType: ReportType
+    dateParam: Optional[str]
+    reportType: Literal[ReportType.DAILY, ReportType.WEEKLY]
+
+
+class MonthTrendParam(BaseModel):
+    dateParam: Optional[str]
+    reportType: Literal[ReportType.MONTHLY]
+
+
+class TrendRequest(BaseModel):
+    params: Union[TrendParam, MonthTrendParam] = Field(..., discriminator="reportType")
 
     class Config:
         """config"""
 
-        json_encoders = {
-            date: lambda v: v.strftime("%Y-%m-%d"),
-        }
-
-
-class TrendRequest(BaseModel):
-    params: TrendParam
+        json_encoders = {MonthTrendParam: MonthTrendParam.__json_encoder__}
 
 
 class TrendingClient:

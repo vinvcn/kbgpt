@@ -2,7 +2,12 @@ PROFILE: FAT
 
 DEFAULT:
   DB_URL: mysql+pymysql://user:password@localhost:3306/db
+  BASEURL: http://localhost:8081
   GENERATIVE_MODEL: "gpt-3.5-turbo"
+  OPENAI:
+    PROXIED: True
+    PROXY_URL: http://18.139.228.114:81
+    API_BASE_URL: http://api.openai.com/v1
   # ----- SANIC SERVER PORT ----
   SANIC:
     APP_NAME: kbgpt
@@ -10,6 +15,7 @@ DEFAULT:
     IP: "0.0.0.0"
     DEBUG: True
     WORKERS: 1
+    RESPONSE_TIMEOUT: 600
   COMMENT:
     GENERATIVE_MODEL: "gpt-3.5-turbo"
   SENTIMENT:
@@ -17,6 +23,7 @@ DEFAULT:
   REPORT:
     BACKEND_ADMIN_URL: "http://test1.backend-admin.testbs.surfin.sg/v1/internal/aigc/create"
     TRENDING_URL: "http://mb-api-gateway.testbs.surfin.sg"
+    OPENAI_MODEL: "gpt-3.5-turbo-16k"
   QA:
     EMBEDDINGS_MODEL: "text-embedding-ada-002"
     GENERATIVE_MODEL: "gpt-3.5-turbo"
@@ -50,12 +57,18 @@ DEFAULT:
     CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 
 FAT:
+  BASEURL: http://py-kbgpt.testbs.surfin.sg
+  OPENAI:
+    PROXIED: False
   SANIC:
     DEBUG: True
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
 
 PRE:
+  BASEURL: http://py-kbgpt-pre.bullsmart.in
+  OPENAI:
+    PROXIED: False
   SANIC:
     DEBUG: True
   VECTOR_STORE:
@@ -65,10 +78,13 @@ PRE:
     TRENDING_URL: "https://mb-api-gateway-pre.bullsmart.in"
 
 PROD:
+  BASEURL: http://py-kbgpt.bullsmart.in
+  OPENAI:
+    PROXIED: False
   SANIC:
     DEBUG: False
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
   REPORT:
-    BACKEND_ADMIN_URL: "http://backend-admin.bullsmart.in/v1/internal/aigc/create"
+    BACKEND_ADMIN_URL: "https://backend-admin.bullsmart.in/v1/internal/aigc/create"
     TRENDING_URL: "https://mb-api-gateway.bullsmart.in"

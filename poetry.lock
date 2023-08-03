@@ -350,6 +350,26 @@ url = "http://mirrors.aliyun.com/pypi/simple"
 reference = "ali"
 
 [[package]]
+name = "async-lru"
+version = "2.0.4"
+description = "Simple LRU cache for asyncio"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "async-lru-2.0.4.tar.gz", hash = "sha256:b8a59a5df60805ff63220b2a0c5b5393da5521b113cd5465a44eb037d81a5627"},
+    {file = "async_lru-2.0.4-py3-none-any.whl", hash = "sha256:ff02944ce3c288c5be660c42dbcca0742b32c3b279d6dceda655190240b99224"},
+]
+
+[package.dependencies]
+typing-extensions = {version = ">=4.0.0", markers = "python_version < \"3.11\""}
+
+[package.source]
+type = "legacy"
+url = "http://mirrors.aliyun.com/pypi/simple"
+reference = "ali"
+
+[[package]]
 name = "async-timeout"
 version = "4.0.2"
 description = "Timeout context manager for asyncio programs"
@@ -3550,6 +3570,27 @@ url = "http://mirrors.aliyun.com/pypi/simple"
 reference = "ali"
 
 [[package]]
+name = "sanic-jinja2"
+version = "2022.11.11"
+description = "Jinja2 support for sanic"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "sanic-jinja2-2022.11.11.tar.gz", hash = "sha256:b410ec88854d4c938de26fd9de95b1f3e7391f2f008b217868faab76afda294f"},
+    {file = "sanic_jinja2-2022.11.11-py3-none-any.whl", hash = "sha256:ce8fc220087e9dc71370f1698eab9f4d53e5636791c87ceac7a13f10da8af714"},
+]
+
+[package.dependencies]
+jinja2 = "*"
+sanic = ">=21.3"
+
+[package.source]
+type = "legacy"
+url = "http://mirrors.aliyun.com/pypi/simple"
+reference = "ali"
+
+[[package]]
 name = "sanic-routing"
 version = "22.8.0"
 description = "Core routing component for Sanic"
@@ -4568,4 +4609,4 @@ reference = "ali"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "d77a85e82d369a37845ac3a74368b4cb30768334fd4030cb1163e826b301d94d"
+content-hash = "b607b9b4176480f7d850f6ce30c7867d233ecdb03d47fe50438bc70c29d57275"
