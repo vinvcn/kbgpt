@@ -43,17 +43,17 @@ class Crud(LifeCycleMixin):
         self.engine = None
         self.session = None
 
-    async def init(self, app: Sanic=None):
+    async def init(self, app: Sanic = None):
         self._create_engine()
         self._create_session()
         self._create_tables()
 
-    async def destroy(self, app: Sanic=None):
+    async def destroy(self, app: Sanic = None):
         self.close_session()
         self.close_all_connections()
 
     def _create_engine(self):
-        self.engine = sqlalchemy.create_engine(self.connection_string, echo=True)
+        self.engine = sqlalchemy.create_engine(self.connection_string, echo=False)
 
     def _create_session(self):
         session = sessionmaker(bind=self.engine)
@@ -61,6 +61,15 @@ class Crud(LifeCycleMixin):
 
     def _create_tables(self):
         Base.metadata.create_all(self.engine)
+
+    def truncate_table(self, table_name):
+        self.session.execute(text(f"TRUNCATE TABLE {table_name}"))
+
+    def batch_update(self, cls, list_of_inst):
+        mappings = [inst.__dict__ for inst in list_of_inst]
+        self.session.bulk_update_mappings(cls, mappings)
+        self.session.flush()
+        self.session.commit()
 
     def batch_insert(self, list_of_inst):
         """insert the records in batch"""

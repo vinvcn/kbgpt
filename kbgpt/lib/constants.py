@@ -15,3 +15,6 @@ class CacheStatus(Enum):
 
     VALID = "valid"
     INVALID = "invalid"
+
+
+CONFIG_FILE_NAME = "config.json"

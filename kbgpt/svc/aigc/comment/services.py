@@ -14,10 +14,8 @@ from config import profile
 from kbgpt.lib.db.mysql.comment_record import VirtualCommentRecord
 from kbgpt.lib.logging import alog
 from kbgpt.lib.templates.engine import CommentEngine, SimpleEngine
-from kbgpt.lib.templates.rendering.models import (ModTemplateProvider,
-                                                  TemplateRepo)
-from kbgpt.lib.templates.rendering.repo.post_classification import \
-    CATEGORY_TO_IGNORE
+from kbgpt.lib.templates.rendering.models import ModTemplateProvider, TemplateRepo
+from kbgpt.lib.templates.rendering.repo.post_classification import CATEGORY_TO_IGNORE
 from kbgpt.svc.aigc.comment.models import Category, Comment, Post, RequestStep
 from kbgpt.svc.utils.openai import get_total_cost
 
@@ -38,19 +36,13 @@ class CommentAgent:
     @alog(VirtualCommentRecord)
     async def classify(self, post: Post, uid: str) -> Category:
         """classify the post"""
-        engine_result = await self.class_engine.agenerate(title=post.title, content=post.content)
-        prompt = engine_result.content
-        completion = await openai.ChatCompletion.acreate(
-            model=profile.comment.generative_model,
-            messages=[{"role": "user", "content": prompt}],
+        completion = await self.class_engine.agenerate(
+            title=post.title, content=post.content
         )
-        promp_tokens = completion["usage"]["prompt_tokens"]
-        comp_tokens = completion["usage"]["completion_tokens"]
-        total_tokens = completion["usage"]["total_tokens"]
-        cost = get_total_cost(
-            profile.comment.generative_model, promp_tokens, comp_tokens
-        )
-        category = completion.choices[0].message["content"]
+        usage = completion.usage
+        total_tokens = usage.total_tokens
+        cost = usage.cost
+        category = completion.content
 
         return Category(
             post_id=post.post_id,
@@ -58,26 +50,19 @@ class CommentAgent:
             category=category,
             tokens=total_tokens,
             cost=cost,
-            invoke_id=uid
+            invoke_id=uid,
         )
 
     @alog(VirtualCommentRecord)
     async def _get_the_comment(self, post: Post, uid: str) -> Comment:
         """get the comment"""
-        engine_result = await self.temp_engine.agenerate(content=post.content, title=post.title)
-        prompt = engine_result.content
-        logging.debug("submitting request to openai")
-        completion = await openai.ChatCompletion.acreate(
-            model=profile.comment.generative_model,
-            messages=[{"role": "user", "content": prompt}],
+        completion = await self.temp_engine.agenerate(
+            content=post.content, title=post.title
         )
-        ans_content = completion.choices[0].message["content"]
-        promp_tokens = completion["usage"]["prompt_tokens"]
-        comp_tokens = completion["usage"]["completion_tokens"]
-        total_tokens = completion["usage"]["total_tokens"]
-        cost = get_total_cost(
-            profile.comment.generative_model, promp_tokens, comp_tokens
-        )
+        usage = completion.usage
+        ans_content = completion.content
+        total_tokens = usage.total_tokens
+        cost = usage.cost
         logging.debug("get response from openai:")
         logging.debug(ans_content)
         sub_ans = re.split(r"\r?\n", ans_content)
@@ -89,7 +74,7 @@ class CommentAgent:
             comment=sub_ans[-1],
             cost=cost,
             tokens=total_tokens,
-            invoke_id=uid
+            invoke_id=uid,
         )
 
     async def get_one_comment(self, post: Post, uid: str) -> Comment:
@@ -104,7 +89,7 @@ class CommentAgent:
                 comment=".",
                 tokens=category.tokens,
                 cost=category.cost,
-                invoke_id=uid
+                invoke_id=uid,
             )
         else:
             comment = await self._get_the_comment(post, uid)

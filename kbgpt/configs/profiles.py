@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import AnyUrl, BaseModel, Field, RedisDsn, root_validator
 
 
@@ -16,6 +18,14 @@ class SuperConfig(BaseModel):
         return dict((k.lower(), v) for k, v in values.items())
 
 
+class OpenAI(SuperConfig):
+    """openai configuration"""
+
+    proxied: bool = Field(False)
+    proxy_url: Optional[AnyUrl]
+    api_base_url: Optional[AnyUrl]
+
+
 class Sanic(SuperConfig):
     """Sanic configs"""
 
@@ -24,6 +34,7 @@ class Sanic(SuperConfig):
     ip: str = Field("0.0.0.0")
     debug: bool = Field(False)
     workers: int = Field(1)
+    response_timeout: int = Field(300)
 
 
 class QA(SuperConfig):
@@ -92,6 +103,7 @@ class Report(SuperConfig):
 
     backend_admin_url: AnyUrl
     trending_url: AnyUrl
+    openai_model: str
 
 
 class Profile(SuperConfig):
@@ -108,3 +120,6 @@ class Profile(SuperConfig):
     indexing: Indexing
     db_url: AnyUrl
     generative_model: str
+    openai: OpenAI
+    baseurl: AnyUrl
+    name: str = Field("DEFAULT")

@@ -1,4 +1,7 @@
 dist/
+node_modules/
+
+
 .env
 __pycache__
 .chroma
@@ -11,3 +14,5 @@ dockerfile/mysql-db.bak
 dockerfile/redis_persist
 debug.log
 .repo/
+
+
