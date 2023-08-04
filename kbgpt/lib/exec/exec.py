@@ -1,17 +1,10 @@
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
-from sanic import Sanic
+from pydantic import BaseModel
 
 from kbgpt.lib.exec import engine_factory
 from kbgpt.lib.exec.engines import Engine
-from kbgpt.lib.exec.models import (
-    CommentEngineMod,
-    MapperEngineMod,
-    ReportEngineMod,
-    SimpleEngineMod,
-    ToVoiceEngineMod,
-)
+from kbgpt.lib.exec.models import Addresser, Node
 
 
 class NodeEval:
@@ -37,11 +30,8 @@ class Selector(BaseModel):
     type: Literal["selector"]
 
     def select(self, **params):
+        pass
 
-
-
-class Mapper(BaseModel):
-    type: Literal["mapper"]
 
 class RenameMapper(BaseModel):
     type: Literal["rename_mapper"]
@@ -65,40 +55,11 @@ class RenameMapper(BaseModel):
 
 
 class ExecutionContext(BaseModel):
-
-    outputs: Optional[Dict['Addresser', Any]]
+    outputs: Optional[Dict["Addresser", Any]]
     # seed: Optional[Dict[str, Any]]
 
 
-
-class Addresser(BaseModel):
-
-    node: str
-    key: str
-
-    class Config: allow_mutation=False
-
-
-
-class Node(BaseModel):
-    engine: Union[
-        ToVoiceEngineMod,
-        ReportEngineMod,
-        CommentEngineMod,
-        SimpleEngineMod,
-        MapperEngineMod,
-    ] = Field(..., discriminator="type")
-    id: str
-    frm: Optional[Dict[Addresser, str]]
-    sel: Optional[Dict[str, str]]
-
-    async def validate_input(self, **kwargs):
-        if any([k not in kwargs for k in self.in_keys]):
-            raise ValueError(" key not in input keys")
-
-
-class NodeExecutor():
-
+class NodeExecutor:
     node: Node
     enginefact: engine_factory.EngineFactory
 
@@ -110,8 +71,10 @@ class NodeExecutor():
         # execute the engine
         engine_out = await engine.agenerate(**engine_in)
         # save output to context
-        for k,v in engine_out.items():
-            ctx.outputs[Addresser(node=f'{self.node.engine.type}_{self.node.id}', key=k)] = v
+        for k, v in engine_out.items():
+            ctx.outputs[
+                Addresser(node=f"{self.node.engine.type}_{self.node.id}", key=k)
+            ] = v
 
 
 class SerialPipe(BaseModel):

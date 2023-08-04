@@ -6,29 +6,41 @@ from redis import Redis
 
 from config import profile
 from kbgpt.api.aigc.report_models import Report, Type
-from kbgpt.lib.exec.exec import *
+from kbgpt.lib.exec.models import *
 from kbgpt.lib.templates.rendering.models import RedisTemplateProvider, TemplateRepo
 
-report = Node(
-    engine=ReportEngineMod(
-        type="report_engine",
-        name="report_daily",
-        render_config={"coverBreakSec": 1.7, "pageBreakSec": 1, "listingBreakSec": 1},
-    ),
-    in_keys=["dt", "req", "name"],
+# pylint: disable = unhashable-member
+report = GraphNode(
+    node=Node(
+        engine=ReportEngineMod(
+            type="report_engine",
+            name="report_daily",
+            render_config={
+                "coverBreakSec": 1.7,
+                "pageBreakSec": 1,
+                "listingBreakSec": 1,
+            },
+        ),
+        id="report_daily",
+        frm={
+            Addresser(node="seed", key="**"): "**",
+        },
+    )
 )
 
+adjust = GraphNode(
+    node=Node(
+        engine=SimpleEngineMod(
+            type="simple_engine", name="report.daily.adjust_space_and_breaks"
+        ),
+        in_keys=["content"],
+    )
+)
 polish = Node(
     engine=SimpleEngineMod(type="simple_engine", name="report_polish"),
     in_keys=["content"],
 )
 
-adjust = Node(
-    engine=SimpleEngineMod(
-        type="simple_engine", name="report.daily.adjust_space_and_breaks"
-    ),
-    in_keys=["content"],
-)
 
 r_map = Node(
     engine=MapperEngineMod(type="mapper_engine", mapping={"content": "content"})
