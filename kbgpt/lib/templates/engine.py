@@ -108,7 +108,7 @@ class CommentEngine(Engine):
         )
         completion = await self.openai.chat_completion(
             profile.generative_model,
-            messages=[Message(role="system", content=rendered)],
+            messages=tuple([Message(role="system", content=rendered)]),
         )
         completion.prompt = rendered
         return completion
