@@ -12,7 +12,7 @@ from .utils import round  # pylint: disable=redefined-builtin
 class MonthlyChangeMarket(BaseModel):
     firstSector: Optional[str]
     firstSectorChange: float = Field(0.0)
-    tenthFundChange: float = Field(0.0)
+    tenthFundChange: Optional[float] = Field(0.0)
     secondSector: Optional[str]
     secondSectorChange: float = Field(0.0)
     lastSector: Optional[str]
@@ -30,9 +30,9 @@ class MonthlyChangeMarket(BaseModel):
 
 
 class MonthlyAum(BaseModel):
-    currentMonth: int = Field(0)
-    lastMonth: int = Field(0)
-    diff: int = Field(0)
+    currentMonth: float = Field(0)
+    lastMonth: float = Field(0)
+    diff: float = Field(0)
     diffPercent: float = Field(0.0)
     trend: int = Field(0)
 
