@@ -2,92 +2,49 @@
 engine module
 """
 import abc
-from datetime import date, datetime
-from typing import Any, Callable, Dict, Optional, Tuple
+import json
+import logging
+from datetime import datetime
+from typing import Any, Dict, Tuple
 from uuid import uuid4
 
 import google.cloud.texttospeech_v1beta1 as texttospeech
 from gcloud.aio.storage import Storage
 from jinja2 import Environment
-from pydantic import BaseModel
-from sqlalchemy import Column, DateTime, Float, Integer, String, Text
 
 from config import profile
-from kbgpt.api.aigc.report_models import Report, Type
-from kbgpt.api.libs.resources import ResourceMgr
-from kbgpt.lib.db.mysql import Base, Crud
-from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage, client
+from kbgpt.api.aigc.report_models import Report
+from kbgpt.lib.exec.models import TestEngineMod
+from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
 from kbgpt.lib.templates.personality.models import PersonalityRepo
 from kbgpt.lib.templates.rendering.models import TemplateRepo
 from kbgpt.lib.templates.report.source import ReportDataSource
-
-
-class OpenAICompletionRecord(Base):
-    __tablename__ = "record_completion_record"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    task_id = Column(String(100, collation="utf8mb4_unicode_ci"))
-    prompt = Column(Text(collation="utf8mb4_unicode_ci"))
-    completion = Column(Text(collation="utf8mb4_unicode_ci"))
-    created_at = Column(DateTime)
-
-
-def check_cache(func):
-    def wrapper(func: Callable):
-        async def inner_wrapper(*args, **kwargs):
-            from kbgpt.api.app import app
-
-            task_id = None
-            if "task_id" not in kwargs:
-                task_id = str(uuid4())
-            else:
-                task_id = kwargs.pop("task_id")
-
-            target_obj = args[0].name
-
-            res: ResourceMgr = app.ctx.res
-            crud: Crud = res.get(Crud.__name__)
-            record = crud.get_first_by(
-                cls=target_obj.__class__,
-                filter_params={"task_id": task_id},
-                order_col="created_at",
-            )
-            record
-
-
-class EngineResult(BaseModel):
-    content: str
-
-    metadata: Optional[Dict[str, Any]]
 
 
 class Engine(metaclass=abc.ABCMeta):
     """engine"""
 
     @abc.abstractmethod
-    async def agenerate(self, *args, **kwargs) -> EngineResult:
+    async def agenerate(self, **kwargs) -> Dict[str, Any]:
         """generate the template"""
 
 
 class SimpleEngine(Engine):
     """clasify engine"""
 
-    def __init__(
-        self, name: str, tmp_repo: TemplateRepo, model: str = profile.generative_model
-    ) -> None:
+    def __init__(self, name: str, tmp_repo: TemplateRepo):
         super().__init__()
         self.name = name
         self.tmp_repo = tmp_repo
-        self.model = model
-        self.openai = client
+        self.openai = OpenAI()
 
-    async def agenerate(self, *args, **kwargs) -> Completion:
-        rendered = await self.tmp_repo.render(*args, name=self.name, **kwargs)
+    async def agenerate(self, **kwargs) -> Dict[str, Any]:
+        rendered = await self.tmp_repo.render(name=self.name, **kwargs)
         completion = await self.openai.chat_completion(
-            self.model, tuple([Message(role="system", content=rendered)])
+            profile.generative_model, [Message(role="system", content=rendered)]
         )
         completion.prompt = rendered
-        return completion
+        return completion.dict()
 
 
 class CommentEngine(Engine):
@@ -101,17 +58,17 @@ class CommentEngine(Engine):
         self.p_repo = PersonalityRepo.from_file(self.NAME)
         self.openai = OpenAI()
 
-    async def agenerate(self, *args, **kwargs) -> Completion:
+    async def agenerate(self, **kwargs) -> Dict[str, Any]:
         v_person = self.p_repo.pick_one()
         rendered = await self.tmp_repo.render(
-            *args, name=self.NAME, personality=v_person, **kwargs
+            name=self.NAME, personality=v_person, **kwargs
         )
         completion = await self.openai.chat_completion(
             profile.generative_model,
             messages=[Message(role="system", content=rendered)],
         )
         completion.prompt = rendered
-        return completion
+        return completion.dict()
 
 
 class ReportEngine(Engine):
@@ -122,26 +79,23 @@ class ReportEngine(Engine):
         self.data_source = ReportDataSource()
         self.render_config = render_config
 
-    async def agenerate(
-        self, dt: date, req: Report, name: str, escape=True, show_listing=True, **kwargs
-    ) -> EngineResult:
+    async def agenerate(self, req: Report, name: str, **kwargs) -> Dict[str, Any]:
         """
         generate template
         """
-        name = f"report_{req.type.value}"
 
-        data = await self.data_source(dt, req)
+        data = await self.data_source(req)
         template = await self.tmp_repo.pick_one(name=name)
-        jtemp = Environment(autoescape=escape).from_string(template.body)
+        jinja_params = {**data.dict(), **self.render_config, **kwargs}
+        jtemp = Environment().from_string(template.body)
 
-        return Completion(
+        completion = Completion(
             prompt=template.body,
-            content=jtemp.render(
-                {**data.dict(), **self.render_config, "showListings": show_listing}
-            ),
+            content=jtemp.render(jinja_params),
             usage=Usage(),
             metadata={"data": data.json()},
         )
+        return completion.dict()
 
 
 class ToVoiceEngine(Engine):
@@ -194,7 +148,7 @@ class ToVoiceEngine(Engine):
                 datetime.utcnow().timestamp() + exp_seconds,
             )
 
-    async def agenerate(self, content: str, *args, **kwargs) -> Completion:
+    async def agenerate(self, content: str, *args, **kwargs) -> Dict[str, Any]:
         ssml_str = f"<speak>{content}</speak>"
         audio_content = await self.ssml_to_audio(ssml_str, "en_IN", 1.25)
 
@@ -202,11 +156,19 @@ class ToVoiceEngine(Engine):
         public_url, exp_at = await self.upload_file(
             audio_content, "kbgpt_reference_bucket", object_name
         )
-        return Completion(content=public_url)
+        completion = Completion(content=public_url)
+        return completion.dict()
 
 
-class Pipeline:
-    async def execulte(
-        self,
-    ):
-        pass
+class TestEngine(Engine):
+    def __init__(self, confg: TestEngineMod) -> None:
+        super().__init__()
+        self.mod = confg
+
+    async def agenerate(self, **kwargs) -> Dict[str, Any]:
+        logging.info("params:\n%s", json.dumps(kwargs))
+        for k in self.mod.input_keys:
+            assert k in kwargs, f"key '{k}' must be present in params"
+            logging.info("reading input value: %s", kwargs[k])
+
+        return self.mod.output

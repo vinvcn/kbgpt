@@ -1,7 +1,6 @@
 config:
   repo:
-    template:
-      path: "../rendering/repo/.repo/"
+    path: ".repo"
   redis:
     local: "redis://127.0.0.1:6379"
     fat: "redis://debug.testbs.surfin.sg:30007"
