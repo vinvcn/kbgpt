@@ -113,7 +113,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
     # ) -> Tuple[List[str], OpenAICallbackHandler]:
 
     async def answer_question_in_batch(
-            self, prompts: List[str]
+        self, prompts: List[str]
     ) -> Tuple[List[str], OpenAICallbackHandler]:
         """
         Answer pairs of question and vectors in batch
@@ -126,14 +126,20 @@ class AbstractAgent(metaclass=abc.ABCMeta):
                 llm = chat_open_ai_llm(handlers=[stats])
                 results = await llm.agenerate(messages)
                 # see what's the result when http request failed
-                return [gen[0].message.content for gen in results.generations], stats, limit_refreshed
+                return (
+                    [gen[0].message.content for gen in results.generations],
+                    stats,
+                    limit_refreshed,
+                )
             except RateLimitError as e:
                 logging.exception(e)
-                logging.warning("rate limit hit sleeping for %d seconds", profile.cache.cool_down_seconds)
+                logging.warning(
+                    "rate limit hit sleeping for %d seconds",
+                    profile.cache.cool_down_seconds,
+                )
                 await asyncio.sleep(profile.cache.cool_down_seconds)
                 logging.debug("wake up from sleep")
                 limit_refreshed = True
-
 
     async def _answer_question_and_provide_cost(
         self, question: str, streaming: bool = False, callbacks=None
@@ -148,7 +154,9 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         llm = chat_open_ai_llm(streaming=streaming, handlers=handlers)
         start_counter = time.perf_counter()
         logging.debug("Started loading vector store")
-        retriever = create_vector_store_strategy().get_retriever(k=self.k)
+        retriever = create_vector_store_strategy(
+            profile.qa.business_type
+        ).get_retriever(k=self.k)
         logging.debug(
             "End of loading vector store, total time %.3f seconds",
             time.perf_counter() - start_counter,

@@ -1,5 +1,3 @@
-
-
 import logging
 from os import listdir, pardir
 from os.path import abspath, dirname, isfile, join
@@ -21,32 +19,6 @@ from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 from kbgpt.lib.logging import alog
 
 
-async def add_file_to_customer_service(path: str, **kwargs):
-    """
-    add a file to the customer service index"""
-    indexer = CustomerServiceFilesIndexer()
-    await indexer.add_file_to_index(path=path, **kwargs)
-
-
-async def add_files(paths: List[str]):
-    """
-    add files in paths"""
-    flush = profile.indexing.flush_before_write
-    for path in paths:
-        logging.debug("adding %s", path)
-        await add_file_to_customer_service(path=path, flush_index=flush)
-        flush = False
-
-
-async def add_kb():
-    """
-    add knowledge base in kb folder"""
-    kb_dir = join(dirname(abspath(__file__)), pardir, "kb")
-    files = [join(kb_dir, f) for f in listdir(kb_dir)]
-    files = [f for f in files if isfile(f) and f.endswith(".txt")]
-    await add_files(files)
-
-
 @alog(ProcessFileRecord)
 async def add_files_to_customer_service(paths: List[str], **kwargs):
     """
@@ -56,18 +28,12 @@ async def add_files_to_customer_service(paths: List[str], **kwargs):
     return await indexer.transactional_add_to_index(paths=paths, **kwargs)
 
 
-async def a_add_file_to_customer_service(**kwargs):
-    """
-    add a file to the customer service index"""
-    add_file_to_customer_service(**kwargs)
-
-
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
-async def warmup_task(app:Sanic):
+async def warmup_task(app: Sanic):
     """
     kick off warm up task
     """
-    cache:RedisCacheStoreStrategy = app.ctx.redicache
+    cache: RedisCacheStoreStrategy = app.ctx.redicache
     # pylint: disable=broad-except
     try:
         await cache.refresh_cache()
@@ -108,7 +74,8 @@ class ProxiedDocAgent:
                         paths.append(path)
 
                 logging.info("adding files to customer service %s\n", "\n".join(paths))
-                await add_files_to_customer_service(paths, flush_index=True)
+                params = {k: v[0] for k, v in request.form}
+                await add_files_to_customer_service(paths, flush_index=True, **params)
             if is_refresh:
                 sanic_app.add_task(warmup_task(sanic_app))
             return jtext(OpenAIResponseBase(success=True))

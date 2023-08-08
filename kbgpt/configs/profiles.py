@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import AnyUrl, BaseModel, Field, RedisDsn, root_validator
 
@@ -40,6 +40,7 @@ class Sanic(SuperConfig):
 class QA(SuperConfig):
     """QA configs"""
 
+    business_type: Literal["qa"] = Field("qa")
     embeddings_model: str
     generative_model: str
     customer_service_temperature: float
@@ -48,6 +49,7 @@ class QA(SuperConfig):
     agent_cls: str
     words_limit: int = Field(..., gt=1, lt=1000)
     keep_msg_history: bool
+    redis_index: str
 
 
 class COMMENT(SuperConfig):
@@ -85,13 +87,6 @@ class Cache(SuperConfig):
     fresh_batch_size: int
 
 
-class Indexing(SuperConfig):
-    """Indexing configs"""
-
-    flush_before_write: bool
-    customer_service_index: str
-
-
 class Sentiment(SuperConfig):
     """sentiment analysis"""
 
@@ -106,6 +101,13 @@ class Report(SuperConfig):
     openai_model: str
 
 
+class ProductCatalog(SuperConfig):
+    """product catalog configuration"""
+
+    vector_store_class: str
+    redis_index_name: str
+
+
 class Profile(SuperConfig):
     """Profile configs"""
 
@@ -114,10 +116,10 @@ class Profile(SuperConfig):
     sentiment: Sentiment
     report: Report
     qa: QA
+    product_catalog: ProductCatalog
     embedding: Embedding
     vector_store: VectorStore
     cache: Cache
-    indexing: Indexing
     db_url: AnyUrl
     generative_model: str
     openai: OpenAI

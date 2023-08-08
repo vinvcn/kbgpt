@@ -16,17 +16,25 @@ from redis.lock import Lock
 
 from config import profile as global_p
 from kbgpt.configs.profiles import Profile
-from kbgpt.lib.constants import (CACHE_STATUS_KEY, INDEX_VERSION_KEY,
-                                 REDIS_DOCUMENT_LOCK_NAME, CacheStatus)
-from kbgpt.lib.db import (CacheMetadata, Document, IndexVersion, cache_status,
-                          ensure_lock)
+from kbgpt.lib.constants import (
+    CACHE_STATUS_KEY,
+    INDEX_VERSION_KEY,
+    REDIS_DOCUMENT_LOCK_NAME,
+    CacheStatus,
+)
+from kbgpt.lib.db import (
+    CacheMetadata,
+    Document,
+    IndexVersion,
+    cache_status,
+    ensure_lock,
+)
 from kbgpt.lib.db.mysql.cache_warmup_record import CacheWarmupRecord
 from kbgpt.lib.db.redis import MyRedis, WriteToDoc
 from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.lib.logging import alog
 from kbgpt.svc.aigc.qa.qa_services import QAagent
-from kbgpt.svc.utils.openai import (MODEL_LIMIT_PER_MINUTE, merge_stats,
-                                    token_counts)
+from kbgpt.svc.utils.openai import MODEL_LIMIT_PER_MINUTE, merge_stats, token_counts
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +85,7 @@ class RedisCacheStoreStrategy:
         )
         self.doc_rds: MyRedis = MyRedis.from_existing_index(
             redis_url=self.profile.vector_store.redis_url,
-            index_name=self.profile.indexing.customer_service_index,
+            index_name=self.profile.qa.redis_index,
             embedding=self.embeddings,
         )
 
