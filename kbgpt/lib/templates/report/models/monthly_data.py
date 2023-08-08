@@ -144,8 +144,8 @@ class MonthlyAumMarket(BaseModel):
     topDowningContrib: float = Field(0.0)  #
     topDowningContribStr: Optional[str]
     contraryFlowStr: Optional[str]
-    contraryTopContribStr: Optional[str]
-    contraryDownContribStr: Optional[str]
+    contraryTopContribStr: str = Field("")
+    contraryDownContribStr: str = Field("")
 
     @staticmethod
     def round_contrib(value: float):
