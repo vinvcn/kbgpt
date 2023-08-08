@@ -1,10 +1,10 @@
 import enum
 from datetime import date
+from math import ceil
 from typing import List, Optional, Tuple
 
 from dateutil import relativedelta
 from pydantic import BaseModel, Field
-from regex import P
 
 from kbgpt.lib.templates.constants import REPORT_BIGGEST_RATIO
 
@@ -147,6 +147,22 @@ class MonthlyAumMarket(BaseModel):
     contraryTopContribStr: Optional[str]
     contraryDownContribStr: Optional[str]
 
+    @staticmethod
+    def round_contrib(value: float):
+        """round contribution"""
+        neg = value < 0
+        return (
+            0.1
+            if 0 < value <= 0.1
+            else -0.1
+            if -0.1 <= value < 0
+            else -ceil(abs(value))
+            if neg
+            else ceil(abs(value))
+            if value != 0
+            else 0
+        )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.total.diff == 0:
@@ -156,11 +172,11 @@ class MonthlyAumMarket(BaseModel):
             self.topDowningContribStr = ""
         else:
             self.topRisingContrib = self.topRisingSector.diff / self.total.diff
-            self.topRisingContrib = round(100 * self.topRisingContrib, 2)
-            self.topRisingContribStr = f"or {abs(self.topRisingContrib)}%"
+            self.topRisingContrib = self.round_contrib(100 * self.topRisingContrib)
+            self.topRisingContribStr = f"or {self.topRisingContrib}%"
             self.topDowningContrib = self.topDowningSector.diff / self.total.diff
-            self.topDowningContrib = round(100 * self.topDowningContrib, 2)
-            self.topDowningContribStr = f"or {abs(self.topDowningContrib)}%"
+            self.topDowningContrib = self.round_contrib(100 * self.topDowningContrib)
+            self.topDowningContribStr = f"or {self.topDowningContrib}%"
 
         if self.total.trend >= 0:
             # if total aum increase and top downing dropping
