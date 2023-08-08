@@ -1,6 +1,6 @@
-from functools import singledispatch
+from functools import singledispatchmethod
 
-from kbgpt.lib.exec.engine_checkers import EqChecker, InListChecker
+from kbgpt.lib.exec.engine_checkers import Checker, EqChecker, InListChecker
 from kbgpt.lib.exec.models import CheckerMod, EqCheckerMod, InListCheckerMod
 
 
@@ -8,8 +8,8 @@ class CheckerFactory:
     def __init__(self) -> None:
         pass
 
-    @singledispatch
-    def create_from_model(self, mod) -> CheckerMod:
+    @singledispatchmethod
+    def create_from_model(self, mod) -> Checker:
         raise NotImplementedError("Not implemented for this type")
 
     @create_from_model.register

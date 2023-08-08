@@ -8,16 +8,15 @@ from kbgpt.lib.exec.exec import GraphExecutor
 from kbgpt.lib.exec.models import *
 
 
-@pytest.mark.asyncio
-async def test_engine_execution():
-    """test a linear execution"""
+@pytest.fixture
+def linear_graph():
     node1 = GraphNode(
         node=Node(
             engine=TestEngineMod(
                 input_keys=["question"], output={"answer1": "yes", "answer2": "No"}
             ),
             id="test1",
-            frm=[Selector(node="seed", key="question")],
+            frm=SelectorMultiplexer(selectors=[Selector(node="seed", key="question")]),
         )
     )
 
@@ -25,7 +24,9 @@ async def test_engine_execution():
         node=Node(
             engine=TestEngineMod(input_keys=["content"], output={"uri": "http://asdf"}),
             id="test2",
-            frm=[Selector(node="test1", key="answer1", to_key="content")],
+            frm=SelectorMultiplexer(
+                selectors=[Selector(node="test1", key="answer1", to_key="content")]
+            ),
         ),
         src=[node1],
     )
@@ -34,20 +35,30 @@ async def test_engine_execution():
         node=Node(
             engine=TestEngineMod(input_keys=["content"], output={"answer": "Yes"}),
             id="test3",
-            frm=[Selector(node="test2", key="uri", to_key="content")],
+            frm=SelectorMultiplexer(
+                selectors=[Selector(node="test2", key="uri", to_key="content")],
+            ),
         ),
         src=[node2],
     )
 
     graph = Graph(
         nodes=[node1, node2, node3],
-        sel=[
-            Selector(node="test1", key="answer1", to_key="secondary"),
-            Selector(node="test3", key="answer"),
-        ],
+        sel=SelectorMultiplexer(
+            selectors=[
+                Selector(node="test1", key="answer1", to_key="secondary"),
+                Selector(node="test3", key="answer"),
+            ]
+        ),
     )
+    yield graph
 
-    result = await GraphExecutor(graph).exec({"question": "how are you?"})
+
+@pytest.mark.asyncio
+async def test_engine_execution(linear_graph):
+    """test a linear execution"""
+
+    result = await GraphExecutor(linear_graph).exec({"question": "how are you?"})
     # logging.info(json.dumps(result, indent=4))
     assert result["secondary"] == "yes", result["answer"] == "Yes"
 
@@ -58,7 +69,9 @@ async def test_diverge_execution():
         node=Node(
             id="A",
             engine=TestEngineMod(input_keys=["content"], output={"answer": "A"}),
-            frm=Selector(node="seed", key="question", to_key="content"),
+            frm=SelectorMultiplexer(
+                selectors=[Selector(node="seed", key="question", to_key="content")]
+            ),
             sel={"answer": "content"},
         ),
         src=[],
@@ -67,7 +80,7 @@ async def test_diverge_execution():
         node=Node(
             id="B",
             engine=TestEngineMod(input_keys=["content"], output={"answer": "B"}),
-            frm=Selector(node="A", key="content"),
+            frm=SelectorMultiplexer(selectors=[Selector(node="A", key="content")]),
             sel={"answer": "content"},
         ),
         src=[A],
@@ -76,7 +89,7 @@ async def test_diverge_execution():
         node=Node(
             id="C",
             engine=TestEngineMod(input_keys=["content"], output={"answer": "C"}),
-            frm=Selector(node="A", key="content"),
+            frm=SelectorMultiplexer(selectors=[Selector(node="A", key="content")]),
             sel={"answer": "content"},
         ),
         src=[A],
@@ -86,7 +99,7 @@ async def test_diverge_execution():
             id="D",
             engine=TestEngineMod(input_keys=["content"], output={"answer": "D"}),
             sel={"answer": "content"},
-            frm=Selector(node="B", key="content"),
+            frm=SelectorMultiplexer(selectors=[Selector(node="B", key="content")]),
         ),
         src=[A, B],
     )
@@ -94,7 +107,7 @@ async def test_diverge_execution():
         node=Node(
             id="E",
             engine=TestEngineMod(input_keys=["content"], output={"answer": "E"}),
-            frm=Selector(node="C", key="content"),
+            frm=SelectorMultiplexer(selectors=[Selector(node="C", key="content")]),
             sel={"answer": "content"},
         ),
         src=[C, D],
@@ -103,7 +116,7 @@ async def test_diverge_execution():
         node=Node(
             id="F",
             engine=TestEngineMod(input_keys=["content"], output={"answer": "F"}),
-            frm=Selector(node="E", key="content"),
+            frm=SelectorMultiplexer(selectors=[Selector(node="E", key="content")]),
             sel={"answer": "content"},
         ),
         src=[E],
@@ -112,7 +125,7 @@ async def test_diverge_execution():
         node=Node(
             id="G",
             engine=TestEngineMod(input_keys=["content"], output={"answer": "G"}),
-            frm=Selector(node="D", key="content"),
+            frm=SelectorMultiplexer(selectors=[Selector(node="D", key="content")]),
             sel={"answer": "content"},
         ),
         src=[D],
@@ -121,10 +134,12 @@ async def test_diverge_execution():
     # Creating a graph with the above nodes
     graph = Graph(
         nodes=[A, B, C, D, E, F, G],
-        sel=[
-            Selector(node="F", key="content", to_key="Foutput"),
-            Selector(node="G", key="content", to_key="Goutput"),
-        ],
+        sel=SelectorMultiplexer(
+            selectors=[
+                Selector(node="F", key="content", to_key="Foutput"),
+                Selector(node="G", key="content", to_key="Goutput"),
+            ]
+        ),
     )
 
     result = await GraphExecutor(graph).exec({"question": "how are you?"})
@@ -132,45 +147,36 @@ async def test_diverge_execution():
     assert result["Foutput"] == "F", result["Goutput"] == "G"
 
 
-# def test_engine_creation_1():
-#     # pylint: disable = unhashable-member
-#     report = GraphNode(
-#         node=Node(
-#             engine=ReportEngineMod(
-#                 name="report.daily.jinja",
-#                 render_config={
-#                     "coverBreakSec": 1.7,
-#                     "pageBreakSec": 1,
-#                     "listingBreakSec": 1,
-#                 },
-#             ),
-#             id="report_daily",
-#             frm={
-#                 Addresser(node="seed", key="**"): "**",
-#             },
-#         ),
-#         src=[],
-#     )
+@pytest.mark.asyncio
+async def test_some_multiplexer_execution(linear_graph):
+    """test a linear execution"""
 
-#     adjust = GraphNode(
-#         node=Node(
-#             engine=SimpleEngineMod(name="report.daily.adjust"),
-#             id="adjust_engine",
-#             frm={
-#                 Addresser(node="report_daily", key="content"): "content",
-#             },
-#         ),
-#         src=[report],
-#     )
-#     polish = GraphNode(
-#         node=Node(
-#             engine=SimpleEngineMod(name="report.daily.polish"),
-#             id="polish_engine",
-#             frm={
-#                 Addresser(node="adjust_engine", key="content"): "content",
-#             },
-#         ),
-#         src=[adjust],
-#     )
+    linear_graph.sel = SelectorMultiplexer(
+        selectors=[
+            Selector(node="test1", key="answer1", to_key="secondary"),
+            Selector(node="none_exists", key="answer", to_key="none"),
+        ],
+        mode=MultiplexerType.SOME,
+    )
 
-#     graph = Graph(nodes=[report, adjust, polish])
+    result = await GraphExecutor(linear_graph).exec({"question": "how are you?"})
+    # logging.info(json.dumps(result, indent=4))
+    assert result["secondary"] == "yes" and "answer" not in result
+
+
+@pytest.mark.asyncio
+async def test_pre_cond_failed_executioin(linear_graph: Graph):
+    node: GraphNode = linear_graph.nodes[2]
+    node.node.pre = EqCheckerMod(key="uri", trg_value="not equal value")
+    linear_graph.sel = SelectorMultiplexer(
+        selectors=[
+            Selector(node="test1", key="answer1", to_key="secondary"),
+            Selector(node="test3", key="answer"),
+        ],
+        mode=MultiplexerType.SOME,
+    )
+    result = await GraphExecutor(linear_graph).exec({"question": "how are you?"})
+    assert result["secondary"] == "yes" and "answer" not in result
+
+
+# test

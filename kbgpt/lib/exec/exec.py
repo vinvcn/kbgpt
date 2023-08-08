@@ -1,13 +1,23 @@
 import asyncio
 import json
 import logging
+from collections import OrderedDict
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 from kbgpt.lib.exec import engine_factory
+from kbgpt.lib.exec.checker_factory import CheckerFactory
 from kbgpt.lib.exec.engines import Engine
-from kbgpt.lib.exec.models import Graph, GraphNode, Node, Selector, SelectorTypes
+from kbgpt.lib.exec.models import (
+    CheckerTypes,
+    Graph,
+    GraphNode,
+    MultiplexerType,
+    Node,
+    Selector,
+    SelectorMultiplexer,
+)
 from kbgpt.lib.exec.template_factory import TemplateFactory
 from kbgpt.lib.templates.rendering.models import TemplateRepo
 
@@ -56,44 +66,78 @@ class ExecutionContext(BaseModel):
     outputs: Dict[str, Any] = Field({})
 
 
-class SelectorExec:
-    selectors: SelectorTypes
+class CheckerExec:
+    def __init__(self, checkers: CheckerTypes) -> None:
+        self.checkers = checkers
+        self.factory = CheckerFactory()
 
-    def __init__(self, selectors: SelectorTypes) -> None:
-        self.selectors = selectors
+    async def exec(self, params):
+        if not self.checkers:
+            return
+
+        if not isinstance(self.checkers, list):
+            self.checkers = [self.checkers]
+
+        for mod in self.checkers:
+            checker = self.factory.create_from_model(mod)
+            await checker.check(**params)
+
+
+class SelectorExec:
+    multisel: SelectorMultiplexer
+
+    def __init__(self, multisel: SelectorMultiplexer) -> None:
+        self.multisel = multisel
 
     async def exec(self, ctx: ExecutionContext):
-        output_dict = {}
-        if not self.selectors:
-            return output_dict
+        hit_dict = OrderedDict()
+        miss_dict = OrderedDict()
+        if not self.multisel:
+            return hit_dict, miss_dict
 
-        if isinstance(self.selectors, Selector):
-            self.selectors = [self.selectors]
-
-        for selector in self.selectors:
-            if selector.to_key:
-                assert (
-                    selector.to_key not in output_dict
-                ), f"output key '{selector.to_key}' conflict"
-                output_dict[selector.to_key] = ctx.outputs[selector.node][selector.key]
+        for selector in self.multisel.selectors:
+            if (
+                selector.node not in ctx.outputs
+                or selector.key not in ctx.outputs[selector.node]
+            ):
+                logging.debug(
+                    "node '%s', key '%s' missing", selector.node, selector.key
+                )
+                if selector.to_key:
+                    miss_dict[selector.to_key] = selector
+                else:
+                    miss_dict[selector.key] = selector
             else:
-                assert (
-                    selector.key not in output_dict
-                ), f"default output key '{selector.key}' conflict"
-                output_dict[selector.key] = ctx.outputs[selector.node][selector.key]
+                if selector.to_key:
+                    assert (
+                        selector.to_key not in hit_dict
+                    ), f"output key '{selector.to_key}' conflict"
+                    hit_dict[selector.to_key] = ctx.outputs[selector.node][selector.key]
+                else:
+                    assert (
+                        selector.key not in hit_dict
+                    ), f"default output key '{selector.key}' conflict"
+                    hit_dict[selector.key] = ctx.outputs[selector.node][selector.key]
 
-        return output_dict
+        assert len(hit_dict) > 0, "at least one value should present"
 
-    # seed: Optional[Dict[str, Any]]
+        if self.multisel.mode == MultiplexerType.FIRST:
+            return dict((miss_dict.popitem(0),)), miss_dict
+        elif self.multisel.mode == MultiplexerType.SOME:
+            return dict(hit_dict), miss_dict
+        else:
+            assert not miss_dict, (
+                f"multiplexer type is {self.multisel.mode},"
+                + f" but {miss_dict} are missing"
+            )
+            return dict(hit_dict), miss_dict
 
 
 class NodeExecutor:
-    node: GraphNode
-    enginefact: engine_factory.EngineFactory
-
     def __init__(self, node: GraphNode) -> None:
         self.node = node
         self.enginefact = engine_factory.EngineFactory(TemplateFactory().create())
+        self.checkerfact = CheckerFactory()
 
     # async def validate(self):
     #     prepare_params = {}
@@ -130,28 +174,32 @@ class NodeExecutor:
         #                 del engine_in[k]
         #                 engine_in[mv] = v
 
-        engine_in = await SelectorExec(self.node.node.frm).exec(ctx)
-        # check for precondition
-        # for k in engine_in:
-        #     self.node.node.pre
+        try:
+            engine_in, _ = await SelectorExec(self.node.node.frm).exec(ctx)
+            # check for precondition
+            await CheckerExec(self.node.node.pre).exec(engine_in)
 
-        # execute the engine
-        engine_out = await engine.agenerate(**engine_in)
+            # execute the engine
+            engine_out = await engine.agenerate(**engine_in)
 
-        logging.debug("map keys for output")
-        engine_result = engine_out.copy()
-        for f_k, to_k in self.node.node.sel.items():
-            if f_k in engine_out:
-                del engine_result[f_k]
-                engine_result[to_k] = engine_out[f_k]
+            logging.debug("map keys for output")
+            engine_result = engine_out.copy()
+            for f_k, to_k in self.node.node.sel.items():
+                if f_k in engine_out:
+                    del engine_result[f_k]
+                    engine_result[to_k] = engine_out[f_k]
 
-        # check for postcondition
+            # check for postcondition
+            await CheckerExec(self.node.node.post).exec(engine_in)
 
-        # save output to context
-        ctx.outputs[self.node.id] = engine_result
-        logging.info("execution done for node:\n%s", self.node)
-        logging.info("inputs:\n%s", json.dumps(engine_in, indent=4))
-        logging.info("outputs:\n%s", json.dumps(engine_result, indent=4))
+            # save output to context
+            ctx.outputs[self.node.id] = engine_result
+            logging.info("execution done for node:\n%s", self.node)
+            logging.info("inputs:\n%s", json.dumps(engine_in, indent=4))
+            logging.info("outputs:\n%s", json.dumps(engine_result, indent=4))
+        except Exception as e:
+            logging.exception(e)
+            raise e
 
 
 class GraphExecutor:
@@ -168,15 +216,34 @@ class GraphExecutor:
             assert (
                 self.graph.is_connected() and self.graph.is_dag()
             ), "graph should be a connected DAG."
-            for ls_nodes in self.graph.iter_next_nodes():
-                logging.info("executing nodes %s", "\n".join(repr(n) for n in ls_nodes))
-                await asyncio.gather(
-                    *[NodeExecutor(node=n).exec(ctx) for n in ls_nodes]
-                )
+
+            try:
+                nodes_gen = self.graph.iter_next_nodes()
+                excepts = None
+                while True:
+                    ls_nodes = nodes_gen.send(excepts)
+                    logging.info(
+                        "executing nodes %s", "\n".join(repr(n) for n in ls_nodes)
+                    )
+                    node_results = await asyncio.gather(
+                        *[NodeExecutor(node=n).exec(ctx) for n in ls_nodes],
+                        return_exceptions=True,
+                    )
+                    excepts = [
+                        i
+                        for i, r in enumerate(node_results)
+                        if isinstance(r, Exception)
+                    ]
+                    for i in excepts:
+                        logging.warning("error while executing node %s", ls_nodes[i])
+                        logging.exception(node_results[i])
+
+            except StopIteration:
+                pass
 
             logging.debug("execution done, preparing output...")
 
-            output_dict = await SelectorExec(self.graph.sel).exec(ctx)
+            output_dict, _ = await SelectorExec(self.graph.sel).exec(ctx)
 
             logging.info(
                 "graph execution completes, result context:\n%s", ctx.json(indent=4)
