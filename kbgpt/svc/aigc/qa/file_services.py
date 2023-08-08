@@ -74,7 +74,7 @@ class ProxiedDocAgent:
                         paths.append(path)
 
                 logging.info("adding files to customer service %s\n", "\n".join(paths))
-                params = {k: v[0] for k, v in request.form}
+                params = {k: v[0] for k, v in request.form.items()}
                 await add_files_to_customer_service(paths, flush_index=True, **params)
             if is_refresh:
                 sanic_app.add_task(warmup_task(sanic_app))

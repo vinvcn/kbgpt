@@ -1,6 +1,8 @@
 import abc
+from datetime import datetime
 from enum import Enum
 from typing import List
+from uuid import uuid4
 
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
@@ -9,9 +11,14 @@ from redis import Redis as RedisType
 from redis.lock import Lock
 
 from config import profile
-from kbgpt.lib.constants import REDIS_DOCUMENT_LOCK_NAME
-from kbgpt.lib.db import check_lock
-from kbgpt.lib.db.redis import MyRedis
+from kbgpt.lib.constants import (
+    CACHE_STATUS_KEY,
+    INDEX_VERSION_KEY,
+    REDIS_DOCUMENT_LOCK_NAME,
+    CacheStatus,
+)
+from kbgpt.lib.db import IndexVersion, check_lock
+from kbgpt.lib.db.redis import MyRedis, SetKeyToValue
 from kbgpt.lib.openai import openai_embeddings
 
 # from langchain.vectorstores import Chroma
@@ -59,6 +66,13 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.client = RedisType.from_url(self.redis_url)
+        embeddings = get_embeddings()
+        self.rds = MyRedis(
+            self.redis_url,
+            self.index_name,
+            embedding_function=embeddings.embed_query,
+            embeddings=get_embeddings(),
+        )
 
     def get_retriever(self, k, **kwargs) -> VectorStoreRetriever:
         return MyRedis.from_existing_index(
@@ -67,18 +81,17 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
             embedding=get_embeddings(),
         ).as_retriever(k=k)
 
+    def get_write_to_store_pipeline(self, **kwargs):
+        return self.rds.write_lc_pipeline(**kwargs)
+
     async def transctional_write_to_store(
         self, documents: List[Document], flush_index=False, **kwargs
     ) -> VectorStoreRetriever:
-        embeddings = get_embeddings()
-        rds = MyRedis(
-            self.redis_url,
-            self.index_name,
-            embedding_function=embeddings.embed_query,
-            embeddings=get_embeddings(),
+        ops = self.get_write_to_store_pipeline(
+            documents=documents, flush_index=flush_index
         )
-        rds.write_lc_documents(documents, flush_index)
-        return rds.as_retriever()
+        self.rds.run_pipeline(ops)
+        return self.rds.as_retriever()
 
 
 class LockedRedisStrategy(RedisVectorStoreStrategy):
@@ -87,6 +100,16 @@ class LockedRedisStrategy(RedisVectorStoreStrategy):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.redis_lock = Lock(self.client, REDIS_DOCUMENT_LOCK_NAME, blocking=False)
+
+    def get_write_to_store_pipeline(self, **kwargs):
+        ops = super().get_write_to_store_pipeline(**kwargs)
+        ops.append(SetKeyToValue(key=CACHE_STATUS_KEY, value=CacheStatus.INVALID.value))
+        # write the index version
+        index_version = IndexVersion(
+            uuid=str(uuid4()), timestamp=datetime.utcnow()
+        ).json()
+        ops.append(SetKeyToValue(key=INDEX_VERSION_KEY, value=index_version))
+        return ops
 
     @check_lock
     async def transctional_write_to_store(
