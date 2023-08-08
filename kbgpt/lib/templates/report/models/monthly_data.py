@@ -10,6 +10,8 @@ from kbgpt.lib.templates.constants import REPORT_BIGGEST_RATIO
 
 from .utils import round  # pylint: disable=redefined-builtin
 
+# pylint: disable = invalid-name
+
 
 class Unit(enum.Enum):
     MILLION = 0
@@ -120,6 +122,13 @@ class TopDrivingSector(BaseModel):
         self.diff = round(self.diff, 2)
         self.diffStr, self.diffUnitName, self.diffUnitStr = self.to_str_wiz_unit(
             self.diff
+        )
+        self.trend = (
+            0
+            if self.currentMonth == self.lastMonth
+            else 1
+            if self.currentMonth > self.lastMonth
+            else -1
         )
 
 

@@ -166,37 +166,59 @@ class WeeklyReport(FuncWrapper):
             date_str = body.date.strftime("%Y-%m-%d")
             agent = WeeklyAgent(app=app, render_config=self.config)
             txt_result: ReportResponse = await agent.analyze(body)
-            tv_agent = ToVoiceAgent(app=app)
-            vic_result = await tv_agent.analyze(
-                ToVoice(pages=txt_result.pages, ssml=txt_result.ssml)
-            )
             report_type = (
                 ReportType.WEEKLY if body.type == Type.WEEKLY else ReportType.MONTHLY
             )
-            results = [
-                CreateReport(
-                    caption=self.pad_timepoints_for_pages(
-                        vic_result.timepoints, txt_result.pages
+            if not body.voice:
+                results = [
+                    CreateReport(
+                        content=txt_result.content,
+                        data=txt_result.data,
+                        date=date_str,
+                        source=SourceType.TEMPLATE.value,
+                        type=report_type.value,
                     ),
-                    content=txt_result.content,
-                    data=txt_result.data,
-                    date=date_str,
-                    voice=vic_result.uri,
-                    source=SourceType.TEMPLATE.value,
-                    type=report_type.value,
-                ),
-                CreateReport(
-                    content=txt_result.polish_content,
-                    data=txt_result.data,
-                    date=date_str,
-                    voice=vic_result.uri,
-                    source=SourceType.AIGC.value,
-                    type=report_type.value,
-                ),
-            ]
-            bac_result = await BackendAdmin().create_report(results)
-            logging.info(bac_result)
-            return GetReportResponse(results=results)
+                    CreateReport(
+                        content=txt_result.polish_content,
+                        data=txt_result.data,
+                        date=date_str,
+                        source=SourceType.AIGC.value,
+                        type=report_type.value,
+                    ),
+                ]
+                bac_result = await BackendAdmin().create_report(results)
+                logging.info(bac_result)
+                return GetReportResponse(results=results)
+            else:
+                tv_agent = ToVoiceAgent(app=app)
+                vic_result = await tv_agent.analyze(
+                    ToVoice(pages=txt_result.pages, ssml=txt_result.ssml)
+                )
+
+                results = [
+                    CreateReport(
+                        caption=self.pad_timepoints_for_pages(
+                            vic_result.timepoints, txt_result.pages
+                        ),
+                        content=txt_result.content,
+                        data=txt_result.data,
+                        date=date_str,
+                        voice=vic_result.uri,
+                        source=SourceType.TEMPLATE.value,
+                        type=report_type.value,
+                    ),
+                    CreateReport(
+                        content=txt_result.polish_content,
+                        data=txt_result.data,
+                        date=date_str,
+                        voice=vic_result.uri,
+                        source=SourceType.AIGC.value,
+                        type=report_type.value,
+                    ),
+                ]
+                bac_result = await BackendAdmin().create_report(results)
+                logging.info(bac_result)
+                return GetReportResponse(results=results)
         except Exception as e:
             logging.exception(e)
             logging.error("generating report failed")
