@@ -128,7 +128,6 @@ class ReportEngine(Engine):
         """
         generate template
         """
-        name = f"report_{req.type.value}"
 
         def currency(num: float) -> str:
             return "{:,.2f}".format(num)

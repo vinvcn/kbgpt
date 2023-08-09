@@ -10,31 +10,23 @@ import numpy as np
 import redis
 from langchain.callbacks import OpenAICallbackHandler
 from langchain.vectorstores.base import VectorStoreRetriever
+from redis.client import Redis as RedisType
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.lock import Lock
 
 from config import profile as global_p
 from kbgpt.configs.profiles import Profile
-from kbgpt.lib.constants import (
-    CACHE_STATUS_KEY,
-    INDEX_VERSION_KEY,
-    REDIS_DOCUMENT_LOCK_NAME,
-    CacheStatus,
-)
-from kbgpt.lib.db import (
-    CacheMetadata,
-    Document,
-    IndexVersion,
-    cache_status,
-    ensure_lock,
-)
+from kbgpt.lib.constants import (CACHE_STATUS_KEY, INDEX_VERSION_KEY,
+                                 REDIS_DOCUMENT_LOCK_NAME, CacheStatus)
+from kbgpt.lib.db import (CacheMetadata, Document, IndexVersion, cache_status,
+                          ensure_lock)
 from kbgpt.lib.db.mysql.cache_warmup_record import CacheWarmupRecord
 from kbgpt.lib.db.redis import MyRedis, WriteToDoc
-from kbgpt.lib.db.utils import check_index_exists
 from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.lib.logging import alog
 from kbgpt.svc.aigc.qa.qa_services import QAagent
-from kbgpt.svc.utils.openai import MODEL_LIMIT_PER_MINUTE, merge_stats, token_counts
+from kbgpt.svc.utils.openai import (MODEL_LIMIT_PER_MINUTE, merge_stats,
+                                    token_counts)
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +41,18 @@ class RedisCacheStoreStrategy:
     """
     A singleton thread-safe Redis cache store strategy
     """
+
+    @staticmethod
+    def _check_index_exists(client: RedisType, index_name: str) -> bool:
+        """Check if Redis index exists."""
+        try:
+            client.ft(index_name).info()
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.exception(e)
+            logger.error("fetching index information failed")
+            return False
+        logger.info("Index already exists")
+        return True
 
     def __init__(self, profile: Profile = None) -> None:
         super().__init__()
@@ -73,7 +77,7 @@ class RedisCacheStoreStrategy:
         )
         self.doc_rds: MyRedis = MyRedis.from_existing_index(
             redis_url=self.profile.vector_store.redis_url,
-            index_name=self.profile.qa.redis_index,
+            index_name=self.profile.indexing.customer_service_index,
             embedding=self.embeddings,
         )
 
@@ -113,7 +117,7 @@ class RedisCacheStoreStrategy:
         """
         Initialize the index
         """
-        if check_index_exists(self.redis_client, self.index_name):
+        if self._check_index_exists(self.redis_client, self.index_name):
             return
         prefix = self._redis_prefix(self.index_name)
 

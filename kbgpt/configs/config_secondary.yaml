@@ -2,7 +2,7 @@ PROFILE: DEFAULT
 
 DEFAULT:
   DB_URL: mysql+pymysql://user:password@localhost:3306/db
-  # ----- SANIC SERVER PORT ----
+# ----- SANIC SERVER PORT ----
   SANIC:
     APP_NAME: kbgpt
     PORT: 8081
@@ -20,13 +20,13 @@ DEFAULT:
     REQUEST_RETRY: 2
     keep_msg_history: True
     words_limit: 50
-  # ----- DOCUMENT EMBEDDING CONFIG -----
+# ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536
     TEXT_EMBEDDING_CHUNK_SIZE: 1000
     TEXT_EMBEDDING_CHUNK_OVERLAP: 200
     EMBEDDINGS_FUNCTION: openai
-  # ----- VECTOR STORE CONFIG -----
+# ----- VECTOR STORE CONFIG -----
   VECTOR_STORE:
     VECTOR_STORE_CLASS: redis
     VECTOR_RETRIVAL_K: 3
@@ -39,6 +39,9 @@ DEFAULT:
     CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
     FRESH_BATCH_SIZE: 10
     COOL_DOWN_SECONDS: 100
+  INDEXING:
+    FLUSH_BEFORE_WRITE: True
+    CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 
 FAT:
 

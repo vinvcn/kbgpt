@@ -1,6 +1,5 @@
 import asyncio
 import os
-from os.path import join
 
 import click
 from redis import Redis
@@ -9,7 +8,7 @@ from kbgpt.lib.templates.rendering.models import RedisTemplateKeyFactory, Templa
 from kbgpt.lib.utils import load_yaml_config
 
 
-@click.group("config")
+@click.group("template")
 def cli():
     pass
 
@@ -36,16 +35,10 @@ def list_temp(dir_path) -> Template:
     type=click.Choice(["LOCAL", "FAT", "PRE", "PRO"], case_sensitive=False),
     required=True,
 )
-@click.option(
-    "--path",
-    type=click.Choice(["templates", "executions"], case_sensitive=False),
-    required=True,
-)
-def sync(env: str, path: str):
+def sync_redis(env: str):
     config = get_config()
     redis_config = config["config"]["redis"]
-    repo_path = join(os.getcwd(), config["config"]["repo"]["path"], path)
-    print(repo_path)
+    repo_path = config["config"]["repo"]["template"]["path"]
     url = redis_config[env.lower()]
 
     print(f"redis url {url}")

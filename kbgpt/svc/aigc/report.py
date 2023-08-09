@@ -11,7 +11,8 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 import google.cloud.texttospeech_v1beta1 as texttospeech
-from gcloud.aio.storage import Storage
+from aiofiles import open as aopen
+from gcloud.aio.storage import Blob, Storage
 from sanic import Sanic
 
 from config import profile
@@ -21,10 +22,8 @@ from kbgpt.api.aigc.report_models import (
     ReportResponse,
     ToVoice,
     ToVoiceResponse,
-    Type,
 )
-from kbgpt.lib.llm.openai import OpenAI
-from kbgpt.lib.rest.be_admin import ReportType
+from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
 from kbgpt.svc.aigc import Agent
 

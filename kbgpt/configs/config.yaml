@@ -33,10 +33,6 @@ DEFAULT:
     REQUEST_RETRY: 2
     keep_msg_history: True
     words_limit: 50
-    redis_index: bullsmart-customer-services
-  PRODUCT_CATALOG:
-    vector_store_class: redis_no_lock
-    redis_index_name: bullsmart-product-catalog
   # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536
@@ -45,7 +41,7 @@ DEFAULT:
     EMBEDDINGS_FUNCTION: openai
   # ----- VECTOR STORE CONFIG -----
   VECTOR_STORE:
-    VECTOR_STORE_CLASS: redis_cache_lock
+    VECTOR_STORE_CLASS: redis
     VECTOR_RETRIVAL_K: 3
     REDIS_URL: "redis://localhost:6379"
     PINECONE_ENV: us-west4-gcp
@@ -56,6 +52,9 @@ DEFAULT:
     CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
     FRESH_BATCH_SIZE: 10
     COOL_DOWN_SECONDS: 100
+  INDEXING:
+    FLUSH_BEFORE_WRITE: True
+    CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 
 FAT:
   BASEURL: http://py-kbgpt.testbs.surfin.sg
