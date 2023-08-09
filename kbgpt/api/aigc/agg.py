@@ -34,9 +34,10 @@ class AGGResponse(ResponseBase):
 
 
 class Matching(BaseModel):
-    name: str
-    score: int = Field(..., le=100, ge=0)
-    intent: str
+    id: int
+    name: Optional[str]
+    score: Optional[int] = Field(None, le=100, ge=0)
+    intent: Optional[str]
 
 
 class IntentResp(BaseModel):

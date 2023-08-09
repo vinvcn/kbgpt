@@ -1,6 +1,7 @@
 """
 qa api
 """
+import asyncio
 import logging
 import time
 from json import dumps
@@ -8,6 +9,7 @@ from json import dumps
 from sanic import Blueprint, Request
 from sanic_ext import openapi, validate
 
+from kbgpt.api.aigc.agg import score
 from kbgpt.api.aigc.qa_models import DocInfo, QAResponse, Question
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
@@ -80,9 +82,13 @@ async def answer_question(request: Request, body: Question):
         question = body.question
         logging.info("handling request: \n%s", dumps(body.dict(), indent=4))
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        result = await agent.answer_question(
-            question=question, streaming=True, callbacks=callbacks
+        result, intent = await asyncio.gather(
+            agent.answer_question(
+                question=question, streaming=True, callbacks=callbacks
+            ),
+            score(question, 80),
         )
+        result.intents = intent.matching
         await response.send(f"data: {result.json()}")
     except Exception as e:
         logging.exception(e)
