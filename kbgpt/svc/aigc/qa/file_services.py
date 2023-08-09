@@ -1,5 +1,3 @@
-
-
 import logging
 from os import listdir, pardir
 from os.path import abspath, dirname, isfile, join
@@ -16,58 +14,39 @@ from config import profile
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.db.mysql.process_file_record import ProcessFileRecord
+from kbgpt.lib.db.vector_store import BusinessType
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 from kbgpt.lib.logging import alog
-
-
-async def add_file_to_customer_service(path: str, **kwargs):
-    """
-    add a file to the customer service index"""
-    indexer = CustomerServiceFilesIndexer()
-    await indexer.add_file_to_index(path=path, **kwargs)
-
-
-async def add_files(paths: List[str]):
-    """
-    add files in paths"""
-    flush = profile.indexing.flush_before_write
-    for path in paths:
-        logging.debug("adding %s", path)
-        await add_file_to_customer_service(path=path, flush_index=flush)
-        flush = False
-
-
-async def add_kb():
-    """
-    add knowledge base in kb folder"""
-    kb_dir = join(dirname(abspath(__file__)), pardir, "kb")
-    files = [join(kb_dir, f) for f in listdir(kb_dir)]
-    files = [f for f in files if isfile(f) and f.endswith(".txt")]
-    await add_files(files)
+from kbgpt.svc.aigc.qa.product_services import ProductImportService
 
 
 @alog(ProcessFileRecord)
-async def add_files_to_customer_service(paths: List[str], **kwargs):
+async def add_files_to_customer_service(
+    paths: List[str], business_type: str, ctx=None, **kwargs
+):
     """
     transcational add files to the customer service index
     """
-    indexer = CustomerServiceFilesIndexer()
-    return await indexer.transactional_add_to_index(paths=paths, **kwargs)
-
-
-async def a_add_file_to_customer_service(**kwargs):
-    """
-    add a file to the customer service index"""
-    add_file_to_customer_service(**kwargs)
+    if BusinessType(business_type) == BusinessType.QA:
+        indexer = CustomerServiceFilesIndexer()
+        return await indexer.transactional_add_to_index(paths=paths, **kwargs)
+    else:
+        crud = ctx.res.get(Crud.__name__)
+        import_service = ProductImportService(crud)
+        await import_service.csv_to_mysql(paths)
+        return await import_service.csv_to_redis(
+            paths=paths, business_type=business_type, **kwargs
+        )
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
-async def warmup_task(app:Sanic):
+async def warmup_task(app: Sanic):
     """
     kick off warm up task
     """
-    cache:RedisCacheStoreStrategy = app.ctx.redicache
+    cache: RedisCacheStoreStrategy = app.ctx.redicache
     # pylint: disable=broad-except
     try:
         await cache.refresh_cache()
@@ -108,9 +87,10 @@ class ProxiedDocAgent:
                         paths.append(path)
 
                 logging.info("adding files to customer service %s\n", "\n".join(paths))
-                await add_files_to_customer_service(paths, flush_index=True)
-            if is_refresh:
-                sanic_app.add_task(warmup_task(sanic_app))
+                params = {k: v[0] for k, v in request.form.items()}
+                await add_files_to_customer_service(
+                    paths, flush_index=True, ctx=sanic_app.ctx, **params
+                )
             return jtext(OpenAIResponseBase(success=True))
         except Exception as e:
             logging.exception(e)

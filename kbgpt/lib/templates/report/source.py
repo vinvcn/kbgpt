@@ -22,7 +22,7 @@ class DataFetchingError(Exception):
 class ReportDataSource:
     """report data source"""
 
-    async def __call__(self, dt: date, req: Report) -> Any:
+    async def __call__(self, req: Report) -> Any:
         r_type: ReportType = (
             ReportType.DAILY
             if req.type == Type.DAILY
