@@ -48,7 +48,9 @@ STUFF_TEMPLATE = (
     "\n---------------------\n"
     f"{RULES}"
     "You also need to be aware of not mentioning following words or related information:"
+    "---------------------\n"
     f"{BLACK_LIST}"
+    "\n---------------------\n"
     "Given the context information and not prior knowledge, "
     "answer the question: {question}\n"
 )
