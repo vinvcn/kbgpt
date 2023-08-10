@@ -20,7 +20,7 @@ class QAResponse(OpenAIResponseBase):
     """qa response"""
 
     answer: str
-    intents: Optional[List[Matching]]
+    # intents: Optional[List[Matching]]
     total_tokens: int
     total_cost: float
     prompt_tokens: int

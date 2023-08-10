@@ -82,13 +82,17 @@ async def answer_question(request: Request, body: Question):
         question = body.question
         logging.info("handling request: \n%s", dumps(body.dict(), indent=4))
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        result, intent = await asyncio.gather(
-            agent.answer_question(
-                question=question, streaming=True, callbacks=callbacks
-            ),
-            score(question, 80),
+        # result, intent = await asyncio.gather(
+        #     agent.answer_question(
+        #         question=question, streaming=True, callbacks=callbacks
+        #     ),
+        #     score(question, 80),
+        # )
+        # result.intents = intent.matching
+        result = await agent.answer_question(
+            question=question, streaming=True, callbacks=callbacks
         )
-        result.intents = intent.matching
+
         await response.send(f"data: {result.json()}")
     except Exception as e:
         logging.exception(e)
