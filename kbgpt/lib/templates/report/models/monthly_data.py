@@ -1,5 +1,7 @@
+import enum
 from datetime import date
-from typing import List, Optional
+from math import ceil
+from typing import List, Optional, Tuple
 
 from dateutil import relativedelta
 from pydantic import BaseModel, Field
@@ -8,11 +10,29 @@ from kbgpt.lib.templates.constants import REPORT_BIGGEST_RATIO
 
 from .utils import round  # pylint: disable=redefined-builtin
 
+# pylint: disable = invalid-name
+
+
+class Unit(enum.Enum):
+    MILLION = 0
+    CRORE = 1
+    YI = 2
+    BILLION = 3
+    BAIYI = 4
+    QIANYI = 5
+    TRILLION = 6
+
+
+class UnitStr(enum.Enum):
+    CRORE = "Cr."
+    BILLION = "bn"
+    TRILLION = "tn"
+
 
 class MonthlyChangeMarket(BaseModel):
     firstSector: Optional[str]
     firstSectorChange: float = Field(0.0)
-    tenthFundChange: float = Field(0.0)
+    tenthFundChange: Optional[float]
     secondSector: Optional[str]
     secondSectorChange: float = Field(0.0)
     lastSector: Optional[str]
@@ -23,22 +43,26 @@ class MonthlyChangeMarket(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.firstSectorChange = round(self.firstSectorChange, 2)
-        self.tenthFundChange = round(self.tenthFundChange, 2)
+        if self.tenthFundChange:
+            self.tenthFundChange = round(self.tenthFundChange, 2)
         self.secondSectorChange = round(self.secondSectorChange, 2)
         self.lastSectorChange = round(self.lastSectorChange, 2)
         self.secondLastSectorChange = round(self.secondLastSectorChange, 2)
 
 
 class MonthlyAum(BaseModel):
-    currentMonth: int = Field(0)
-    lastMonth: int = Field(0)
-    diff: int = Field(0)
+    currentMonth: float = Field(0)
+    lastMonth: float = Field(0)
+    diff: float = Field(0)
     diffPercent: float = Field(0.0)
     trend: int = Field(0)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.currentMonth = round(self.currentMonth, 2)
+        self.lastMonth = round(self.lastMonth, 2)
         self.diff = self.currentMonth - self.lastMonth
+        self.diff = round(self.diff, 2)
         if self.lastMonth == 0:
             self.diffPercent = REPORT_BIGGEST_RATIO
         else:
@@ -55,20 +79,57 @@ class MonthlyAum(BaseModel):
 
 class TopDrivingSector(BaseModel):
     name: Optional[str]
-    currentMonth: int = Field(0)
-    lastMonth: int = Field(0)
-    diff: int = Field(0)
+    currentMonth: float = Field(0)
+    currentMonthStr: str = Field("")
+    currentMonthUnitStr: str = Field("")
+    currentMonthUnitName: str = Field("")
+    lastMonth: float = Field(0)
+    diff: float = Field(0)
+    diffStr: str = Field("")
+    diffUnitStr: str = Field("")
+    diffUnitName: str = Field("")
     trend: int = Field(0)
+
+    @staticmethod
+    def to_str_wiz_unit(val: float) -> Tuple[str, str]:
+        int_len = len(str(int(val)))
+
+        if Unit.MILLION.value <= int_len < Unit.BILLION.value:
+            return str(val), UnitStr.CRORE.name.lower(), UnitStr.CRORE.value
+        elif Unit.BILLION.value <= int_len < Unit.TRILLION.value:
+            return (
+                round(val / 100, 2),
+                UnitStr.BILLION.name.lower(),
+                UnitStr.BILLION.value,
+            )
+        else:
+            return (
+                round(val / 1000, 2),
+                UnitStr.TRILLION.name.lower(),
+                UnitStr.TRILLION.value,
+            )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.currentMonth = round(self.currentMonth, 2)
+        (
+            self.currentMonthStr,
+            self.currentMonthUnitName,
+            self.currentMonthUnitStr,
+        ) = self.to_str_wiz_unit(self.currentMonth)
+        self.lastMonth = round(self.lastMonth, 2)
         self.diff = self.currentMonth - self.lastMonth
-        if self.diff == 0:
-            self.trend = 0
-        elif self.diff > 0:
-            self.trend = 1
-        else:
-            self.trend = -1
+        self.diff = round(self.diff, 2)
+        self.diffStr, self.diffUnitName, self.diffUnitStr = self.to_str_wiz_unit(
+            self.diff
+        )
+        self.trend = (
+            0
+            if self.currentMonth == self.lastMonth
+            else 1
+            if self.currentMonth > self.lastMonth
+            else -1
+        )
 
 
 class MonthlyAumMarket(BaseModel):
@@ -77,14 +138,30 @@ class MonthlyAumMarket(BaseModel):
     equity: MonthlyAum
     debt: MonthlyAum
     topRisingSector: Optional[TopDrivingSector]
-    topRisingContrib: float = Field(0.0)
+    topRisingContrib: float = Field(0.0)  #
     topRisingContribStr: Optional[str]
     topDowningSector: Optional[TopDrivingSector]
-    topDowningContrib: float = Field(0.0)
+    topDowningContrib: float = Field(0.0)  #
     topDowningContribStr: Optional[str]
     contraryFlowStr: Optional[str]
-    contraryTopContribStr: Optional[str]
-    contraryDownContribStr: Optional[str]
+    contraryTopContribStr: str = Field("")
+    contraryDownContribStr: str = Field("")
+
+    @staticmethod
+    def round_contrib(value: float):
+        """round contribution"""
+        neg = value < 0
+        return (
+            0.1
+            if 0 < value <= 0.1
+            else -0.1
+            if -0.1 <= value < 0
+            else -ceil(abs(value))
+            if neg
+            else ceil(abs(value))
+            if value != 0
+            else 0
+        )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -95,10 +172,10 @@ class MonthlyAumMarket(BaseModel):
             self.topDowningContribStr = ""
         else:
             self.topRisingContrib = self.topRisingSector.diff / self.total.diff
-            self.topRisingContrib = round(100 * self.topRisingContrib, 2)
+            self.topRisingContrib = self.round_contrib(100 * self.topRisingContrib)
             self.topRisingContribStr = f"or {self.topRisingContrib}%"
             self.topDowningContrib = self.topDowningSector.diff / self.total.diff
-            self.topDowningContrib = round(100 * self.topDowningContrib, 2)
+            self.topDowningContrib = self.round_contrib(100 * self.topDowningContrib)
             self.topDowningContribStr = f"or {self.topDowningContrib}%"
 
         if self.total.trend >= 0:
@@ -107,9 +184,9 @@ class MonthlyAumMarket(BaseModel):
                 "most outflow" if self.topDowningSector.trend < 0 else "least inflow"
             )
             self.contraryDownContribStr = (
-                f"or {self.topDowningContrib}%"
-                if self.total.diff == 0 and self.topDowningSector.trend >= 0
-                else ""
+                ""
+                if self.total.diff == 0 or self.topDowningSector.trend <= 0
+                else f"or {self.topDowningContrib}%"
             )
 
         else:
@@ -118,9 +195,9 @@ class MonthlyAumMarket(BaseModel):
                 "most inflow" if self.topRisingSector.trend > 0 else "least outflow"
             )
             self.contraryTopContribStr = (
-                f"or {self.topRisingContrib}%"
-                if self.total.diff == 0 and self.topRisingSector.trend < 0
-                else ""
+                ""
+                if self.total.diff == 0 or self.topRisingSector.trend >= 0
+                else f"or {self.topRisingContrib}%"
             )
 
 

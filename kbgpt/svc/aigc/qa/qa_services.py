@@ -31,12 +31,26 @@ RULES = (
     "- Do not add anything except for the answer for your customer.\n"
     "- Do not provide information other than the ones you find from the context.\n"
 )
+BLACK_LIST = (
+    "0 Commission\n"
+    "Zero Commission\n"
+    "No Commission\n"
+    "0 Charge\n"
+    "Zero Charge\n"
+    "No Charge\n"
+    "0 Fee\n"
+    "Zero Fee\n"
+)
 STUFF_TEMPLATE = (
     "Pretend you are a customer service representative for an mobile App called Bullsmart. You were provided the following Context information.\n"
     "---------------------\n"
     "{context}"
     "\n---------------------\n"
     f"{RULES}"
+    "You also need to be aware of not mentioning following words or related information:"
+    "---------------------\n"
+    f"{BLACK_LIST}"
+    "\n---------------------\n"
     "Given the context information and not prior knowledge, "
     "answer the question: {question}\n"
 )
@@ -113,7 +127,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
     # ) -> Tuple[List[str], OpenAICallbackHandler]:
 
     async def answer_question_in_batch(
-            self, prompts: List[str]
+        self, prompts: List[str]
     ) -> Tuple[List[str], OpenAICallbackHandler]:
         """
         Answer pairs of question and vectors in batch
@@ -126,14 +140,20 @@ class AbstractAgent(metaclass=abc.ABCMeta):
                 llm = chat_open_ai_llm(handlers=[stats])
                 results = await llm.agenerate(messages)
                 # see what's the result when http request failed
-                return [gen[0].message.content for gen in results.generations], stats, limit_refreshed
+                return (
+                    [gen[0].message.content for gen in results.generations],
+                    stats,
+                    limit_refreshed,
+                )
             except RateLimitError as e:
                 logging.exception(e)
-                logging.warning("rate limit hit sleeping for %d seconds", profile.cache.cool_down_seconds)
+                logging.warning(
+                    "rate limit hit sleeping for %d seconds",
+                    profile.cache.cool_down_seconds,
+                )
                 await asyncio.sleep(profile.cache.cool_down_seconds)
                 logging.debug("wake up from sleep")
                 limit_refreshed = True
-
 
     async def _answer_question_and_provide_cost(
         self, question: str, streaming: bool = False, callbacks=None

@@ -129,9 +129,14 @@ class ReportEngine(Engine):
         generate template
         """
 
+        def currency(num: float) -> str:
+            return "{:,.2f}".format(num)
+
         data = await self.data_source(dt, req)
         template = await self.tmp_repo.pick_one(name=name)
-        jtemp = Environment(autoescape=escape).from_string(template.body)
+        envi = Environment(autoescape=escape)
+        envi.filters["fcurrency"] = currency
+        jtemp = envi.from_string(template.body)
 
         return Completion(
             prompt=template.body,
