@@ -9,7 +9,7 @@ from json import dumps
 from sanic import Blueprint, Request
 from sanic_ext import openapi, validate
 
-from kbgpt.api.aigc.agg import score
+from kbgpt.api.aigc.agg import bouncing_ask, score
 from kbgpt.api.aigc.qa_models import DocInfo, QAResponse, Question
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
@@ -82,12 +82,13 @@ async def answer_question(request: Request, body: Question):
         question = body.question
         logging.info("handling request: \n%s", dumps(body.dict(), indent=4))
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        result, intent = await asyncio.gather(
-            agent.answer_question(
+        intent = await score(question, 80)
+        if len(intent.matching) >= 2:
+            result = await bouncing_ask(intent.matching, question, callbacks[0])
+        else:
+            result = await agent.answer_question(
                 question=question, streaming=True, callbacks=callbacks
-            ),
-            score(question, 80),
-        )
+            )
         result.intents = intent.matching
         await response.send(f"data: {result.json(exclude_none=True)}")
     except Exception as e:

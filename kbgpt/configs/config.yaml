@@ -26,13 +26,13 @@ DEFAULT:
     OPENAI_MODEL: "gpt-3.5-turbo-16k"
   QA:
     EMBEDDINGS_MODEL: "text-embedding-ada-002"
-    GENERATIVE_MODEL: "gpt-3.5-turbo"
+    GENERATIVE_MODEL: "gpt-3.5-turbo-16k"
     CUSTOMER_SERVICE_TEMPERATURE: 0.3
     AGENT_CLS: builtin
     REQUEST_TIMEOUT: 60
     REQUEST_RETRY: 2
     keep_msg_history: True
-    words_limit: 50
+    words_limit: 38
   # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536

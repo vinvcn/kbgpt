@@ -60,16 +60,21 @@ class OpenAI:
 
     @alru_cache(maxsize=256, typed=True)
     async def chat_completion(
-        self, model: str, messages: Tuple[Message, ...]
+        self, model: str, messages: Tuple[Message, ...], stream=False
     ) -> Completion:
         """chat completion"""
-        completion = await openai.ChatCompletion.acreate(
-            model=model, messages=[m.dict() for m in messages]
-        )
+        if stream:
+            return await openai.ChatCompletion.acreate(
+                model=model, messages=[m.dict() for m in messages], stream=True
+            )
+        else:
+            completion = await openai.ChatCompletion.acreate(
+                model=model, messages=[m.dict() for m in messages]
+            )
 
-        usage = Usage(model, **completion["usage"])
-        content = completion.choices[0].message["content"]
-        return Completion(usage=usage, content=content)
+            usage = Usage(model, **completion["usage"])
+            content = completion.choices[0].message["content"]
+            return Completion(usage=usage, content=content)
 
     async def list_models(self):
         result = await openai.Model.alist()

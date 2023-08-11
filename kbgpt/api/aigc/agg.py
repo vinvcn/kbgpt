@@ -1,17 +1,23 @@
 import csv
+import functools
 import logging
+from json import JSONDecodeError
 from textwrap import indent
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from jinja2 import Environment, FileSystemLoader
+from langchain.callbacks.manager import AsyncCallbackManagerForLLMRun
 from numpy import maximum
-from pydantic import BaseModel, Field
+from pydantic import ValidationError
 from sanic import Blueprint, Request
 from sanic_ext import openapi, validate
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from config import profile
+from kbgpt.api.aigc.agg_models import AGGRequest, AGGResponse, IntentResp, Matching
+from kbgpt.api.aigc.qa_models import QAResponse
 from kbgpt.api.constants import API_CONTENT_TYPE
-from kbgpt.api.libs.base_model import ErrorResponse, ResponseBase
+from kbgpt.api.libs.base_model import ErrorResponse
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.llm.openai import Message, OpenAI
 from kbgpt.svc.aigc.qa.qa_services import QAagent
@@ -21,48 +27,22 @@ AGG = Blueprint("agg", url_prefix="agg")
 jinja = Environment(loader=FileSystemLoader("./kbgpt/res/"))
 
 
-class AGGRequest(BaseModel):
-    history: Optional[Tuple[Message, ...]]
-    question: str
-    threshold: int = Field(80)
-
-
-class AGGResponse(ResponseBase):
-    message: Optional[str]
-    recommend: Optional[List[str]]
-    product: Optional[str]
-
-
-class Matching(BaseModel):
-    id: int
-    name: Optional[str]
-    score: Optional[int] = Field(None, le=100, ge=0)
-    intent: Optional[str]
-
-
-class IntentResp(BaseModel):
-    userInquiry: str
-    userIntent: Optional[str]
-    matching: Optional[List[Matching]]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.matching = sorted(self.matching, key=lambda item: item.score, reverse=True)
-
-
-async def gen_prompt(tname, data={}, threshold=80, inquiry=""):
+async def gen_prompt(tname, data={}, threshold=80, inquiry="", stream=False):
     prompt = jinja.get_template(tname).render(
         **{"products": data, "threshold": threshold, "inquery": inquiry}
     )
     print(prompt)
     openai = OpenAI()
     result = await openai.chat_completion(
-        profile.generative_model, tuple([Message(role="system", content=prompt)])
+        profile.qa.generative_model,
+        tuple([Message(role="system", content=prompt)]),
+        stream=stream,
     )
     print(result)
     return result
 
 
+@functools.lru_cache
 def make_json(csvFilePath):
     data = []
 
@@ -82,6 +62,12 @@ def make_json(csvFilePath):
     return data
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(0),
+    retry=retry_if_exception_type(ValidationError),
+    reraise=True,
+)
 async def score(inquiry, threshold):
     data = make_json("./kbgpt/res/productsintent.csv")
     result = await gen_prompt(
@@ -93,6 +79,31 @@ async def score(inquiry, threshold):
 async def check_intent(inquery):
     result = await gen_prompt("agg_step0.txt", inquiry=inquery)
     return result.content.lower() == "yes"
+
+
+async def get_product_by_ids(ids: List[Matching]):
+    ids_to_match = [m.id for m in ids]
+    matched = [
+        r
+        for r in make_json("./kbgpt/res/productsintent.csv")
+        if int(r["id"]) in ids_to_match
+    ]
+    return matched
+
+
+async def bouncing_ask(
+    ids: List[Matching], question: str, handler: Optional[AsyncCallbackManagerForLLMRun]
+):
+    product = await get_product_by_ids(ids)
+    inner_completion = ""
+    async for stream_resp in await gen_prompt(
+        "agg_step3.txt", data=product, inquiry=question, stream=True
+    ):
+        # role = stream_resp["choices"][0]["delta"].get("role", role)
+        token = stream_resp["choices"][0]["delta"].get("content", "")
+        inner_completion += token
+        await handler.on_llm_new_token(token)
+    return QAResponse(answer=inner_completion)
 
 
 async def get_product_by_intent(intent):

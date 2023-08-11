@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from kbgpt.api.aigc.agg import Matching
+from kbgpt.api.aigc.agg_models import Matching
 from kbgpt.api.libs.base_model import OpenAIResponseBase
 
 
@@ -21,12 +21,12 @@ class QAResponse(OpenAIResponseBase):
 
     answer: str
     intents: Optional[List[Matching]]
-    total_tokens: int
-    total_cost: float
-    prompt_tokens: int
-    completion_tokens: int
-    successful_requests: int
-    hit_cache: bool
+    total_tokens: Optional[int]
+    total_cost: Optional[float]
+    prompt_tokens: Optional[int]
+    completion_tokens: Optional[int]
+    successful_requests: Optional[int]
+    hit_cache: Optional[bool]
 
     def json(self, *args, **kwargs) -> str:
         json_str = super().json(*args, ensure_ascii=False, **kwargs)
