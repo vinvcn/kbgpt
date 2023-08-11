@@ -83,13 +83,14 @@ async def answer_question(request: Request, body: Question):
         logging.info("handling request: \n%s", dumps(body.dict(), indent=4))
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
         intent = await score(question, 80)
-        if len(intent.matching) >= 2:
+        if intent and len(intent.matching) >= 2:
             result = await bouncing_ask(intent.matching, question, callbacks[0])
         else:
             result = await agent.answer_question(
                 question=question, streaming=True, callbacks=callbacks
             )
-        result.intents = intent.matching
+        if intent:
+            result.intents = intent.matching
         await response.send(f"data: {result.json(exclude_none=True)}")
     except Exception as e:
         logging.exception(e)
