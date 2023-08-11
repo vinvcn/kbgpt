@@ -4,13 +4,9 @@ You will need to do this step by step like this. First to find out user's intent
 
 The score should be from 0 to 100, 0 means not matching at all, 100 means perfectly matching. If the score is less than {{threshold}}, do not include it in the result.
 
-The result should be in JSON format for example: 
+The result should be in line break separated pairs with first element as the id, second being the score for example: 
 ```
-{
-    "matching":[{
-        "id": 21
-    }]
-}
+21,80
 ```
 
 Sort the result items by score in decending order. Output at most 4 matches.
@@ -207,26 +203,10 @@ help me invest
 
 Results 1:
 
-{
-    "matching": [
-        {
-            "id": "2",
-            "score": 100
-        },
-        {
-            "id": "5",
-            "score": 80
-        },
-        {
-            "id": "12",
-            "score": 80
-        },
-        {
-            "id": "13",
-            "score": 80
-        }
-    ]
-}
+2,100
+5,80
+12,80
+13,80
 
 
 
