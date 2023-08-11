@@ -89,7 +89,7 @@ async def answer_question(request: Request, body: Question):
             score(question, 80),
         )
         result.intents = intent.matching
-        await response.send(f"data: {result.json()}")
+        await response.send(f"data: {result.json(exclude_none=True)}")
     except Exception as e:
         logging.exception(e)
         obj = {"success": False, "error": str(e)}
