@@ -151,13 +151,13 @@ class TaskManager(LifeCycleMixin):
     async def set_task_status(self, name: str, task_id: str, status: TaskStatus):
         record = await self.get_task(name, task_id)
         record.status = status.value
-        self.crud.session.add(record)
+        self.crud.update_rows(record.__class__, [record])
 
     def register_task_name_handle(self, afunc: Type[FuncWrapper], handle: str):
         self.mapping[handle] = afunc(handle, handle)
 
     async def get_retry_config(self):
-        results = self.crud.session.query(AttemptConfigRecord).all()
+        results = self.crud.get_all(AttemptConfigRecord)
         return {a_conf.attempt: a_conf.delay for a_conf in results}
 
     async def add_task(self, record: TaskRecord):
@@ -217,7 +217,7 @@ class TaskManager(LifeCycleMixin):
                 record.completed_at = datetime.utcnow()
                 logging.info("task %s was done mark it to %s", task.name, record.status)
 
-            self.crud.session.add(record)
+            self.crud.update_rows(record.__class__, [record])
         # filter out all done and cancelled tasks
         self.active_task = [t for t in self.active_task if not (t.done or t.cancelled)]
 
@@ -226,13 +226,13 @@ class TaskManager(LifeCycleMixin):
             try:
                 await asyncio.sleep(10)
                 await self._maintain_active()
-                query = self.crud.session.query(TaskRecord).filter(
-                    and_(
+                results = self.crud.get_all(
+                    TaskRecord,
+                    the_filter=and_(
                         TaskRecord.status == TaskStatus.RUNNING.value,
                         TaskRecord.attempt <= TaskRecord.max_attempt,
-                    )
+                    ),
                 )
-                results = query.all()
                 for task in results:
                     tsk: TaskRecord = task
                     if tsk.next_execution_time <= datetime.now():

@@ -16,6 +16,7 @@ class Type(Enum):
 class Report(BaseModel):
     type: Type
     date: date
+    voice: bool = Field(True)
     polish: Optional[bool]
     data: Optional[Dict[str, Any]]
     sync: bool = Field(False)

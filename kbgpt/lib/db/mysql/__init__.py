@@ -10,6 +10,7 @@ from typing import Dict, Type
 
 import sqlalchemy
 from sanic import Sanic
+from sqlalchemy import update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -41,67 +42,67 @@ class Crud(LifeCycleMixin):
         self.max_overflow = max_overflow
         self.pool_recycle = pool_recycle
         self.engine = None
-        self.session = None
 
     async def init(self, app: Sanic = None):
         self._create_engine()
-        self._create_session()
         self._create_tables()
 
     async def destroy(self, app: Sanic = None):
-        self.close_session()
         self.close_all_connections()
 
     def _create_engine(self):
         self.engine = sqlalchemy.create_engine(self.connection_string, echo=False)
 
-    def _create_session(self):
-        session = sessionmaker(bind=self.engine)
-        self.session = session()
-
     def _create_tables(self):
         Base.metadata.create_all(self.engine)
 
     def truncate_table(self, table_name):
-        self.session.execute(text(f"TRUNCATE TABLE {table_name}"))
+        with sessionmaker(bind=self.engine)() as session:
+            session.execute(text(f"TRUNCATE TABLE {table_name}"))
+            session.commit()
 
-    def batch_update(self, cls, list_of_inst):
-        mappings = [inst.__dict__ for inst in list_of_inst]
-        self.session.bulk_update_mappings(cls, mappings)
-        self.session.flush()
-        self.session.commit()
+    def add(self, entry):
+        with sessionmaker(bind=self.engine)() as session:
+            session.add(entry)
+            session.commit()
 
     def batch_insert(self, list_of_inst):
         """insert the records in batch"""
-        try:
-            self.session.bulk_save_objects(list_of_inst)
-            self.session.commit()
-        except SQLAlchemyError as e:
-            logging.exception(e)
-            self.session.rollback()
-            raise e
+        with sessionmaker(bind=self.engine)() as session:
+            session.bulk_save_objects(list_of_inst)
+            session.commit()
+
+    def update_rows(self, cls: Type[Base], rows):
+        with sessionmaker(bind=self.engine)() as session:
+            if isinstance(rows, list):
+                entries = [r.__dict__ for r in rows]
+            else:
+                entries = [rows.__dict__]
+
+            session.bulk_update_mappings(cls, entries)
+            session.commit()
 
     def get_first_by(self, cls: Type[Base], filter_params: Dict, order_col: str):
-        return (
-            self.session.query(cls)
-            .filter_by(**filter_params)
-            .order_by(text(f"{order_col} desc"))
-            .first()
-        )
+        with sessionmaker(bind=self.engine)() as session:
+            result = (
+                session.query(cls)
+                .filter_by(**filter_params)
+                .order_by(text(f"{order_col} desc"))
+                .first()
+            )
+            return result
+
+    def get_all(
+        self, cls: Type[Base], the_filter: sqlalchemy.ColumnElement[bool] = None
+    ):
+        with sessionmaker(bind=self.engine)() as session:
+            if the_filter is not None:
+                return session.query(cls).filter(the_filter).all()
+            else:
+                return session.query(cls).all()
 
     def __del__(self):
         self.close_all_connections()
-
-    def close_session(self):
-        """close the sessioin"""
-        if not self.session:
-            return
-        try:
-            self.session.close()
-        except SQLAlchemyError as e:
-            logging.exception(e)
-        else:
-            self.session = None
 
     def close_all_connections(self):
         """close all connections"""
