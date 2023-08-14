@@ -78,6 +78,7 @@ async def score(inquiry, threshold):
     if result.content == "N/A":
         return None
     lst = [l.split(",") for l in result.content.split("\n")]
+    lst = lst[:4]
     return IntentResp(matching=[Matching(id=p[0], score=p[1]) for p in lst])
 
 
@@ -138,7 +139,6 @@ async def get_product_by_ids(ids: List[Matching]):
 async def bouncing_ask(
     ids: List[Matching], question: str, handler: Optional[AsyncCallbackManagerForLLMRun]
 ):
-    ids = ids[:4]
     product = await get_product_by_ids(ids)
     inner_completion = ""
     async for stream_resp in await gen_prompt(
