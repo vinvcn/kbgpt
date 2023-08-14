@@ -39,7 +39,8 @@ async def gen_prompt(tname, data={}, choice="", threshold=80, inquiry="", stream
         stream=stream,
     )
     logging.debug(f"\n{prompt}")
-    logging.debug(f"\n{result.content}")
+    if not stream:
+        logging.debug(f"\n{result.content}")
     return result
 
 
