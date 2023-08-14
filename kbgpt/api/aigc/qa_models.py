@@ -33,6 +33,12 @@ class QAResponse(OpenAIResponseBase):
         return json_str.replace("\\n", "<br/>")
 
 
+class GetRecomm(BaseModel):
+    """get recommendation"""
+
+    product_id: int
+
+
 class DocInfo(OpenAIResponseBase):
     """document information"""
 

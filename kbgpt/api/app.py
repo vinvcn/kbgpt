@@ -17,6 +17,7 @@ from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.lib.tasks.manager import TaskManager
 from kbgpt.lib.templates.rendering.models import RedisTemplateProvider, TemplateRepo
+from kbgpt.svc.aigc.qa.file_services import WarmupTask
 
 from .admin import ADMIN
 from .aigc import AIGC
@@ -59,6 +60,7 @@ async def setup_resources(sanic_app: Sanic, loop):
     task_manager = TaskManager(app=app, crud=crud)
     task_manager.register_task_name_handle(DailyReport, DailyReport.__name__)
     task_manager.register_task_name_handle(WeeklyReport, WeeklyReport.__name__)
+    task_manager.register_task_name_handle(WarmupTask, WarmupTask.__name__)
 
     mgr.add(task_manager)
 

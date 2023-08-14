@@ -6,11 +6,11 @@ import logging
 import time
 from json import dumps
 
-from sanic import Blueprint, Request
+from sanic import Blueprint, Request, text
 from sanic_ext import openapi, validate
 
-from kbgpt.api.aigc.agg import bouncing_ask, score
-from kbgpt.api.aigc.qa_models import DocInfo, QAResponse, Question
+from kbgpt.api.aigc.agg import bouncing_ask, get_recommendation, score
+from kbgpt.api.aigc.qa_models import DocInfo, GetRecomm, QAResponse, Question
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
@@ -57,6 +57,19 @@ async def answer_question_get(request: Request, body: Question):
             "End of answer_question_get request, total time %.3f",
             (time.perf_counter() - start_counter),
         )
+
+
+@QA.route("/get_recomm", methods=["GET"])
+@openapi.description("get recomendation for given products")
+@openapi.definition(body={API_CONTENT_TYPE: GetRecomm.schema()})
+@validate(json=GetRecomm)
+async def get_recomm(request: Request, body: GetRecomm):
+    try:
+        result = await get_recommendation(body.product_id)
+        return text(result.json(exclude_none=True), content_type=API_CONTENT_TYPE)
+    except Exception as e:
+        logging.exception(e)
+        return jtext(ErrorResponse(success=False, error=str(e)))
 
 
 # pylint: disable=unused-argument
