@@ -4,6 +4,9 @@ The product catalog is in json format. You do this by following rules:
 - recommend the item with similar functionality
 - recommend the item that give customer similar value
 - and other possible links that you can think of
+- if there is not recommendation, output N/A
+
+Use the product name you find in the catalog in your response, do not change a single character from it.
 
 Product catalog:
 
@@ -76,7 +79,17 @@ Smart Nivesh
 
 Customer Choice 6:
 ```
-{{choice}}
+nihao
 ```
 
 Your Recommendation 6:
+```
+N/A
+```
+
+Customer Choice 7:
+```
+{{choice}}
+```
+
+Your Recommendation 7:

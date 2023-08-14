@@ -36,7 +36,8 @@ class QAResponse(OpenAIResponseBase):
 class GetRecomm(BaseModel):
     """get recommendation"""
 
-    product_id: int
+    product_id: Optional[int]
+    product_name: Optional[str]
 
 
 class DocInfo(OpenAIResponseBase):

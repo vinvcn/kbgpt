@@ -9,7 +9,12 @@ from json import dumps
 from sanic import Blueprint, Request, text
 from sanic_ext import openapi, validate
 
-from kbgpt.api.aigc.agg import bouncing_ask, get_recommendation, score
+from kbgpt.api.aigc.agg import (
+    bouncing_ask,
+    get_recommendation,
+    get_recommendation_by_name,
+    score,
+)
 from kbgpt.api.aigc.qa_models import DocInfo, GetRecomm, QAResponse, Question
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
@@ -59,13 +64,16 @@ async def answer_question_get(request: Request, body: Question):
         )
 
 
-@QA.route("/get_recomm", methods=["GET"])
+@QA.route("/get_recomm", methods=["POST"])
 @openapi.description("get recomendation for given products")
 @openapi.definition(body={API_CONTENT_TYPE: GetRecomm.schema()})
 @validate(json=GetRecomm)
 async def get_recomm(request: Request, body: GetRecomm):
     try:
-        result = await get_recommendation(body.product_id)
+        if body.product_name:
+            result = await get_recommendation_by_name(body.product_name)
+        else:
+            result = await get_recommendation(body.product_id)
         return text(result.json(exclude_none=True), content_type=API_CONTENT_TYPE)
     except Exception as e:
         logging.exception(e)

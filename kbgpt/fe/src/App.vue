@@ -1,14 +1,14 @@
 <template>
-      <ChatBox></ChatBox>
+      <RecommBox></RecommBox>
 </template>
 
 <script>
-import ChatBox from './components/ChatBox.vue';
+import RecommBox from './components/RecommBox.vue';
 
 export default {
   name: 'App',
   components: {
-    ChatBox
+    RecommBox
   }
 }
 </script>

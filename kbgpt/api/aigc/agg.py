@@ -81,18 +81,42 @@ async def score(inquiry, threshold):
     return IntentResp(matching=[Matching(id=p[0], score=p[1]) for p in lst])
 
 
+async def get_recommendation_by_name(choice_name: str):
+    data = make_json("./kbgpt/res/productsintent.csv")
+    id_to_rows = {int(row["id"]): row for row in data}
+    choice = [
+        row
+        for row in data
+        if row["name"].strip().lower() == choice_name.strip().lower()
+    ]
+    if not choice:
+        raise ValueError(f"given name {choice_name} no matching id")
+    results = await get_recommendation(choice_id=int(choice[0]["id"]))
+    if results.matching:
+        results.match_names = [id_to_rows[tid.id]["name"] for tid in results.matching]
+
+    return results
+
+
 async def get_recommendation(choice_id: int):
     data = make_json("./kbgpt/res/productsintent.csv")
     choice = [row for row in data if int(row["id"]) == choice_id]
+    name_to_rows = {row["name"]: row for row in data}
     if not choice:
         raise ValueError(f"given id {choice_id} not exists")
 
     result = await gen_prompt(
         "recom_01.txt", data=data, choice=choice[0]["name"], threshold=80
     )
-    name_to_rows = {row["name"]: row for row in data}
+    if not result.content.strip() or result.content.strip() == "N/A":
+        return IntentResp()
     lst = [l.strip() for l in result.content.split("\n")]
-    result_ids = [name_to_rows[n]["id"] for n in lst]
+    result_ids = []
+    try:
+        for n in lst:
+            result_ids.append(name_to_rows[n]["id"])
+    except KeyError:
+        pass
     return IntentResp(matching=[Matching(id=rid, score=0) for rid in result_ids])
 
 

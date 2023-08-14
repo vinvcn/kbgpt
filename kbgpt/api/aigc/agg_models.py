@@ -26,7 +26,8 @@ class Matching(BaseModel):
 
 
 class IntentResp(BaseModel):
-    matching: Optional[List[Matching]]
+    matching: Optional[List[Matching]] = Field([])
+    match_names: Optional[List[str]] = Field([])
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
