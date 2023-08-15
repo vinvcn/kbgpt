@@ -32,7 +32,7 @@ class UnitStr(enum.Enum):
 class MonthlyChangeMarket(BaseModel):
     firstSector: Optional[str]
     firstSectorChange: float = Field(0.0)
-    tenthFundChange: Optional[float]
+    tenthFundChange: Optional[Optional[float]]
     secondSector: Optional[str]
     secondSectorChange: float = Field(0.0)
     lastSector: Optional[str]

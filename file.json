@@ -1,0 +1,14 @@
+{
+    "items": [
+        {
+            "caption": null,
+            "content": "Summary of today\'s Mutual Fund Market\\n\\nAs of the close on July 11th, 2023: Nifty 50 opened at 19422.8, closed down 0.85% at 19331.8. Sensex50 started at 20361.86, end at 20325.86, stood the same with the previous close price.\\n\\nGiven the performance of the stock market, the equity funds market performed weakly. There were 23 funds that rose today, took 40.48% of the equity fund market, and 11 of which increased by more than 1%. Concurrently, 33 or 59.52% of funds fell, with 19 decreased by more than 1%.\\n\\nCompare to equity fund market, debt funds performed weakly, with 11 funds rising today and 25 funds falling.\\n\\nHere are the top 5 funds today:\\n\\nHDFC Nifty G-Sec Sep 2032 Index Fund (+ 0.123%),\\nHDFC NIFTY G-Sec Jun 2036 Index Fund (+ 0.0971%),\\nHDFC Gilt Fund (+ 0.0929%),\\nHDFC Nifty G-Sec Jun 2027 Index Fund (+ 0.0913%), and\\nHDFC Income Fund (+ 0.0894%).",
+            "data": "{\\"date\\": \\"2023-07-11\\", \\"nifty50\\": {\\"preClose\\": 19497.3, \\"openPrice\\": 19422.8, \\"closePrice\\": 19331.8, \\"navChange\\": -0.85}, \\"sensex50\\": {\\"preClose\\": 20325.86, \\"openPrice\\": 20361.86, \\"closePrice\\": 20325.86, \\"navChange\\": 0.0}, \\"equityFundMarket\\": {\\"numberOfRising\\": 23, \\"numberOfDowning\\": 33, \\"risingAndDowningRatio\\": 0.697, \\"numberOfRisingOverOnePercent\\": 11, \\"numberOfDowningOverOnePercent\\": 19}, \\"debtFundMarket\\": {\\"numberOfRising\\": 11, \\"numberOfDowning\\": 25, \\"risingAndDowningRatio\\": 0.44}, \\"topRisingFunds\\": [{\\"isin\\": \\"INF179KC1EM2\\", \\"name\\": \\"HDFC Nifty G-Sec Sep 2032 Index Fund\\", \\"navChange\\": 0.123}, {\\"isin\\": \\"INF179KC1FT4\\", \\"name\\": \\"HDFC NIFTY G-Sec Jun 2036 Index Fund\\", \\"navChange\\": 0.0971}, {\\"isin\\": \\"INF179K01756\\", \\"name\\": \\"HDFC Gilt Fund\\", \\"navChange\\": 0.0929}, {\\"isin\\": \\"INF179KC1EK6\\", \\"name\\": \\"HDFC Nifty G-Sec Jun 2027 Index Fund\\", \\"navChange\\": 0.0913}, {\\"isin\\": \\"INF179K01962\\", \\"name\\": \\"HDFC Income Fund\\", \\"navChange\\": 0.0894}]}",
+            "image": null,
+            "source": null,
+            "type": null,
+            "video": null,
+            "video_cover": null,
+            "voice": null
+        }
+    ]

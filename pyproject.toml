@@ -68,8 +68,10 @@ disable=[
 ignored-classes=["Redis"]
 
 [tool.pylint.'BASIC']
-good-names = ["e", "i", "k", "t", "tm"]
+good-names = ["e", "i", "k", "v", "t", "tm", "mk", "mv"]
 
+[tool.pytest.ini_options]
+addopts = "-s"
 
 [build-system]
 requires = ["poetry-core"]

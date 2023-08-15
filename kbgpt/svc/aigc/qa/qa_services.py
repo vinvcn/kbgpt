@@ -168,7 +168,9 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         llm = chat_open_ai_llm(streaming=streaming, handlers=handlers)
         start_counter = time.perf_counter()
         logging.debug("Started loading vector store")
-        retriever = create_vector_store_strategy().get_retriever(k=self.k)
+        retriever = create_vector_store_strategy(
+            profile.qa.business_type
+        ).get_retriever(k=self.k)
         logging.debug(
             "End of loading vector store, total time %.3f seconds",
             time.perf_counter() - start_counter,
