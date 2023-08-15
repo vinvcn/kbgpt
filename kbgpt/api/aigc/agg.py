@@ -75,9 +75,10 @@ async def score(inquiry, threshold):
     result = await gen_prompt(
         "agg_step1.txt", data=data, inquiry=inquiry, threshold=threshold
     )
-    if result.content == "N/A":
+    splt = result.content.split("\n")[2:]
+    if splt[0] == "N/A":
         return None
-    lst = [l.split(",") for l in result.content.split("\n")]
+    lst = [l.split(",") for l in splt]
     lst = lst[:4]
     return IntentResp(matching=[Matching(id=p[0], score=p[1]) for p in lst])
 

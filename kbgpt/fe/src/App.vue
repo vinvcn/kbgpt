@@ -1,14 +1,14 @@
 <template>
-      <RecommBox></RecommBox>
+      <SSEChatBox></SSEChatBox>
 </template>
 
 <script>
-import RecommBox from './components/RecommBox.vue';
+import SSEChatBox from './components/SSEChatBox.vue';
 
 export default {
   name: 'App',
   components: {
-    RecommBox
+    SSEChatBox
   }
 }
 </script>
