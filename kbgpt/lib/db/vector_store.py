@@ -1,21 +1,34 @@
 import abc
-import threading
+from datetime import datetime
+from enum import Enum
 from typing import List
+from uuid import uuid4
 
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
-
 from langchain.vectorstores.base import VectorStoreRetriever
 from redis import Redis as RedisType
 from redis.lock import Lock
 
 from config import profile
-from kbgpt.lib.constants import REDIS_DOCUMENT_LOCK_NAME
-from kbgpt.lib.db import check_lock
-from kbgpt.lib.db.redis import MyRedis
+from kbgpt.lib.constants import (
+    CACHE_STATUS_KEY,
+    INDEX_VERSION_KEY,
+    REDIS_DOCUMENT_LOCK_NAME,
+    CacheStatus,
+)
+from kbgpt.lib.db import IndexVersion, check_lock
+from kbgpt.lib.db.redis import MyRedis, SetKeyToValue
 from kbgpt.lib.openai import openai_embeddings
 
 # from langchain.vectorstores import Chroma
+
+
+class BusinessType(Enum):
+    """storage class enum"""
+
+    QA = "qa"
+    PRODUCT_CATALOG = "product"
 
 
 class VectorStoreStrategy(metaclass=abc.ABCMeta):
@@ -23,40 +36,15 @@ class VectorStoreStrategy(metaclass=abc.ABCMeta):
     Abstract class for vector store strategies
     """
 
-    _lock = threading.Lock()
-
-    @classmethod
-    def get_instance(cls, *args, **kwargs):
-        """
-        Get the singleton instance
-        """
-        if not hasattr(cls, "instance"):
-            with cls._lock:
-                if not hasattr(cls, "instance"):
-                    cls(*args, **kwargs)
-        return cls.instance
-
-    def __init__(self, embeddings: Embeddings) -> None:
-        if hasattr(VectorStoreStrategy, "instance"):
-            raise ValueError("An instantiation already exists!")
-        else:
-            super().__init__()
-            self.embeddings = embeddings
-            self.index_name = profile.indexing.customer_service_index
-            VectorStoreStrategy.instance = self
+    def __init__(self, embeddings: Embeddings, index: str) -> None:
+        super().__init__()
+        self.embeddings = embeddings
+        self.index_name = index
 
     @abc.abstractmethod
     def get_retriever(self, k: int, **kwargs) -> VectorStoreRetriever:
         """
         Get the retriever
-        """
-
-    @abc.abstractmethod
-    async def write_to_store(
-        self, documents: List[Document], flush_index=False, **kwargs
-    ) -> VectorStoreRetriever:
-        """
-        Write to the store
         """
 
     @abc.abstractmethod
@@ -75,11 +63,15 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
 
     redis_url: str = profile.vector_store.redis_url
 
-    def __init__(self, embeddings: Embeddings) -> None:
-        super().__init__(embeddings)
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.client = RedisType.from_url(self.redis_url)
-        self.redis_lock = Lock(
-            self.client, REDIS_DOCUMENT_LOCK_NAME, blocking=False
+        embeddings = get_embeddings()
+        self.rds = MyRedis(
+            self.redis_url,
+            self.index_name,
+            embedding_function=embeddings.embed_query,
+            embeddings=get_embeddings(),
         )
 
     def get_retriever(self, k, **kwargs) -> VectorStoreRetriever:
@@ -87,48 +79,45 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
             redis_url=self.redis_url,
             index_name=self.index_name,
             embedding=get_embeddings(),
-        ).as_retriever(k=k)
+        ).as_retriever(k=k, **kwargs)
 
-    async def write_to_store(
+    def get_write_to_store_pipeline(self, **kwargs):
+        return self.rds.write_lc_pipeline(**kwargs)
+
+    async def transctional_write_to_store(
         self, documents: List[Document], flush_index=False, **kwargs
     ) -> VectorStoreRetriever:
-        """
-        Write to the store
-        """
-
-        if flush_index:
-            MyRedis.drop_index(
-                index_name=self.index_name,
-                delete_documents=True,
-                redis_url=self.redis_url,
-            )
-            MyRedis.drop_index(
-                index_name=profile.cache.customer_service_cache_index,
-                delete_documents=True,
-                redis_url=self.redis_url,
-            )
-
-        rds = MyRedis.from_documents(
-            documents,
-            get_embeddings(),
-            redis_url=self.redis_url,
-            index_name=self.index_name,
+        ops = self.get_write_to_store_pipeline(
+            documents=documents, flush_index=flush_index
         )
-        return rds.as_retriever(search_type="similarity_limit")
+        self.rds.run_pipeline(ops)
+        return self.rds.as_retriever()
+
+
+class LockedRedisStrategy(RedisVectorStoreStrategy):
+    """redis strategy with lock"""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.redis_lock = Lock(self.client, REDIS_DOCUMENT_LOCK_NAME, blocking=False)
+
+    def get_write_to_store_pipeline(self, **kwargs):
+        ops = super().get_write_to_store_pipeline(**kwargs)
+        ops.append(SetKeyToValue(key=CACHE_STATUS_KEY, value=CacheStatus.INVALID.value))
+        # write the index version
+        index_version = IndexVersion(
+            uuid=str(uuid4()), timestamp=datetime.utcnow()
+        ).json()
+        ops.append(SetKeyToValue(key=INDEX_VERSION_KEY, value=index_version))
+        return ops
 
     @check_lock
     async def transctional_write_to_store(
         self, documents: List[Document], flush_index=False, **kwargs
     ) -> VectorStoreRetriever:
-        embeddings = get_embeddings()
-        rds = MyRedis(
-            self.redis_url,
-            self.index_name,
-            embedding_function=embeddings.embed_query,
-            embeddings=get_embeddings(),
+        return await super().transctional_write_to_store(
+            documents=documents, flush_index=flush_index, **kwargs
         )
-        rds.write_lc_documents(documents, flush_index)
-        return rds.as_retriever()
 
 
 def get_embeddings() -> Embeddings:
@@ -144,17 +133,18 @@ def get_embeddings() -> Embeddings:
 
 
 STORE_STG = {
-    "redis": RedisVectorStoreStrategy,
-    # "pinecone": PineConeVectorStoreStrategy,
-    # "chroma": ChromaVectorStoreStrategy,
+    BusinessType.QA: LockedRedisStrategy(
+        embeddings=get_embeddings(), index=profile.qa.redis_index
+    ),
+    BusinessType.PRODUCT_CATALOG: RedisVectorStoreStrategy(
+        embeddings=get_embeddings(), index=profile.product_catalog.redis_index_name
+    ),
 }
 
 
 # pylint: disable=unused-argument
-def create_vector_store_strategy(**kwargs) -> VectorStoreStrategy:
+def create_vector_store_strategy(business_type: str, **kwargs) -> VectorStoreStrategy:
     """
     Create a vector store strategy
     """
-    return STORE_STG[profile.vector_store.vector_store_class].get_instance(
-        embeddings=get_embeddings()
-    )
+    return STORE_STG[BusinessType(business_type)]

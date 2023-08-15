@@ -4,22 +4,26 @@ indexers
 import abc
 import logging
 import re
+from csv import DictReader
 from typing import List, Tuple
 
 import numpy as np
 from aiofiles import open as aopen
 from langchain.docstore.document import Document
-from langchain.document_loaders import (PyPDFLoader, TextLoader,
-                                        UnstructuredHTMLLoader,
-                                        UnstructuredURLLoader,
-                                        UnstructuredWordDocumentLoader)
-from langchain.text_splitter import (RecursiveCharacterTextSplitter,
-                                     TextSplitter)
+from langchain.document_loaders import (
+    PyPDFLoader,
+    TextLoader,
+    UnstructuredHTMLLoader,
+    UnstructuredURLLoader,
+    UnstructuredWordDocumentLoader,
+)
+from langchain.text_splitter import RecursiveCharacterTextSplitter, TextSplitter
+from pydantic import BaseModel
 
 from config import profile
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
-from kbgpt.lib.indexing.double_line_breaks_splitter import \
-    PondAstonPondSplitter
+from kbgpt.lib.indexing.double_line_breaks_splitter import PondAstonPondSplitter
+from kbgpt.lib.utils import calculate_hash
 from kbgpt.svc.utils.openai import token_counts
 
 
@@ -96,7 +100,8 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         # load the data
         documents: List[Document] = []
         for path in paths:
-            documents.extend(self.load_and_split(path))
+            documents.extend(self.load_and_split(path, **kwargs))
+
         store = create_vector_store_strategy(**kwargs)
         await store.transctional_write_to_store(documents, flush_index, **kwargs)
 
@@ -131,3 +136,38 @@ class CustomerServiceFilesIndexer(AbstractIndexer):
         loader, splitter = self._get_loader_and_split(path)
         documents = loader.load_and_split(splitter)
         return [d for d in documents if len(d.page_content.strip()) > 0]
+
+
+class ProductIntentMetadata(BaseModel):
+    hash: str
+
+
+class CsvColumnIndexer(AbstractIndexer):
+    """
+    split a csv column
+    """
+
+    def load_and_split(self, path: str, **kwargs) -> List[Document]:
+        if "column" not in kwargs:
+            raise ValueError("'column' must be given")
+
+        hash_column = kwargs["column"]
+
+        if "hash_column" in kwargs:
+            hash_column = kwargs["hash_column"]
+
+        column = kwargs["column"]
+
+        documents = []
+        with open(path, "r", encoding="utf-8") as csv_file:
+            reader = DictReader(csv_file)
+            for row in reader:
+                hash_value = calculate_hash(row[hash_column])
+                documents.append(
+                    Document(
+                        page_content=row[column],
+                        metadata=ProductIntentMetadata(hash=hash_value).dict(),
+                    )
+                )
+
+        return documents

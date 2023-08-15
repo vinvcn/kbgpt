@@ -338,7 +338,7 @@ export default {
               } else if (obj.answer) {
                 this.messages[this.messages.length - 1].message = obj.answer;
               }
-              if (obj.intents) {
+              if (obj.intents && obj.intents.length > 0) {
                 console.log(obj);
                 let toAttach = "Recommendations:\n";
                 toAttach += obj.intents.map((intent) => {

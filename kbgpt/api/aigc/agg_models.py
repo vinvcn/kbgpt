@@ -31,4 +31,3 @@ class IntentResp(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.matching = sorted(self.matching, key=lambda item: item.score, reverse=True)

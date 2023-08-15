@@ -15,12 +15,14 @@ from kbgpt.api.aigc.agg import (
     get_recommendation_by_name,
     score,
 )
+from kbgpt.api.aigc.agg_models import IntentResp, Matching
 from kbgpt.api.aigc.qa_models import DocInfo, GetRecomm, QAResponse, Question
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
 from kbgpt.svc.aigc.qa.cache_qa_services import ProxiedQAAgent
 from kbgpt.svc.aigc.qa.file_services import ProxiedDocAgent
 from kbgpt.svc.aigc.qa.qa_services import QAagent
@@ -102,8 +104,20 @@ async def answer_question(request: Request, body: Question):
     try:
         question = body.question
         logging.info("handling request: \n%s", dumps(body.dict(), indent=4))
+        products = (
+            await create_vector_store_strategy(BusinessType.PRODUCT_CATALOG.value)
+            .get_retriever(4, search_type="similarity_limit", score_threshold=0.21)
+            .aget_relevant_documents(question)
+        )
+        product_ids = []
+        for prod in products:
+            content_lines = [l for l in prod.page_content.split("\n") if l.strip()]
+            id_line = content_lines[0]
+            prod_id = id_line.split(":")[1].strip()
+            product_ids.append(int(prod_id))
+
+        intent = IntentResp(matching=[Matching(id=pid) for pid in product_ids])
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        intent = await score(question, 80)
         if intent and len(intent.matching) >= 2:
             result = await bouncing_ask(intent.matching, question, callbacks[0])
         else:

@@ -16,7 +16,9 @@ from kbgpt.api.admin.models import TaskStatusResponse
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.db.mysql.process_file_record import ProcessFileRecord
+from kbgpt.lib.db.vector_store import BusinessType
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 from kbgpt.lib.logging import alog
 from kbgpt.lib.tasks.manager import FuncWrapper, TaskManager, TaskRecord
@@ -49,18 +51,16 @@ async def add_kb():
 
 
 @alog(ProcessFileRecord)
-async def add_files_to_customer_service(paths: List[str], **kwargs):
+async def add_files_to_customer_service(
+    paths: List[str], business_type: str, ctx=None, **kwargs
+):
     """
     transcational add files to the customer service index
     """
     indexer = CustomerServiceFilesIndexer()
-    return await indexer.transactional_add_to_index(paths=paths, **kwargs)
-
-
-async def a_add_file_to_customer_service(**kwargs):
-    """
-    add a file to the customer service index"""
-    add_file_to_customer_service(**kwargs)
+    return await indexer.transactional_add_to_index(
+        paths=paths, business_type=business_type, **kwargs
+    )
 
 
 class WarmupTask(FuncWrapper):
@@ -114,9 +114,10 @@ class ProxiedDocAgent:
                         paths.append(path)
 
                 logging.info("adding files to customer service %s\n", "\n".join(paths))
-                await add_files_to_customer_service(paths, flush_index=True)
-            if is_refresh:
-                return await self.refresh_cache(sanic_app, request)
+                params = {k: v[0] for k, v in request.form.items()}
+                await add_files_to_customer_service(
+                    paths, flush_index=True, ctx=sanic_app.ctx, **params
+                )
             return jtext(OpenAIResponseBase(success=True))
         except Exception as e:
             logging.exception(e)

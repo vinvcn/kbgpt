@@ -16,6 +16,7 @@ from redis.commands.search.query import Query
 
 from kbgpt.lib.constants import CACHE_STATUS_KEY, INDEX_VERSION_KEY, CacheStatus
 from kbgpt.lib.db import CacheMetadata, Document, IndexVersion
+from kbgpt.lib.db.utils import check_index_exists
 
 
 class RedisOps(BaseModel, metaclass=ABCMeta):
@@ -26,6 +27,22 @@ class RedisOps(BaseModel, metaclass=ABCMeta):
     @abstractmethod
     def __call__(self, pipeline: Pipeline, *args: Any, **kwds: Any) -> Any:
         pass
+
+
+class CreateIndex(RedisOps):
+    """represent a index creation"""
+
+    name: str
+    redis_schema: Tuple
+
+    def __call__(self, pipeline: Pipeline, *args: Any, **kwds: Any) -> Any:
+        super().__call__(pipeline, *args, **kwds)
+
+        prefix = f"doc:{self.name}"
+        return pipeline.ft(self.name).create_index(
+            fields=self.redis_schema,
+            definition=IndexDefinition(prefix=[prefix], index_type=IndexType.HASH),
+        )
 
 
 class FlushIndex(RedisOps):
@@ -42,9 +59,7 @@ class FlushIndex(RedisOps):
         prefix = f"doc:{self.name}"
         return pipeline.ft(self.name).create_index(
             fields=self.redis_schema,
-            definition=IndexDefinition(
-                prefix=[prefix], index_type=IndexType.HASH
-            ),
+            definition=IndexDefinition(prefix=[prefix], index_type=IndexType.HASH),
         )
 
 
@@ -143,18 +158,27 @@ class MyRedis(Redis):
     def as_retriever(self, **kwargs: Any) -> MyRedisVectorRetiever:
         return MyRedisVectorRetiever(vectorstore=self, **kwargs)
 
-    def write_lc_documents(
+    def write_lc_pipeline(
         self,
         documents: List[LCDocument],
         flush_index: bool = False,
         **kwargs: Any,
-    ) -> List[str]:
+    ) -> List[RedisOps]:
         """
         Create a new Redis index from a list of documents.
         """
 
         ops = []
-        if flush_index:
+        index_exist = check_index_exists(self.client, self.index_name)
+        if not index_exist:
+            # create new index
+            ops.append(
+                CreateIndex(
+                    name=self.index_name, redis_schema=Document.to_redis_schema()
+                )
+            )
+        elif flush_index:
+            # flush existing index
             ops.append(
                 FlushIndex(
                     name=self.index_name,
@@ -170,16 +194,7 @@ class MyRedis(Redis):
         )
 
         ops.append(WriteToDoc(index_name=self.index_name, documents=documents))
-        # set cache status to invalid
-        ops.append(
-            SetKeyToValue(key=CACHE_STATUS_KEY, value=CacheStatus.INVALID.value)
-        )
-        # write the index version
-        index_version = IndexVersion(
-            uuid=str(uuid4()), timestamp=datetime.utcnow()
-        ).json()
-        ops.append(SetKeyToValue(key=INDEX_VERSION_KEY, value=index_version))
-        self.run_pipeline(ops)
+        return ops
 
     async def write_cache_documents(
         self,
@@ -228,7 +243,9 @@ class MyRedis(Redis):
         return_fields = [self.metadata_key, self.content_key, "vector_score"]
         vector_field = self.vector_key
         hybrid_fields = "*"
-        base_query = f"{hybrid_fields}=>[KNN {k} @{vector_field} $vector AS vector_score]"
+        base_query = (
+            f"{hybrid_fields}=>[KNN {k} @{vector_field} $vector AS vector_score]"
+        )
         redis_query = (
             Query(base_query)
             .return_fields(*return_fields)
@@ -243,9 +260,7 @@ class MyRedis(Redis):
         }
 
         # perform vector search
-        results = self.client.ft(self.index_name).search(
-            redis_query, params_dict
-        )
+        results = self.client.ft(self.index_name).search(redis_query, params_dict)
 
         docs = [
             (
