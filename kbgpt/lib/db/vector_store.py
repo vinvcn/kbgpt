@@ -1,12 +1,13 @@
 import abc
 from datetime import datetime
 from enum import Enum
-from typing import List
+from typing import Any, Dict, List, Tuple
 from uuid import uuid4
 
 from langchain.docstore.document import Document
 from langchain.embeddings.base import Embeddings
 from langchain.vectorstores.base import VectorStoreRetriever
+from pydantic import BaseModel, root_validator
 from redis import Redis as RedisType
 from redis.lock import Lock
 
@@ -56,6 +57,38 @@ class VectorStoreStrategy(metaclass=abc.ABCMeta):
         """
 
 
+class MyVectorStoreRetriever(VectorStoreRetriever, BaseModel):
+    vectorstore: MyRedis
+    k: int = 4
+    score_threshold: float = 0.4
+
+    class Config:
+        """Configuration for this pydantic object."""
+
+        arbitrary_types_allowed = True
+
+    def get_relevant_documents(self, query: str) -> List[Tuple[Document, float]]:
+        docs = self.vectorstore.my_similarity_search_limit_score(
+            query, k=self.k, score_threshold=self.score_threshold
+        )
+        return docs
+
+    async def aget_relevant_documents(self, query: str) -> List[Tuple[Document, float]]:
+        return self.vectorstore.my_similarity_search_limit_score(
+            query, k=self.k, score_threshold=self.score_threshold
+        )
+
+    def add_documents(self, documents: List[Document], **kwargs: Any) -> List[str]:
+        """Add documents to vectorstore."""
+        return self.vectorstore.add_documents(documents, **kwargs)
+
+    async def aadd_documents(
+        self, documents: List[Document], **kwargs: Any
+    ) -> List[str]:
+        """Add documents to vectorstore."""
+        return await self.vectorstore.aadd_documents(documents, **kwargs)
+
+
 class RedisVectorStoreStrategy(VectorStoreStrategy):
     """
     Redis vector store strategy
@@ -75,11 +108,12 @@ class RedisVectorStoreStrategy(VectorStoreStrategy):
         )
 
     def get_retriever(self, k, **kwargs) -> VectorStoreRetriever:
-        return MyRedis.from_existing_index(
+        my_redis = MyRedis.from_existing_index(
             redis_url=self.redis_url,
             index_name=self.index_name,
             embedding=get_embeddings(),
-        ).as_retriever(k=k, **kwargs)
+        )
+        return MyVectorStoreRetriever(vectorstore=my_redis, **kwargs)
 
     def get_write_to_store_pipeline(self, **kwargs):
         return self.rds.write_lc_pipeline(**kwargs)
@@ -100,6 +134,13 @@ class LockedRedisStrategy(RedisVectorStoreStrategy):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.redis_lock = Lock(self.client, REDIS_DOCUMENT_LOCK_NAME, blocking=False)
+
+    def get_retriever(self, k, **kwargs) -> VectorStoreRetriever:
+        return MyRedis.from_existing_index(
+            redis_url=self.redis_url,
+            index_name=self.index_name,
+            embedding=get_embeddings(),
+        ).as_retriever(k=k)
 
     def get_write_to_store_pipeline(self, **kwargs):
         ops = super().get_write_to_store_pipeline(**kwargs)

@@ -103,12 +103,28 @@ async def answer_question(request: Request, body: Question):
     # pylint: disable=broad-except
     try:
         question = body.question
-        logging.info("handling request: \n%s", dumps(body.dict(), indent=4))
-        products = (
-            await create_vector_store_strategy(BusinessType.PRODUCT_CATALOG.value)
-            .get_retriever(4, search_type="similarity_limit", score_threshold=0.21)
-            .aget_relevant_documents(question)
+        # round 1, answer the question with knowledge base
+        agent = ProxiedQAAgent(request.app, QAagent.get_instance())
+        agent_result = await agent.answer_question(
+            question=question, streaming=True, callbacks=callbacks
         )
+
+        # round 2, retrieves products from knowledge base
+        retriver = create_vector_store_strategy(
+            BusinessType.PRODUCT_CATALOG.value
+        ).get_retriever(4, score_threshold=0.21)
+
+        q_match, a_match = await asyncio.gather(
+            retriver.aget_relevant_documents(question),
+            retriver.aget_relevant_documents(agent_result.answer),
+        )
+
+        products = [*q_match, *a_match]
+
+        sorted(products, key=lambda x: x[1])
+
+        products = [p[0] for p in products]
+
         product_ids = []
         for prod in products:
             content_lines = [l for l in prod.page_content.split("\n") if l.strip()]
@@ -116,17 +132,21 @@ async def answer_question(request: Request, body: Question):
             prod_id = id_line.split(":")[1].strip()
             product_ids.append(int(prod_id))
 
-        intent = IntentResp(matching=[Matching(id=pid) for pid in product_ids])
-        agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        if intent and len(intent.matching) >= 1:
-            result = await bouncing_ask(intent.matching, question, callbacks[0])
-        else:
-            result = await agent.answer_question(
-                question=question, streaming=True, callbacks=callbacks
+        product_ids = product_ids[:4]
+
+        if product_ids:
+            matching = [Matching(id=pid) for pid in product_ids]
+            choice_prompt_result = await bouncing_ask(
+                matching, question, agent_result.answer, callbacks[0]
             )
-        if intent:
-            result.intents = intent.matching
-        await response.send(f"data: {result.json(exclude_none=True)}")
+            final_result = QAResponse(
+                answer=agent_result.answer + "\n" + choice_prompt_result.answer,
+                intents=matching,
+            )
+        else:
+            final_result = agent_result
+
+        await response.send(f"data: {final_result.json(exclude_none=True)}")
     except Exception as e:
         logging.exception(e)
         obj = {"success": False, "error": str(e)}

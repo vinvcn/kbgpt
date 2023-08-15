@@ -23,13 +23,16 @@ AGG = Blueprint("agg", url_prefix="agg")
 jinja = Environment(loader=FileSystemLoader("./kbgpt/res/"))
 
 
-async def gen_prompt(tname, data={}, choice="", threshold=80, inquiry="", stream=False):
+async def gen_prompt(
+    tname, data={}, choice="", threshold=80, inquiry="", response="", stream=False
+):
     prompt = jinja.get_template(tname).render(
         **{
             "products": data,
             "threshold": threshold,
             "inquery": inquiry,
             "choice": choice,
+            "response": response,
         }
     )
     openai = OpenAI()
@@ -138,12 +141,15 @@ async def get_product_by_ids(ids: List[Matching]):
 
 
 async def bouncing_ask(
-    ids: List[Matching], question: str, handler: Optional[AsyncCallbackManagerForLLMRun]
+    ids: List[Matching],
+    question: str,
+    response: str,
+    handler: Optional[AsyncCallbackManagerForLLMRun],
 ):
     product = await get_product_by_ids(ids)
     inner_completion = ""
     async for stream_resp in await gen_prompt(
-        "agg_step3.txt", data=product, inquiry=question, stream=True
+        "agg_step3.txt", data=product, inquiry=question, response=response, stream=True
     ):
         # role = stream_resp["choices"][0]["delta"].get("role", role)
         token = stream_resp["choices"][0]["delta"].get("content", "")
