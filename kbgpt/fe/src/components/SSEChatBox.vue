@@ -335,6 +335,7 @@ export default {
               if (obj.token) {
                 this.messages[this.messages.length - 1].message =
                   this.messages[this.messages.length - 1].message + obj.token;
+                  this.scrollToBottom();
               } else if (obj.answer) {
                 this.messages[this.messages.length - 1].message = obj.answer;
               }
@@ -344,7 +345,7 @@ export default {
                 toAttach += obj.intents.map((intent) => {
                   console.log(intent)
                   console.log(this.products[intent.id])
-                  return this.products[intent.id].name + "=>" + this.products[intent.id].intent
+                  return this.products[intent.id].name + ": " + this.products[intent.id].intent
                 }).join("\n");
                 this.appendMessage("Bot", {message: toAttach})
               }

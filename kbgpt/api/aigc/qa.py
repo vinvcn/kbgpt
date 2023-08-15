@@ -118,7 +118,7 @@ async def answer_question(request: Request, body: Question):
 
         intent = IntentResp(matching=[Matching(id=pid) for pid in product_ids])
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        if intent and len(intent.matching) >= 2:
+        if intent and len(intent.matching) >= 1:
             result = await bouncing_ask(intent.matching, question, callbacks[0])
         else:
             result = await agent.answer_question(
