@@ -32,7 +32,7 @@ DEFAULT:
     REQUEST_TIMEOUT: 60
     REQUEST_RETRY: 2
     keep_msg_history: True
-    words_limit: 38
+    words_limit: 25
     redis_index: bullsmart-customer-services
   PRODUCT_CATALOG:
     vector_store_class: redis_no_lock
