@@ -4,7 +4,7 @@ qa api models
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kbgpt.api.aigc.agg_models import Matching
 from kbgpt.api.libs.base_model import OpenAIResponseBase
@@ -14,7 +14,7 @@ class Question(BaseModel):
     """question"""
 
     question: str
-    threshold: Optional[float]
+    threshold: float = Field(0.17)
 
 
 class QAResponse(OpenAIResponseBase):

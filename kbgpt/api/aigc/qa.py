@@ -106,9 +106,7 @@ async def answer_question(request: Request, body: Question):
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
         retriver = create_vector_store_strategy(
             BusinessType.PRODUCT_CATALOG.value
-        ).get_retriever(
-            4, score_threshold=body.threshold if body.threshold is not None else 0.175
-        )
+        ).get_retriever(4, score_threshold=body.threshold)
 
         q_match = await retriver.aget_relevant_documents(question)
         matchings = document_to_matchings(q_match)
