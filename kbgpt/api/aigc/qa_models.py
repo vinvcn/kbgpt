@@ -14,6 +14,7 @@ class Question(BaseModel):
     """question"""
 
     question: str
+    threshold: Optional[float]
 
 
 class QAResponse(OpenAIResponseBase):

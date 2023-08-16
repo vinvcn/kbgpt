@@ -22,6 +22,9 @@
     ref="userInput"
   />
   <button id="sendButton" @click="sendMessage">Send</button>
+  <div id="controls">
+  <input id="thresholdBar" type="range" v-model="sliderValue" :min="0" :max="1" step="0.005"/> Threshold: {{ sliderValue }}
+  </div>
 </template>
 
 
@@ -30,6 +33,7 @@ export default {
   name: "SSEChatBox",
   data: function () {
     return {
+      sliderValue: 0.175,
       messages: [{ role: "bot", message: "How may I assist you today?" }],
       products: {
         1: {
@@ -304,7 +308,7 @@ export default {
       userInput.value = "";
 
       this.appendMessage("User", { message: message });
-      const body = { question: message, threshold: 20 };
+      const body = { question: message, threshold: this.sliderValue };
       // const body = { role: "user", content: message };
       const response = await fetch(
         `${window.location.origin}/api/v1/aigc/qa/stream_qa`,
@@ -328,6 +332,7 @@ export default {
         jsonString
           .split("data: ")
           .map((l) => {
+            console.log(l)
             return l.trim().length == 0 ? null : JSON.parse(l);
           })
           .map((obj) => {
@@ -337,6 +342,7 @@ export default {
                   this.messages[this.messages.length - 1].message + obj.token;
                   this.scrollToBottom();
               } else if (obj.answer) {
+                console.log(obj.answer)
                 this.messages[this.messages.length - 1].message = obj.answer;
               }
               if (obj.intents && obj.intents.length > 0) {
@@ -403,12 +409,20 @@ pre {
   margin-bottom: 10px;
   font-size: 14px;
 }
+#controls {
+  font-family: Arial, sans-serif; 
+  font-size: smaller;
+}
 #userInput {
   width: 400px;
   padding: 5px;
   border: 1px solid #ccc;
   border-radius: 5px;
   font-size: 14px;
+}
+#thresholdBar {
+  width: 400px;
+  padding: 5px;
 }
 #sendButton {
   padding: 5px 10px;

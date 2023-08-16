@@ -110,16 +110,27 @@ async def answer_question(request: Request, body: Question):
         )
 
         # round 2, retrieves products from knowledge base
-        retriver = create_vector_store_strategy(
+        c_retriver = create_vector_store_strategy(
             BusinessType.PRODUCT_CATALOG.value
-        ).get_retriever(4, score_threshold=0.21)
-
-        q_match, a_match = await asyncio.gather(
-            retriver.aget_relevant_documents(question),
-            retriver.aget_relevant_documents(agent_result.answer),
+        ).get_retriever(
+            4, score_threshold=body.threshold if body.threshold is not None else 0.175
         )
 
-        products = [*q_match, *a_match]
+        a_retriver = create_vector_store_strategy(
+            BusinessType.PRODUCT_CATALOG.value
+        ).get_retriever(
+            4, score_threshold=body.threshold if body.threshold is not None else 0.175
+        )
+
+        q_match, a_match = await asyncio.gather(
+            c_retriver.aget_relevant_documents(question),
+            a_retriver.aget_relevant_documents(agent_result.answer),
+        )
+
+        if q_match:
+            products = q_match
+        else:
+            products = a_match
 
         sorted(products, key=lambda x: x[1])
 
@@ -136,13 +147,21 @@ async def answer_question(request: Request, body: Question):
 
         if product_ids:
             matching = [Matching(id=pid) for pid in product_ids]
-            choice_prompt_result = await bouncing_ask(
-                matching, question, agent_result.answer, callbacks[0]
-            )
-            final_result = QAResponse(
-                answer=agent_result.answer + "\n" + choice_prompt_result.answer,
-                intents=matching,
-            )
+            # await callbacks[0].on_llm_new_token("\\n")
+            # await callbacks[0].on_llm_new_token("\\n")
+            if len(product_ids) > 1:
+                choice_prompt_result = await bouncing_ask(
+                    matching, question, agent_result.answer, callbacks[0]
+                )
+                final_result = QAResponse(
+                    answer=agent_result.answer + "\n\n" + choice_prompt_result.answer,
+                    intents=matching,
+                )
+            else:
+                final_result = QAResponse(
+                    answer=agent_result.answer,
+                    intents=matching,
+                )
         else:
             final_result = agent_result
 
