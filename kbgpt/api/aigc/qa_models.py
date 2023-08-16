@@ -14,7 +14,8 @@ class Question(BaseModel):
     """question"""
 
     question: str
-    threshold: float = Field(0.17)
+    athreshold: float = Field(0.17)
+    cthreshold: float = Field(0.17)
 
 
 class QAResponse(OpenAIResponseBase):

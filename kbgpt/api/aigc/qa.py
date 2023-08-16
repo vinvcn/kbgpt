@@ -12,6 +12,7 @@ from sanic_ext import openapi, validate
 from kbgpt.api.aigc.agg import (
     bouncing_ask,
     get_recommendation,
+    get_recommendation_by_conversation,
     get_recommendation_by_name,
     score,
 )
@@ -103,50 +104,9 @@ async def answer_question(request: Request, body: Question):
     # pylint: disable=broad-except
     try:
         question = body.question
-        agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        retriver = create_vector_store_strategy(
-            BusinessType.PRODUCT_CATALOG.value
-        ).get_retriever(4, score_threshold=body.threshold)
-
-        q_match = await retriver.aget_relevant_documents(question)
-        matchings = document_to_matchings(q_match)
         final_result = None
-
-        if matchings:
-            # if question find match
-            if len(matchings) == 1:
-                # one match only, talk
-                agent_result = await agent.answer_question(
-                    question=question, streaming=True, callbacks=callbacks
-                )
-                agent_result.intents = matchings
-                final_result = agent_result
-            else:
-                # more matches, ask
-                choice_prompt_result = await bouncing_ask(
-                    matchings, question, "", callbacks[0]
-                )
-                choice_prompt_result.intents = matchings
-                final_result = choice_prompt_result
-        else:
-            # no match for customer question
-            agent_result = await agent.answer_question(
-                question=question, streaming=True, callbacks=callbacks
-            )
-            a_match = await retriver.aget_relevant_documents(agent_result.answer)
-            matchings = document_to_matchings(a_match)
-
-            if matchings and len(matchings) > 1:
-                prompt_reuslt = await bouncing_ask(
-                    matchings, question, agent_result.answer, callbacks[0]
-                )
-                final_result = QAResponse(
-                    answer=agent_result.answer + "\n\n" + prompt_reuslt.answer,
-                    intents=matchings,
-                )
-            else:
-                agent_result.intents = matchings
-                final_result = agent_result
+        agent = ProxiedQAAgent(request.app, QAagent.get_instance())
+        final_result = await recomm_by_prompt(body, callbacks, question, agent)
         await response.send(f"data: {final_result.json(exclude_none=True)}")
     except Exception as e:
         logging.exception(e)
@@ -158,6 +118,79 @@ async def answer_question(request: Request, body: Question):
             "End of answer_question_get request, total time %.3f",
             (time.perf_counter() - start_counter),
         )
+
+
+async def recomm_by_prompt(body, callbacks, question, agent):
+    final_result = None
+    agent_result = await agent.answer_question(
+        question=question, streaming=True, callbacks=callbacks
+    )
+
+    recomm = await get_recommendation_by_conversation(
+        question=question, answer=agent_result.answer
+    )
+    if recomm.matching and len(recomm.matching) > 1:
+        prompt_result = await bouncing_ask(
+            recomm.matching, question, agent_result.answer, callbacks[0]
+        )
+        final_result = QAResponse(
+            answer=agent_result.answer + "\n\n" + prompt_result.answer,
+            intents=recomm.matching,
+        )
+    else:
+        final_result = agent_result
+        final_result.intents = recomm.matching
+    return final_result
+
+
+async def recomm_by_similarity(body, callbacks, question, agent):
+    cretriver = create_vector_store_strategy(
+        BusinessType.PRODUCT_CATALOG.value
+    ).get_retriever(4, score_threshold=body.cthreshold)
+
+    aretriver = create_vector_store_strategy(
+        BusinessType.PRODUCT_CATALOG.value
+    ).get_retriever(4, score_threshold=body.athreshold)
+
+    q_match = await cretriver.aget_relevant_documents(question)
+    matchings = document_to_matchings(q_match)
+
+    if matchings:
+        # if question find match
+        if len(matchings) == 1:
+            # one match only, talk
+            agent_result = await agent.answer_question(
+                question=question, streaming=True, callbacks=callbacks
+            )
+            agent_result.intents = matchings
+            final_result = agent_result
+        else:
+            # more matches, ask
+            choice_prompt_result = await bouncing_ask(
+                matchings, question, "", callbacks[0]
+            )
+            choice_prompt_result.intents = matchings
+            final_result = choice_prompt_result
+    else:
+        # no match for customer question
+        agent_result = await agent.answer_question(
+            question=question, streaming=True, callbacks=callbacks
+        )
+        a_match = await aretriver.aget_relevant_documents(agent_result.answer)
+        matchings = document_to_matchings(a_match)
+
+        if matchings and len(matchings) > 1:
+            prompt_reuslt = await bouncing_ask(
+                matchings, question, agent_result.answer, callbacks[0]
+            )
+            final_result = QAResponse(
+                answer=agent_result.answer + "\n\n" + prompt_reuslt.answer,
+                intents=matchings,
+            )
+        else:
+            agent_result.intents = matchings
+            final_result = agent_result
+    return final_result
 
 
 def document_to_matchings(documents):

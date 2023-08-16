@@ -22,8 +22,11 @@
     ref="userInput"
   />
   <button id="sendButton" @click="sendMessage">Send</button>
-  <div id="controls">
-  <input id="thresholdBar" type="range" v-model="sliderValue" :min="0" :max="1" step="0.005"/> Threshold: {{ sliderValue }}
+  <div class="controls">
+  <input class="thresholdBar" type="range" v-model="csliderValue" :min="0" :max="1" step="0.005"/> QThreshold: {{ csliderValue }}
+  </div>
+  <div class="controls">
+    <input class="thresholdBar" type="range" v-model="asliderValue" :min="0" :max="1" step="0.005"/> AThreshold: {{ asliderValue }}
   </div>
 </template>
 
@@ -33,7 +36,8 @@ export default {
   name: "SSEChatBox",
   data: function () {
     return {
-      sliderValue: 0.175,
+      asliderValue: 0.175,
+      csliderValue: 0.175,
       messages: [{ role: "bot", message: "How may I assist you today?" }],
       products: {
         1: {
@@ -308,7 +312,7 @@ export default {
       userInput.value = "";
 
       this.appendMessage("User", { message: message });
-      const body = { question: message, threshold: this.sliderValue };
+      const body = { question: message, athreshold: this.asliderValue, cthreshold: this.csliderValue};
       // const body = { role: "user", content: message };
       const response = await fetch(
         `${window.location.origin}/api/v1/aigc/qa/stream_qa`,
@@ -409,7 +413,7 @@ pre {
   margin-bottom: 10px;
   font-size: 14px;
 }
-#controls {
+.controls {
   font-family: Arial, sans-serif; 
   font-size: smaller;
 }
@@ -420,7 +424,7 @@ pre {
   border-radius: 5px;
   font-size: 14px;
 }
-#thresholdBar {
+.thresholdBar {
   width: 400px;
   padding: 5px;
 }

@@ -125,6 +125,18 @@ async def get_recommendation(choice_id: int):
     return IntentResp(matching=[Matching(id=rid, score=0) for rid in result_ids])
 
 
+async def get_recommendation_by_conversation(question, answer):
+    data = make_json("./kbgpt/res/productsintent.csv")
+    result = await gen_prompt(
+        "recom_by_conversation.txt", data=data, inquiry=question, response=answer
+    )
+    if result.content.strip() == "N/A":
+        return IntentResp()
+    ids = [int(spl.strip()) for spl in result.content.split(",")]
+    ids = ids[:4]
+    return IntentResp(matching=[Matching(id=rid, score=0) for rid in ids])
+
+
 async def check_intent(inquery):
     result = await gen_prompt("agg_step0.txt", inquiry=inquery)
     return result.content.lower() == "yes"
