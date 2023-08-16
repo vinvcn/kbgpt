@@ -103,68 +103,52 @@ async def answer_question(request: Request, body: Question):
     # pylint: disable=broad-except
     try:
         question = body.question
-        # round 1, answer the question with knowledge base
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        agent_result = await agent.answer_question(
-            question=question, streaming=True, callbacks=callbacks
-        )
-
-        # round 2, retrieves products from knowledge base
-        c_retriver = create_vector_store_strategy(
+        retriver = create_vector_store_strategy(
             BusinessType.PRODUCT_CATALOG.value
         ).get_retriever(
             4, score_threshold=body.threshold if body.threshold is not None else 0.175
         )
 
-        a_retriver = create_vector_store_strategy(
-            BusinessType.PRODUCT_CATALOG.value
-        ).get_retriever(
-            4, score_threshold=body.threshold if body.threshold is not None else 0.175
-        )
+        q_match = await retriver.aget_relevant_documents(question)
+        matchings = document_to_matchings(q_match)
+        final_result = None
 
-        q_match, a_match = await asyncio.gather(
-            c_retriver.aget_relevant_documents(question),
-            a_retriver.aget_relevant_documents(agent_result.answer),
-        )
-
-        if q_match:
-            products = q_match
-        else:
-            products = a_match
-
-        sorted(products, key=lambda x: x[1])
-
-        products = [p[0] for p in products]
-
-        product_ids = []
-        for prod in products:
-            content_lines = [l for l in prod.page_content.split("\n") if l.strip()]
-            id_line = content_lines[0]
-            prod_id = id_line.split(":")[1].strip()
-            product_ids.append(int(prod_id))
-
-        product_ids = product_ids[:4]
-
-        if product_ids:
-            matching = [Matching(id=pid) for pid in product_ids]
-            # await callbacks[0].on_llm_new_token("\\n")
-            # await callbacks[0].on_llm_new_token("\\n")
-            if len(product_ids) > 1:
+        if matchings:
+            # if question find match
+            if len(matchings) == 1:
+                # one match only, talk
+                agent_result = await agent.answer_question(
+                    question=question, streaming=True, callbacks=callbacks
+                )
+                agent_result.intents = matchings
+                final_result = agent_result
+            else:
+                # more matches, ask
                 choice_prompt_result = await bouncing_ask(
-                    matching, question, agent_result.answer, callbacks[0]
+                    matchings, question, "", callbacks[0]
+                )
+                choice_prompt_result.intents = matchings
+                final_result = choice_prompt_result
+        else:
+            # no match for customer question
+            agent_result = await agent.answer_question(
+                question=question, streaming=True, callbacks=callbacks
+            )
+            a_match = await retriver.aget_relevant_documents(agent_result.answer)
+            matchings = document_to_matchings(a_match)
+
+            if matchings and len(matchings) > 1:
+                prompt_reuslt = await bouncing_ask(
+                    matchings, question, agent_result.answer, callbacks[0]
                 )
                 final_result = QAResponse(
-                    answer=agent_result.answer + "\n\n" + choice_prompt_result.answer,
-                    intents=matching,
+                    answer=agent_result.answer + "\n\n" + prompt_reuslt.answer,
+                    intents=matchings,
                 )
             else:
-                final_result = QAResponse(
-                    answer=agent_result.answer,
-                    intents=matching,
-                )
-        else:
-            final_result = agent_result
-
+                agent_result.intents = matchings
+                final_result = agent_result
         await response.send(f"data: {final_result.json(exclude_none=True)}")
     except Exception as e:
         logging.exception(e)
@@ -176,6 +160,18 @@ async def answer_question(request: Request, body: Question):
             "End of answer_question_get request, total time %.3f",
             (time.perf_counter() - start_counter),
         )
+
+
+def document_to_matchings(documents):
+    """doc to prod ids"""
+    product_ids = []
+    for prod, _ in documents:
+        content_lines = [l for l in prod.page_content.split("\n") if l.strip()]
+        id_line = content_lines[0]
+        prod_id = id_line.split(":")[1].strip()
+        product_ids.append(int(prod_id))
+    matchings = [Matching(id=pid) for pid in product_ids]
+    return matchings
 
 
 @QA.route("/warmup_cache", methods=["GET", "POST"])

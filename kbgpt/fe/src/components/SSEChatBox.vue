@@ -446,12 +446,12 @@ pre {
   max-width: 80%;
   white-space: pre-wrap;
 }
-.user {
-  color: #007bff;
+.bot {
+  color: #28a745;
   float: left;
-  background-color: #e6f2ff;
+  background-color: #e6ffe6;
 }
-.user::before {
+.bot::before {
   content: "User";
   position: absolute;
   top: -15px;
@@ -459,12 +459,12 @@ pre {
   font-size: 10px;
   color: #666;
 }
-.bot {
-  color: #28a745;
+.user {
+  color: #007bff;
   float: right;
-  background-color: #e6ffe6;
+  background-color: #e6f2ff;
 }
-.bot::before {
+.user::before {
   content: "Bot";
   position: absolute;
   top: -15px;
