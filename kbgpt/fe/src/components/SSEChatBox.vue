@@ -14,6 +14,9 @@
           <div>{{ item.product }}</div>
         </div>
       </div>
+      <div class="message bot" id="floatingBubble" v-show="streaming">
+        {{ streamText }}
+      </div>
     </div>
     <input
       type="text"
@@ -96,6 +99,8 @@ export default {
         "gpt3.5": "Use gpt3.5 to reason about the recommendation",
         gpt4: "Use gpt4 to reason about the recommendation",
       },
+      streaming: false,
+      streamText: "",
       selectedOption: "gpt3.5",
       asliderValue: 0.175,
       csliderValue: 0.175,
@@ -402,7 +407,7 @@ export default {
       );
       const reader = response.body.getReader();
       let notdone = true;
-      let streamingOfStream = false;
+      // let streamingOfStream = false;
       while (notdone) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -416,19 +421,15 @@ export default {
           })
           .map((obj) => {
             if (obj) {
-              if ('token' in obj && ! obj.token){
-                streamingOfStream = !streamingOfStream
-                if (streamingOfStream){
-                  this.appendMessage("Bot", { message: "" });
-                }
-              }
               if (obj.token) {
-                this.messages[this.messages.length - 1].message =
-                  this.messages[this.messages.length - 1].message + obj.token;
+                this.streaming = true;
+                this.streamText = this.streamText + obj.token;
                 this.scrollToBottom();
               } else if (obj.answer) {
                 console.log(obj.answer);
-                this.messages[this.messages.length - 1].message = obj.answer;
+                this.streaming = false;
+                this.streamText = ""
+                this.appendMessage("Bot", {message: obj.answer})
               }
               if (obj.intents && obj.intents.length > 0) {
                 console.log(obj);
@@ -509,7 +510,7 @@ fieldset {
 }
 #sendButton:disabled {
   background-color: #999;
-  cursor: auto;
+  cursor: ;
 }
 .message {
   margin: 5px 0;
