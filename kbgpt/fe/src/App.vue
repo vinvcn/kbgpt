@@ -4,22 +4,22 @@
       Chat
       <SSEChatBox></SSEChatBox>
     </div>
-    <div>
+    <!-- <div>
       Knowledge Base
       <KnowledgeBox></KnowledgeBox>
-    </div>
+    </div> -->
   </div>
 </template>
 
 <script>
-import KnowledgeBox from "./components/KnowledgeBox.vue";
+// import KnowledgeBox from "./components/KnowledgeBox.vue";
 import SSEChatBox from "./components/SSEChatBox.vue";
 
 export default {
   name: "App",
   components: {
     SSEChatBox,
-    KnowledgeBox,
+    // KnowledgeBox,
   },
 };
 </script>

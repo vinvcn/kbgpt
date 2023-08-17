@@ -49,8 +49,9 @@
             :max="1"
             step="0.005"
           />
-          Temperature: {{ temperature }}
+          {{ temperature }}
         </label>
+        <div id="temperatureLable"><p>Temperature is the randamness of the recommendation. <br/>The higher this value, the more random the result is.</p></div>
       </div> 
     </fieldset>
     <fieldset :disabled="selectedOption != 'similarity'" v-show="selectedOption == 'similarity'">
