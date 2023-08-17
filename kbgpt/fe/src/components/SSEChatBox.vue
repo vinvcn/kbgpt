@@ -368,6 +368,9 @@ export default {
         chatElement.scrollTop = chatElement.scrollHeight;
       });
     },
+    toggleSendBtn: function(){
+      this.$refs.sendBtn.disabled = !(this.$refs.sendBtn.disabled)
+    },
     sendMessage: async function () {
       const userInput = this.$refs.userInput;
       const message = userInput.value;
@@ -375,7 +378,8 @@ export default {
       if (!message.trim()) {
         return;
       }
-      this.$refs.sendBtn.disabled = true;
+
+      this.toggleSendBtn()
 
       this.appendMessage("User", { message: message });
       const body = {
@@ -445,7 +449,7 @@ export default {
             }
           });
       }
-      this.$refs.sendBtn.disabled = false;
+      this.toggleSendBtn()
     },
     handleKeyPress: function (event) {
       if (event.keyCode === 13) {
@@ -502,6 +506,10 @@ fieldset {
 }
 #sendButton:hover {
   background-color: #0056b3;
+}
+#sendButton:disabled {
+  background-color: #999;
+  cursor: auto;
 }
 .message {
   margin: 5px 0;
