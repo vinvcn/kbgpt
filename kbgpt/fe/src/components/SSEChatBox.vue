@@ -1,5 +1,5 @@
 <template>
-  <body>
+  <div>
     <div id="chat" ref="chat">
       <div v-for="item in messages" :key="item.id">
         <div :class="['message', item.role]">
@@ -66,7 +66,7 @@
         </label>
       </div>
     </fieldset>
-  </body>
+  </div>
 </template>
 
 
@@ -76,9 +76,9 @@ export default {
   data: function () {
     return {
       helpMessages: {
-        "similarity": "Use similarity to search the recommendation.",
+        similarity: "Use similarity to search the recommendation.",
         "gpt3.5": "Use gpt3.5 to reason about the recommendation",
-        "gpt4": "Use gpt4 to reason about the recommendation",
+        gpt4: "Use gpt4 to reason about the recommendation",
       },
       selectedOption: "gpt3.5",
       asliderValue: 0.175,
@@ -367,7 +367,6 @@ export default {
         athreshold: this.asliderValue,
         cthreshold: this.csliderValue,
       };
-      console.log(body)
       const response = await fetch(
         `${window.location.origin}/api/v1/aigc/qa/stream_qa`,
         {
@@ -435,11 +434,6 @@ export default {
 </script>
 
 <style scoped>
-body {
-  font-family: Arial, sans-serif;
-  padding: 10px;
-  background-color: #f5f5f5;
-}
 pre {
   font-family: Arial, sans-serif;
   font-size: 14px;
