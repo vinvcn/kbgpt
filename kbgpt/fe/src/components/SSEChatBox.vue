@@ -1,33 +1,72 @@
 <template>
-  <div id="chat" ref="chat">
-    <div v-for="item in messages" :key="item.id">
-      <div :class="['message', item.role]">
-        <div>{{ item.message }}</div>
-        <div v-if="item.recommend && item.recommend.length > 0">
-          <br />
-          <div>Recommendations:</div>
-          <div v-for="(intent, index) in item.recommend" :key="index">
-            {{ index + 1 }}. {{ intent }}
+  <body>
+    <div id="chat" ref="chat">
+      <div v-for="item in messages" :key="item.id">
+        <div :class="['message', item.role]">
+          <div>{{ item.message }}</div>
+          <div v-if="item.recommend && item.recommend.length > 0">
+            <br />
+            <div>Recommendations:</div>
+            <div v-for="(intent, index) in item.recommend" :key="index">
+              {{ index + 1 }}. {{ intent }}
+            </div>
           </div>
+          <div>{{ item.product }}</div>
         </div>
-        <div>{{ item.product }}</div>
       </div>
     </div>
-  </div>
-  <input
-    type="text"
-    id="userInput"
-    placeholder="Type your message..."
-    @keypress="handleKeyPress"
-    ref="userInput"
-  />
-  <button id="sendButton" @click="sendMessage">Send</button>
-  <div class="controls">
-  <input class="thresholdBar" type="range" v-model="csliderValue" :min="0" :max="1" step="0.005"/> QThreshold: {{ csliderValue }}
-  </div>
-  <div class="controls">
-    <input class="thresholdBar" type="range" v-model="asliderValue" :min="0" :max="1" step="0.005"/> AThreshold: {{ asliderValue }}
-  </div>
+    <input
+      type="text"
+      id="userInput"
+      placeholder="Type your message..."
+      @keypress="handleKeyPress"
+      ref="userInput"
+    />
+    <button id="sendButton" @click="sendMessage" ref="sendBtn">Send</button>
+    <div>
+      <p id="helpMessage">{{ helpMessages[selectedOption] }}</p>
+    </div>
+    <div class="controls">
+      <label>
+        <input type="radio" value="similarity" v-model="selectedOption" />
+        Similarity
+      </label>
+      <label>
+        <input type="radio" value="gpt4" v-model="selectedOption" /> GPT4
+      </label>
+      <label>
+        <input type="radio" value="gpt3.5" v-model="selectedOption" /> GPT3.5
+      </label>
+    </div>
+    <fieldset :disabled="selectedOption != 'similarity'">
+      <div class="controls">
+        <label>
+          <input
+            class="thresholdBar"
+            type="range"
+            v-model="csliderValue"
+            :min="0"
+            :max="1"
+            step="0.005"
+          />
+          QThreshold: {{ csliderValue }}
+        </label>
+      </div>
+      <div class="controls">
+        <label>
+          <input
+            class="thresholdBar"
+            type="range"
+            v-model="asliderValue"
+            :min="0"
+            :max="1"
+            step="0.005"
+          />
+          AThreshold: {{ asliderValue }}
+        </label>
+      </div>
+    </fieldset>
+  </body>
 </template>
 
 
@@ -36,6 +75,12 @@ export default {
   name: "SSEChatBox",
   data: function () {
     return {
+      helpMessages: {
+        "similarity": "Use similarity to search the recommendation.",
+        "gpt3.5": "Use gpt3.5 to reason about the recommendation",
+        "gpt4": "Use gpt4 to reason about the recommendation",
+      },
+      selectedOption: "gpt3.5",
       asliderValue: 0.175,
       csliderValue: 0.175,
       messages: [{ role: "bot", message: "How may I assist you today?" }],
@@ -310,10 +355,19 @@ export default {
       const userInput = this.$refs.userInput;
       const message = userInput.value;
       userInput.value = "";
+      if (!message.trim()) {
+        return;
+      }
+      this.$refs.sendBtn.disabled = true;
 
       this.appendMessage("User", { message: message });
-      const body = { question: message, athreshold: this.asliderValue, cthreshold: this.csliderValue};
-      // const body = { role: "user", content: message };
+      const body = {
+        question: message,
+        recomm_type: this.selectedOption,
+        athreshold: this.asliderValue,
+        cthreshold: this.csliderValue,
+      };
+      console.log(body)
       const response = await fetch(
         `${window.location.origin}/api/v1/aigc/qa/stream_qa`,
         {
@@ -336,7 +390,7 @@ export default {
         jsonString
           .split("data: ")
           .map((l) => {
-            console.log(l)
+            console.log(l);
             return l.trim().length == 0 ? null : JSON.parse(l);
           })
           .map((obj) => {
@@ -344,46 +398,33 @@ export default {
               if (obj.token) {
                 this.messages[this.messages.length - 1].message =
                   this.messages[this.messages.length - 1].message + obj.token;
-                  this.scrollToBottom();
+                this.scrollToBottom();
               } else if (obj.answer) {
-                console.log(obj.answer)
+                console.log(obj.answer);
                 this.messages[this.messages.length - 1].message = obj.answer;
               }
               if (obj.intents && obj.intents.length > 0) {
                 console.log(obj);
                 let toAttach = "Recommendations:\n";
-                toAttach += obj.intents.map((intent) => {
-                  console.log(intent)
-                  console.log(this.products[intent.id])
-                  return this.products[intent.id].name + ": " + this.products[intent.id].intent
-                }).join("\n");
-                this.appendMessage("Bot", {message: toAttach})
+                toAttach += obj.intents
+                  .map((intent) => {
+                    console.log(intent);
+                    console.log(this.products[intent.id]);
+                    return (
+                      this.products[intent.id].name +
+                      ": " +
+                      this.products[intent.id].intent
+                    );
+                  })
+                  .join("\n");
+                this.appendMessage("Bot", { message: toAttach });
               }
             }
           });
-
-        // const jsonStartIndex = jsonString.indexOf('{');
-        // const jsonEndIndex = jsonString.lastIndexOf('}');
-        // const extractedJson = jsonString.substring(jsonStartIndex, jsonEndIndex + 1);
-        // console.log(extractedJson )
-        // const parsedObj = JSON.parse(extractedJson)
-        // if(parsedObj.token){
-        //   console.log(this.messages[this.messages - 1])
-        // }
-        // console.log('get.message', );
       }
-
-      // .then((resp) => resp.json())
-      // .then((data) => {
-      //   console.log(data);
-      //   this.appendMessage("Bot", data);
-      // })
-      // .catch((rea) => {
-      //   console.error(rea);
-      // });
+      this.$refs.sendBtn.disabled = false;
     },
     handleKeyPress: function (event) {
-      console.log(event);
       if (event.keyCode === 13) {
         // 按下回车键
         this.sendMessage();
@@ -413,8 +454,12 @@ pre {
   margin-bottom: 10px;
   font-size: 14px;
 }
+fieldset {
+  border-width: 0px;
+  display: contents;
+}
 .controls {
-  font-family: Arial, sans-serif; 
+  font-family: Arial, sans-serif;
   font-size: smaller;
 }
 #userInput {

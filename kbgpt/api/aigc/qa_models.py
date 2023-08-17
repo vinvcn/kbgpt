@@ -2,6 +2,7 @@
 qa api models
 """
 from datetime import datetime
+from enum import Enum
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -10,12 +11,19 @@ from kbgpt.api.aigc.agg_models import Matching
 from kbgpt.api.libs.base_model import OpenAIResponseBase
 
 
+class RecommType(Enum):
+    SIMILARITY = "similarity"
+    GPT4 = "gpt4"
+    GPT3_5 = "gpt3.5"
+
+
 class Question(BaseModel):
     """question"""
 
     question: str
     athreshold: float = Field(0.17)
     cthreshold: float = Field(0.17)
+    recomm_type: RecommType = Field(RecommType.GPT4)
 
 
 class QAResponse(OpenAIResponseBase):

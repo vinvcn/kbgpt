@@ -11,7 +11,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 
 from config import profile
 from kbgpt.api.aigc.agg_models import AGGRequest, AGGResponse, IntentResp, Matching
-from kbgpt.api.aigc.qa_models import QAResponse
+from kbgpt.api.aigc.qa_models import QAResponse, RecommType
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse
 from kbgpt.api.libs.utils import jtext
@@ -24,7 +24,14 @@ jinja = Environment(loader=FileSystemLoader("./kbgpt/res/"))
 
 
 async def gen_prompt(
-    tname, data={}, choice="", threshold=80, inquiry="", response="", stream=False
+    tname,
+    data={},
+    choice="",
+    threshold=80,
+    inquiry="",
+    response="",
+    stream=False,
+    gpt_model=profile.qa.recomm.gpt3_5_model,
 ):
     prompt = jinja.get_template(tname).render(
         **{
@@ -37,7 +44,7 @@ async def gen_prompt(
     )
     openai = OpenAI()
     result = await openai.chat_completion(
-        profile.qa.generative_model,
+        gpt_model,
         tuple([Message(role="system", content=prompt)]),
         stream=stream,
     )
@@ -125,10 +132,14 @@ async def get_recommendation(choice_id: int):
     return IntentResp(matching=[Matching(id=rid, score=0) for rid in result_ids])
 
 
-async def get_recommendation_by_conversation(question, answer):
+async def get_recommendation_by_conversation(question, answer, gpt_model):
     data = make_json("./kbgpt/res/productsintent.csv")
     result = await gen_prompt(
-        "recom_by_conversation.txt", data=data, inquiry=question, response=answer
+        "recom_by_conversation.txt",
+        data=data,
+        inquiry=question,
+        response=answer,
+        gpt_model=gpt_model,
     )
     if result.content.strip() == "N/A":
         return IntentResp()

@@ -37,12 +37,18 @@ class Sanic(SuperConfig):
     response_timeout: int = Field(300)
 
 
+class Recomm(SuperConfig):
+    gpt4_model: str
+    gpt3_5_model: str
+
+
 class QA(SuperConfig):
     """QA configs"""
 
     business_type: Literal["qa"] = Field("qa")
     embeddings_model: str
     generative_model: str
+    recomm: Recomm
     customer_service_temperature: float
     request_timeout: int
     request_retry: int

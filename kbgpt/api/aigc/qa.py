@@ -1,7 +1,6 @@
 """
 qa api
 """
-import asyncio
 import logging
 import time
 from json import dumps
@@ -9,6 +8,7 @@ from json import dumps
 from sanic import Blueprint, Request, text
 from sanic_ext import openapi, validate
 
+from config import profile
 from kbgpt.api.aigc.agg import (
     bouncing_ask,
     get_recommendation,
@@ -17,7 +17,13 @@ from kbgpt.api.aigc.agg import (
     score,
 )
 from kbgpt.api.aigc.agg_models import IntentResp, Matching
-from kbgpt.api.aigc.qa_models import DocInfo, GetRecomm, QAResponse, Question
+from kbgpt.api.aigc.qa_models import (
+    DocInfo,
+    GetRecomm,
+    QAResponse,
+    Question,
+    RecommType,
+)
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
@@ -106,7 +112,15 @@ async def answer_question(request: Request, body: Question):
         question = body.question
         final_result = None
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        final_result = await recomm_by_prompt(body, callbacks, question, agent)
+        final_result = None
+        if body.recomm_type == RecommType.GPT3_5 or body.recomm_type == RecommType.GPT4:
+            final_result = await recomm_by_prompt(
+                body, callbacks, question, agent, body.recomm_type
+            )
+        elif body.recomm_type == RecommType.SIMILARITY:
+            final_result = await recomm_by_similarity(body, callbacks, question, agent)
+        else:
+            raise ValueError(f"no such recommendation type {body.recomm_type.value}")
         await response.send(f"data: {final_result.json(exclude_none=True)}")
     except Exception as e:
         logging.exception(e)
@@ -120,14 +134,18 @@ async def answer_question(request: Request, body: Question):
         )
 
 
-async def recomm_by_prompt(body, callbacks, question, agent):
+async def recomm_by_prompt(body, callbacks, question, agent, recomm_type: RecommType):
     final_result = None
     agent_result = await agent.answer_question(
         question=question, streaming=True, callbacks=callbacks
     )
 
     recomm = await get_recommendation_by_conversation(
-        question=question, answer=agent_result.answer
+        question=question,
+        answer=agent_result.answer,
+        gpt_model=profile.qa.recomm.gpt3_5_model
+        if recomm_type == RecommType.GPT3_5
+        else profile.qa.recomm.gpt4_model,
     )
     if recomm.matching and len(recomm.matching) > 1:
         prompt_result = await bouncing_ask(
