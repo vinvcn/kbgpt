@@ -107,18 +107,29 @@ async def answer_question(request: Request, body: Question):
     )
     callbacks = [StreamingAsyncHandler(response.send)]
     start_counter = time.perf_counter()
+
     # pylint: disable=broad-except
     try:
         question = body.question
+
+        retriever = create_vector_store_strategy(
+            profile.qa.business_type
+        ).get_retriever(k=profile.vector_store.vector_retrival_k)
+
+        docs = retriever.get_relevant_documents(query=question)
+
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
         agent_result = await agent.answer_question(
-            question=question, streaming=True, callbacks=callbacks
+            question=question, streaming=True, callbacks=callbacks, docs=docs
         )
         await response.send(f"data: {agent_result.json(exclude_none=True)}\n")
 
         final_result = None
         if body.recomm_type == RecommType.GPT3_5 or body.recomm_type == RecommType.GPT4:
-            final_result = await recomm_by_prompt(body, callbacks, agent_result)
+            pass_docs = tuple(d.dict() for d in docs)
+            final_result = await recomm_by_prompt(
+                body, callbacks, agent_result, docs=pass_docs
+            )
         elif body.recomm_type == RecommType.SIMILARITY:
             final_result = await recomm_by_similarity(
                 body, callbacks, question, agent_result
@@ -149,6 +160,7 @@ async def recomm_by_prompt(body: Question, callbacks, agent_result, **kwargs):
         if body.recomm_type == RecommType.GPT3_5
         else profile.qa.recomm.gpt4_model,
         temperature=body.temperature,
+        **kwargs,
     )
     final_result.intents = recomm.matching
     if recomm.matching and len(recomm.matching) > 1:

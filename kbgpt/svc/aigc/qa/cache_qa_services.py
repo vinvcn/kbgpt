@@ -54,9 +54,7 @@ class ProxiedQAAgent:
                 cached.metadata.answer, OpenAICallbackHandler(), True
             )
         else:
-            ans, stats, _ = await self.agent.answer_question(
-                question=question, **kwargs
-            )
+            ans, stats = await self.agent.answer_question(question=question, **kwargs)
             try:
                 # try write to cache
                 await cache.write_to_store(question=question, answer=ans)
@@ -70,7 +68,7 @@ class ProxiedQAAgent:
 
     @alog(QARecord)
     async def answer_question(
-        self, question: str, streaming: bool = False, callbacks=None
+        self, question: str, streaming: bool = False, callbacks=None, **kwargs
     ) -> QAResponse:
         """
         Answer a question as a customer service agent
@@ -81,11 +79,11 @@ class ProxiedQAAgent:
             raise ValueError(f"Empty question {question} provided")
         if not profile.cache.use_redis_cache or not cache.is_cache_valid():
             # if not using redis cache or cache is not valid
-            ans, stats, _ = await self.agent.answer_question(
-                question=question, streaming=streaming, callbacks=callbacks
+            ans, stats = await self.agent.answer_question(
+                question=question, streaming=streaming, callbacks=callbacks, **kwargs
             )
             return self._create_result(ans, stats, False)
         else:
             return await self._answer_question_with_cache(
-                question=question, streaming=streaming, callbacks=callbacks
+                question=question, streaming=streaming, callbacks=callbacks, **kwargs
             )

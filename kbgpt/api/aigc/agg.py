@@ -41,9 +41,11 @@ async def gen_prompt(
             "inquery": inquiry,
             "choice": choice,
             "response": response,
-        }
+        },
+        **kwargs,
     )
     openai = OpenAI()
+    kwargs.pop("docs", "")
     result = await openai.chat_completion(
         gpt_model,
         tuple([Message(role="system", content=prompt)]),
