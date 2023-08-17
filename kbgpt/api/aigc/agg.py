@@ -31,8 +31,8 @@ async def gen_prompt(
     inquiry="",
     response="",
     stream=False,
-    temperature=None,
     gpt_model=profile.qa.recomm.gpt3_5_model,
+    **kwargs,
 ):
     prompt = jinja.get_template(tname).render(
         **{
@@ -48,6 +48,7 @@ async def gen_prompt(
         gpt_model,
         tuple([Message(role="system", content=prompt)]),
         stream=stream,
+        **kwargs,
     )
     logging.debug(f"\n{prompt}")
     if not stream:
@@ -133,7 +134,7 @@ async def get_recommendation(choice_id: int):
     return IntentResp(matching=[Matching(id=rid, score=0) for rid in result_ids])
 
 
-async def get_recommendation_by_conversation(question, answer, gpt_model):
+async def get_recommendation_by_conversation(question, answer, gpt_model, **kwargs):
     data = make_json("./kbgpt/res/productsintent.csv")
     result = await gen_prompt(
         "recom_by_conversation.txt",
@@ -141,6 +142,7 @@ async def get_recommendation_by_conversation(question, answer, gpt_model):
         inquiry=question,
         response=answer,
         gpt_model=gpt_model,
+        **kwargs,
     )
     if result.content.strip() == "N/A":
         return IntentResp()

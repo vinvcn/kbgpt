@@ -38,7 +38,22 @@
         <input type="radio" value="gpt3.5" v-model="selectedOption" /> GPT3.5
       </label>
     </div>
-    <fieldset :disabled="selectedOption != 'similarity'">
+    <fieldset :disabled="selectedOption == 'similarity'" v-show="selectedOption != 'similarity'">
+      <div class="controls">
+        <label>
+          <input
+            class="thresholdBar"
+            type="range"
+            v-model="temperature"
+            :min="0"
+            :max="1"
+            step="0.005"
+          />
+          Temperature: {{ temperature }}
+        </label>
+      </div> 
+    </fieldset>
+    <fieldset :disabled="selectedOption != 'similarity'" v-show="selectedOption == 'similarity'">
       <div class="controls">
         <label>
           <input
@@ -83,6 +98,7 @@ export default {
       selectedOption: "gpt3.5",
       asliderValue: 0.175,
       csliderValue: 0.175,
+      temperature: 0.7,
       messages: [{ role: "bot", message: "How may I assist you today?" }],
       products: {
         1: {
@@ -366,6 +382,7 @@ export default {
         recomm_type: this.selectedOption,
         athreshold: this.asliderValue,
         cthreshold: this.csliderValue,
+        temperature: this.temperature
       };
       const response = await fetch(
         `${window.location.origin}/api/v1/aigc/qa/stream_qa`,
@@ -378,9 +395,9 @@ export default {
           body: JSON.stringify(body),
         }
       );
-      this.appendMessage("Bot", { message: "" });
       const reader = response.body.getReader();
       let notdone = true;
+      let streamingOfStream = false;
       while (notdone) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -394,6 +411,12 @@ export default {
           })
           .map((obj) => {
             if (obj) {
+              if ('token' in obj && ! obj.token){
+                streamingOfStream = !streamingOfStream
+                if (streamingOfStream){
+                  this.appendMessage("Bot", { message: "" });
+                }
+              }
               if (obj.token) {
                 this.messages[this.messages.length - 1].message =
                   this.messages[this.messages.length - 1].message + obj.token;

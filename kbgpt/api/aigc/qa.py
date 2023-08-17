@@ -118,9 +118,7 @@ async def answer_question(request: Request, body: Question):
 
         final_result = None
         if body.recomm_type == RecommType.GPT3_5 or body.recomm_type == RecommType.GPT4:
-            final_result = await recomm_by_prompt(
-                body, callbacks, question, agent_result, body.recomm_type
-            )
+            final_result = await recomm_by_prompt(body, callbacks, agent_result)
         elif body.recomm_type == RecommType.SIMILARITY:
             final_result = await recomm_by_similarity(
                 body, callbacks, question, agent_result
@@ -141,22 +139,21 @@ async def answer_question(request: Request, body: Question):
         )
 
 
-async def recomm_by_prompt(
-    body, callbacks, question, agent_result, recomm_type: RecommType
-):
+async def recomm_by_prompt(body: Question, callbacks, agent_result, **kwargs):
     final_result = QAResponse()
 
     recomm = await get_recommendation_by_conversation(
-        question=question,
+        question=body.question,
         answer=agent_result.answer,
         gpt_model=profile.qa.recomm.gpt3_5_model
-        if recomm_type == RecommType.GPT3_5
+        if body.recomm_type == RecommType.GPT3_5
         else profile.qa.recomm.gpt4_model,
+        temperature=body.temperature,
     )
     final_result.intents = recomm.matching
     if recomm.matching and len(recomm.matching) > 1:
         prompt_result = await bouncing_ask(
-            recomm.matching, question, agent_result.answer, callbacks[0]
+            recomm.matching, body.question, agent_result.answer, callbacks[0]
         )
         final_result.answer = prompt_result.answer
     return final_result

@@ -23,8 +23,7 @@ class Question(BaseModel):
     question: str
     athreshold: float = Field(0.17)
     cthreshold: float = Field(0.17)
-    a_temperature: float = Field(0.7)
-    r_temperature: float = Field(0.7)
+    temperature: float = Field(0.7)
     recomm_type: RecommType = Field(RecommType.GPT4)
 
 
