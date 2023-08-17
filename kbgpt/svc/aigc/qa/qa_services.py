@@ -91,12 +91,12 @@ class AbstractAgent(metaclass=abc.ABCMeta):
 
     async def answer_question(
         self, question: str, **kwargs
-    ) -> Tuple[str, OpenAICallbackHandler]:
+    ) -> Tuple[str, OpenAICallbackHandler, List[Document]]:
         """
         Answer a question as a customer service agent"""
         logging.debug("Started answering question: %s", question)
         start_counter = time.perf_counter()
-        answer, stats = await self._answer_question_and_provide_cost(
+        answer, stats, docs = await self._answer_question_and_provide_cost(
             question=question, **kwargs
         )
         logging.debug(
@@ -106,7 +106,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
         )
         logging.info("Total token consumed: %s", stats.total_tokens)
         logging.info("Total cost: %s", stats.total_cost)
-        return answer, stats
+        return answer, stats, docs
 
     async def get_prompts_in_batch(
         self, questions: List[str], documents: List[List[Document]]
@@ -157,7 +157,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
 
     async def _answer_question_and_provide_cost(
         self, question: str, streaming: bool = False, callbacks=None
-    ) -> Tuple[str, OpenAICallbackHandler]:
+    ) -> Tuple[str, OpenAICallbackHandler, List[Document]]:
         """
         Answer a question as a customer service agent and provide the cost of the answer
         """
@@ -218,7 +218,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
             stats.total_tokens = total_tokens
             stats.total_cost = total_cost
             stats.successful_requests = successful_requests
-        return value["output_text"], stats
+        return value["output_text"], stats, result1
 
 
 class QAagent(AbstractAgent):

@@ -12,6 +12,7 @@
         <button @click="uploadFile">Upload</button>
       </div>
       <div class="controls">
+        Choose the index:
         <label>
           <input type="radio" value="qa" v-model="business_type" />
           Q/A Knowledge Base
@@ -36,7 +37,15 @@ export default {
   },
   methods: {
     loadQAIndexVerstion() {
-      
+      // fetch(`${window.location.origin}/api/v1/aigc/qa/doc_version`,{
+      //   method: "GET"
+      // })
+      // .then((response) => response.json())
+      // .then((data) => {
+      // })
+    },
+    loadProductCatIndexVersion(){
+
     },
     handleFileUpload(event) {
       this.files = Array.from(event.target.files);

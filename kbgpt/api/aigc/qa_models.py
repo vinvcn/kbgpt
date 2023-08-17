@@ -23,13 +23,15 @@ class Question(BaseModel):
     question: str
     athreshold: float = Field(0.17)
     cthreshold: float = Field(0.17)
+    a_temperature: float = Field(0.7)
+    r_temperature: float = Field(0.7)
     recomm_type: RecommType = Field(RecommType.GPT4)
 
 
 class QAResponse(OpenAIResponseBase):
     """qa response"""
 
-    answer: str
+    answer: Optional[str]
     intents: Optional[List[Matching]]
     total_tokens: Optional[int]
     total_cost: Optional[float]

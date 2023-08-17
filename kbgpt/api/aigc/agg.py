@@ -31,6 +31,7 @@ async def gen_prompt(
     inquiry="",
     response="",
     stream=False,
+    temperature=None,
     gpt_model=profile.qa.recomm.gpt3_5_model,
 ):
     prompt = jinja.get_template(tname).render(

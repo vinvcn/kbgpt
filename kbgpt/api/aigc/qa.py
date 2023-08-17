@@ -110,18 +110,25 @@ async def answer_question(request: Request, body: Question):
     # pylint: disable=broad-except
     try:
         question = body.question
-        final_result = None
         agent = ProxiedQAAgent(request.app, QAagent.get_instance())
+        agent_result = await agent.answer_question(
+            question=question, streaming=True, callbacks=callbacks
+        )
+        await response.send(f"data: {agent_result.json(exclude_none=True)}\n")
+
         final_result = None
         if body.recomm_type == RecommType.GPT3_5 or body.recomm_type == RecommType.GPT4:
             final_result = await recomm_by_prompt(
-                body, callbacks, question, agent, body.recomm_type
+                body, callbacks, question, agent_result, body.recomm_type
             )
         elif body.recomm_type == RecommType.SIMILARITY:
-            final_result = await recomm_by_similarity(body, callbacks, question, agent)
+            final_result = await recomm_by_similarity(
+                body, callbacks, question, agent_result
+            )
         else:
             raise ValueError(f"no such recommendation type {body.recomm_type.value}")
-        await response.send(f"data: {final_result.json(exclude_none=True)}")
+        if final_result:
+            await response.send(f"data: {final_result.json(exclude_none=True)}")
     except Exception as e:
         logging.exception(e)
         obj = {"success": False, "error": str(e)}
@@ -134,11 +141,10 @@ async def answer_question(request: Request, body: Question):
         )
 
 
-async def recomm_by_prompt(body, callbacks, question, agent, recomm_type: RecommType):
-    final_result = None
-    agent_result = await agent.answer_question(
-        question=question, streaming=True, callbacks=callbacks
-    )
+async def recomm_by_prompt(
+    body, callbacks, question, agent_result, recomm_type: RecommType
+):
+    final_result = QAResponse()
 
     recomm = await get_recommendation_by_conversation(
         question=question,
@@ -147,21 +153,16 @@ async def recomm_by_prompt(body, callbacks, question, agent, recomm_type: Recomm
         if recomm_type == RecommType.GPT3_5
         else profile.qa.recomm.gpt4_model,
     )
+    final_result.intents = recomm.matching
     if recomm.matching and len(recomm.matching) > 1:
         prompt_result = await bouncing_ask(
             recomm.matching, question, agent_result.answer, callbacks[0]
         )
-        final_result = QAResponse(
-            answer=agent_result.answer + "\n\n" + prompt_result.answer,
-            intents=recomm.matching,
-        )
-    else:
-        final_result = agent_result
-        final_result.intents = recomm.matching
+        final_result.answer = prompt_result.answer
     return final_result
 
 
-async def recomm_by_similarity(body, callbacks, question, agent):
+async def recomm_by_similarity(body, callbacks, question, agent_result: QAResponse):
     cretriver = create_vector_store_strategy(
         BusinessType.PRODUCT_CATALOG.value
     ).get_retriever(4, score_threshold=body.cthreshold)
@@ -172,16 +173,12 @@ async def recomm_by_similarity(body, callbacks, question, agent):
 
     q_match = await cretriver.aget_relevant_documents(question)
     matchings = document_to_matchings(q_match)
-
+    final_result = QAResponse()
     if matchings:
         # if question find match
         if len(matchings) == 1:
             # one match only, talk
-            agent_result = await agent.answer_question(
-                question=question, streaming=True, callbacks=callbacks
-            )
-            agent_result.intents = matchings
-            final_result = agent_result
+            final_result.intents = matchings
         else:
             # more matches, ask
             choice_prompt_result = await bouncing_ask(
@@ -191,9 +188,7 @@ async def recomm_by_similarity(body, callbacks, question, agent):
             final_result = choice_prompt_result
     else:
         # no match for customer question
-        agent_result = await agent.answer_question(
-            question=question, streaming=True, callbacks=callbacks
-        )
+
         a_match = await aretriver.aget_relevant_documents(agent_result.answer)
         matchings = document_to_matchings(a_match)
 
@@ -206,8 +201,7 @@ async def recomm_by_similarity(body, callbacks, question, agent):
                 intents=matchings,
             )
         else:
-            agent_result.intents = matchings
-            final_result = agent_result
+            final_result.intents = matchings
     return final_result
 
 
