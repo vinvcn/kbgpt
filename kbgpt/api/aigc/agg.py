@@ -15,6 +15,7 @@ from kbgpt.api.aigc.qa_models import QAResponse, RecommType
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse
 from kbgpt.api.libs.utils import jtext
+from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
 from kbgpt.lib.llm.openai import Message, OpenAI
 from kbgpt.svc.aigc.qa.qa_services import QAagent
 
@@ -138,6 +139,11 @@ async def get_recommendation(choice_id: int):
 
 async def get_recommendation_by_conversation(question, answer, gpt_model, **kwargs):
     data = make_json("./kbgpt/res/productsintent.csv")
+    # vs = create_vector_store_strategy(BusinessType.PRODUCT_CATALOG.value)
+    # docs = vs.get_retriever(k=6).aget_relevant_documents(
+    #     f"Question:{question} \n Answer:{answer}"
+    # )
+
     result = await gen_prompt(
         "recom_by_conversation.txt",
         data=data,

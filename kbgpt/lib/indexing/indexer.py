@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from config import profile
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
+from kbgpt.lib.indexing.csv_loader_and_spliter import CSVLoader
 from kbgpt.lib.indexing.double_line_breaks_splitter import PondAstonPondSplitter
 from kbgpt.lib.utils import calculate_hash
 from kbgpt.svc.utils.openai import token_counts
@@ -50,6 +51,7 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         r".*\.shtml": (UnstructuredHTMLLoader, RECR_SPL),
         r".*\.docx": (UnstructuredWordDocumentLoader, RECR_SPL),
         r".*\.doc": (UnstructuredWordDocumentLoader, RECR_SPL),
+        r".*\.csv": (CSVLoader, RECR_SPL),
     }
 
     def _get_loader_and_split(self, path: str) -> Tuple[TextLoader, TextSplitter]:

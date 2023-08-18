@@ -14,7 +14,6 @@ from kbgpt.api.aigc.agg import (
     get_recommendation,
     get_recommendation_by_conversation,
     get_recommendation_by_name,
-    score,
 )
 from kbgpt.api.aigc.agg_models import IntentResp, Matching
 from kbgpt.api.aigc.qa_models import (
