@@ -23,8 +23,8 @@ class Question(BaseModel):
     question: str
     athreshold: float = Field(0.17)
     cthreshold: float = Field(0.17)
-    temperature: float = Field(0.7)
-    recomm_type: RecommType = Field(RecommType.GPT4)
+    temperature: float = Field(0.0)
+    recomm_type: RecommType = Field(RecommType.GPT3_5)
 
 
 class QAResponse(OpenAIResponseBase):
