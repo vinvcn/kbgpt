@@ -425,7 +425,10 @@ export default {
                 this.streaming = true;
                 this.streamText = this.streamText + obj.token;
                 this.scrollToBottom();
-              } else if (obj.answer) {
+              } else if (obj.success === false){
+                alert("ERROR: " + obj.error);
+              }
+              else if (obj.answer) {
                 console.log(obj.answer);
                 this.streaming = false;
                 this.streamText = ""
@@ -510,7 +513,7 @@ fieldset {
 }
 #sendButton:disabled {
   background-color: #999;
-  cursor: ;
+  cursor: auto;
 }
 .message {
   margin: 5px 0;
