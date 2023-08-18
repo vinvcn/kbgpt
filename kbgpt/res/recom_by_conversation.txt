@@ -18,8 +18,25 @@ Context Knowledge:
 {% endfor %}
 ```
 
+Converstaion 1:
 
-Conversation:
+Client Inquiry: smart redeem
+
+Your Reply: Smart Redeem is a facility where investors can redeem some liquid funds at any time and receive money instantly within 30 minutes.
+
+Your Recommendations:
+21
+
+Converstaion 2:
+
+Client Inquiry: smart tools
+
+Your Reply: Smart tools for analyzing, comparing & tracking mutual funds and stocks. You can build a stock watchlist, explore stock quotes, charts, company profiles, key statistics, analyst recommendations, news, and earnings updates.
+
+Your Recommendations:
+21, 23, 24, 25
+
+Conversation X:
 
 Client Inquiry: {{inquery}}
 
