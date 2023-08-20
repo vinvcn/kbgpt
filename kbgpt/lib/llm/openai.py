@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, Optional, Tuple
 
 import openai
@@ -78,6 +79,14 @@ class OpenAI:
             usage = Usage(model, **completion["usage"])
             content = completion.choices[0].message["content"]
             return Completion(usage=usage, content=content)
+
+    @alru_cache(maxsize=256)
+    async def embed(self, content: str):
+        model = profile.qa.embeddings_model
+        embedding = await openai.Embedding.acreate(input=content, model=model)["data"][
+            0
+        ]["embedding"]
+        return embedding
 
     async def list_models(self):
         result = await openai.Model.alist()
