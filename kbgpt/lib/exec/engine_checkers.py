@@ -1,6 +1,11 @@
 import abc
 
-from kbgpt.lib.exec.models import CheckerMod, EqCheckerMod, InListCheckerMod
+from kbgpt.lib.exec.models import (
+    CheckerMod,
+    EqCheckerMod,
+    EvalCheckerMod,
+    InListCheckerMod,
+)
 
 
 class CheckerFailedException(Exception):
@@ -33,4 +38,17 @@ class EqChecker(Checker):
         if config.trg_value != kwargs[config.key]:
             raise CheckerFailedException(
                 f"value of '{config.trg_value}' should equal to {kwargs[config.key]}"
+            )
+
+
+class EvalChecker(Checker):
+    async def check(self, **kwargs):
+        config: EvalCheckerMod = self.config
+
+        context = {self.config.key: kwargs[self.config.key]}
+        if config.eval_exp and not eval(
+            config.eval_exp, context
+        ):  # pylint: disable = eval-used
+            raise CheckerFailedException(
+                f"evaluation of expression {config.eval_exp} in context {kwargs} was negative"
             )

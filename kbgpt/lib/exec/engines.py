@@ -16,6 +16,7 @@ from config import profile
 from kbgpt.api.aigc.report_models import Report
 from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.lib.db.redis import MyRedis
+from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.lib.exec.models import (
     EmbedEngineMod,
     SimilaritySearchMod,
@@ -48,7 +49,8 @@ class Embed(Engine):
     async def agenerate(self, **kwargs) -> Dict[str, Any]:
         assert all([k in kwargs for k in self.config.key_and_labels])
         content = "\n".join(
-            f"{l}:\n {kwargs[k]}" for k, l in self.config.key_and_labels.items()
+            f"{l}:\n {kwargs[k]}" if l else kwargs[k]
+            for k, l in self.config.key_and_labels.items()
         )
         logging.debug("getting embeddings for content of length %d", len(content))
         embedding = await self.openai.embed(content)
@@ -61,7 +63,10 @@ class SimilaritySearch(Engine):
     def __init__(self, config: SimilaritySearchMod) -> None:
         super().__init__()
         self.config = config
-        self.redis: MyRedis = MyRedis.from_existing_index(None, config.index)
+        embedding_func = get_embeddings()
+        self.redis: MyRedis = MyRedis.from_existing_index(
+            embedding_func, config.index, redis_url=profile.vector_store.redis_url
+        )
 
     async def agenerate(self, embedding: List[float], **kwargs) -> Dict[str, Any]:
         matchings = self.redis.similarity_search_by_vector_with_score(
@@ -69,7 +74,11 @@ class SimilaritySearch(Engine):
         )
         # map it to string
         limited = "\n".join(
-            [m.content for m, s in matchings if s < self.config.min_threshold]
+            [
+                m.content
+                for m, s in matchings
+                if s < (self.config.min_threshold if self.config.min_threshold else 1)
+            ]
         )
         return {"result": limited}
 
@@ -90,7 +99,7 @@ class SimpleEngine(Engine):
 
         rendered = await self.tmp_repo.render(name=self.config.name, **kwargs)
         completion = await self.openai.chat_completion(
-            self.config.models[0], [Message(role="system", content=rendered)]
+            self.config.models[0], tuple([Message(role="system", content=rendered)])
         )
         completion.prompt = rendered
         return {"result": completion.content}

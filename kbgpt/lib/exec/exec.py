@@ -1,13 +1,15 @@
 import asyncio
 import json
 import logging
+import sys
 from collections import OrderedDict
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
 from kbgpt.lib.exec import engine_factory
 from kbgpt.lib.exec.checker_factory import CheckerFactory
+from kbgpt.lib.exec.engine_checkers import CheckerFailedException
 from kbgpt.lib.exec.engines import Engine
 from kbgpt.lib.exec.models import (
     CheckerTypes,
@@ -20,6 +22,17 @@ from kbgpt.lib.exec.models import (
 )
 from kbgpt.lib.exec.template_factory import TemplateFactory
 from kbgpt.lib.templates.rendering.models import TemplateRepo
+
+
+class ExecutionException(Exception):
+    pass
+    # def __init__(self, *args, excepts: Tuple[Exception], **kwargs) -> None:
+    #     super().__init__(*args, **kwargs)
+    #     self.excepts = excepts
+
+    # def __str__(self) -> str:
+    #     nested_str = "\n".join([str(e) for e in self.excepts])
+    #     return f"execution encountered exceptions:\n {nested_str}"
 
 
 class NodeEval:
@@ -233,10 +246,25 @@ class GraphExecutor:
                         i
                         for i, r in enumerate(node_results)
                         if isinstance(r, Exception)
+                        and not isinstance(r, CheckerFailedException)
                     ]
-                    for i in excepts:
-                        logging.warning("error while executing node %s", ls_nodes[i])
-                        logging.exception(node_results[i])
+                    if excepts:
+                        exec_exception = ExecutionException(
+                            "execution encountered exceptions:"
+                        )
+                        for i in excepts:
+                            try:
+                                raise node_results[i]
+                            except:  # pylint: disable = bare-except
+                                exc_type, exc_value, exc_traceback = sys.exc_info()
+                                new_exc = exc_type(
+                                    f"{exec_exception}\n{node_results[i]}"
+                                )
+                                new_exc.__cause__ = exc_value
+                                new_exc.__traceback__ = exc_traceback
+                                exec_exception = new_exc
+
+                        raise exec_exception
 
             except StopIteration:
                 pass

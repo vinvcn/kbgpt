@@ -83,9 +83,8 @@ class OpenAI:
     @alru_cache(maxsize=256)
     async def embed(self, content: str):
         model = profile.qa.embeddings_model
-        embedding = await openai.Embedding.acreate(input=content, model=model)["data"][
-            0
-        ]["embedding"]
+        result = await openai.Embedding.acreate(input=content, model=model)
+        embedding = result["data"][0]["embedding"]
         return embedding
 
     async def list_models(self):

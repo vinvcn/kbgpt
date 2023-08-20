@@ -4,16 +4,20 @@ from sanic import Sanic
 
 from kbgpt.lib.exec.engines import (
     CommentEngine,
+    Embed,
     Engine,
     ReportEngine,
+    SimilaritySearch,
     SimpleEngine,
     TestEngine,
     ToVoiceEngine,
 )
 from kbgpt.lib.exec.models import (
     CommentEngineMod,
+    EmbedEngineMod,
     MapperEngineMod,
     ReportEngineMod,
+    SimilaritySearchMod,
     SimpleEngineMod,
     TestEngineMod,
     ToVoiceEngineMod,
@@ -31,7 +35,17 @@ class EngineFactory:
 
     @create_from_model.register
     def create_from_model_simple(self, mod: SimpleEngineMod) -> "SimpleEngine":
-        return SimpleEngine(name=mod.name, tmp_repo=self.temp_repo)
+        return SimpleEngine(config=mod)
+
+    @create_from_model.register
+    def create_from_model_embed(self, mod: EmbedEngineMod) -> Embed:
+        return Embed(config=mod)
+
+    @create_from_model.register
+    def create_from_model_similarity_search(
+        self, mod: SimilaritySearchMod
+    ) -> SimilaritySearch:
+        return SimilaritySearch(config=mod)
 
     @create_from_model.register
     def create_from_model_comment(self, mod: CommentEngineMod) -> "CommentEngine":

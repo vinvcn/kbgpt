@@ -21,6 +21,11 @@ class EqCheckerMod(CheckerMod):
     trg_value: Optional[Any]
 
 
+class EvalCheckerMod(CheckerMod):
+    type: Literal["eval"] = Field("eval")
+    eval_exp: str
+
+
 class EngineMod(BaseModel):
     type: Literal["engine"]
 
@@ -42,7 +47,7 @@ class SimilaritySearchMod(EngineMod):
     type: Literal["similarity_search_engine"] = Field("similarity_search_engine")
     index: str
     k: int
-    min_threshold: float
+    min_threshold: Optional[float]
 
 
 class SimpleEngineMod(EngineMod):
@@ -110,11 +115,13 @@ EngineTypes = Union[
     ReportEngineMod,
     CommentEngineMod,
     SimpleEngineMod,
+    EmbedEngineMod,
+    SimilaritySearchMod,
     MapperEngineMod,
     TestEngineMod,
 ]
 
-_CheckerTypes = Union[InListCheckerMod, EqCheckerMod]
+_CheckerTypes = Union[InListCheckerMod, EqCheckerMod, EvalCheckerMod]
 
 CheckerTypes = Union[_CheckerTypes, List[_CheckerTypes]]
 
