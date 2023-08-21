@@ -149,7 +149,7 @@ async def get_recommendation_by_conversation(question, answer, gpt_model, **kwar
         data=data,
         inquiry=question,
         response=answer,
-        gpt_model=gpt_model,
+        gpt_model=profile.qa.recomm.gpt4_model,
         **kwargs,
     )
     if result.content.strip() == "N/A":
