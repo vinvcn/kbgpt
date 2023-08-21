@@ -183,7 +183,12 @@ async def bouncing_ask(
     product = await get_product_by_ids(ids)
     inner_completion = ""
     async for stream_resp in await gen_prompt(
-        "agg_step3.txt", data=product, inquiry=question, response=response, stream=True
+        "agg_step3.txt",
+        data=product,
+        inquiry=question,
+        response=response,
+        stream=True,
+        temperature=profile.qa.customer_service_temperature,
     ):
         # role = stream_resp["choices"][0]["delta"].get("role", role)
         token = stream_resp["choices"][0]["delta"].get("content", "")
