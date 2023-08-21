@@ -11,14 +11,16 @@ from uuid import uuid4
 import google.cloud.texttospeech_v1beta1 as texttospeech
 from gcloud.aio.storage import Storage
 from jinja2 import Environment
+from pydantic import BaseModel
 
 from config import profile
 from kbgpt.api.aigc.report_models import Report
-from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.lib.db.redis import MyRedis
 from kbgpt.lib.db.vector_store import get_embeddings
 from kbgpt.lib.exec.models import (
     EmbedEngineMod,
+    EngineMod,
+    JinjaEngineMod,
     SimilaritySearchMod,
     SimpleEngineMod,
     TestEngineMod,
@@ -73,14 +75,67 @@ class SimilaritySearch(Engine):
             embedding, self.config.k
         )
         # map it to string
-        limited = "\n".join(
-            [
-                m.content
-                for m, s in matchings
-                if s < (self.config.min_threshold if self.config.min_threshold else 1)
-            ]
-        )
+        # limited = "\n".join(
+        #     [
+        #         m.content
+        #         for m, s in matchings
+        #         if s < (self.config.min_threshold if self.config.min_threshold else 1)
+        #     ]
+        # )
+        limited = [
+            (m.dict(), s)
+            for m, s in matchings
+            if s < (self.config.min_threshold if self.config.min_threshold else 1)
+        ]
         return {"result": limited}
+
+
+class JinjaEngine(Engine):
+    def __init__(self, config: JinjaEngineMod):
+        super().__init__()
+        self.config = config
+        self.tmp_repo = TemplateFactory().create()
+        self.jinja_env = Environment(trim_blocks=True, lstrip_blocks=True)
+        self.openai = OpenAI()
+
+        def split_lists_str(lst_str: List[str]):
+            return "\n---\n".join(lst_str)
+
+        def json_loads(json_str: str):
+            return json.loads(json_str)
+
+        self.jinja_env.filters["split_lists_str"] = split_lists_str
+        self.jinja_env.filters["json_loads"] = json_loads
+
+    async def agenerate(self, **kwargs) -> Dict[str, Any]:
+        assert all(
+            [k in kwargs for k in self.config.keys_in]
+        ), f"keys required but not in params {set(self.config.keys_in) - set(kwargs.keys())}"
+
+        if not self.config.stream:
+            jinja_template = await self.tmp_repo.pick_one(name=self.config.name)
+            body = self.jinja_env.from_string(jinja_template.body)
+            rendered = body.render(**kwargs)
+
+            completion = await self.openai.chat_completion(
+                self.config.models[0], tuple([Message(role="system", content=rendered)])
+            )
+
+            return {"result": completion.content}
+        else:
+            assert "callbacks" in kwargs
+            request = await self.openai.chat_completion(
+                self.config.models[0],
+                tuple([Message(role="system", content=rendered)]),
+                stream=True,
+            )
+            buffer = ""
+            callbacks = kwargs["callbacks"]
+            async for stream_resp in request:
+                token = stream_resp["choices"][0]["delta"].get("content", "")
+                buffer += token
+                for cb in callbacks:
+                    cb.on_llm_new_token
 
 
 class SimpleEngine(Engine):

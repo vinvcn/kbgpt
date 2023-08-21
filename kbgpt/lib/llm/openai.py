@@ -69,11 +69,15 @@ class OpenAI:
                 model=model,
                 messages=[m.dict() for m in messages],
                 stream=True,
-                **kwargs
+                # organization="bullsmart",
+                **kwargs,
             )
         else:
             completion = await openai.ChatCompletion.acreate(
-                model=model, messages=[m.dict() for m in messages], **kwargs
+                model=model,
+                messages=[m.dict() for m in messages],
+                # organization="bullsmart",
+                **kwargs,
             )
 
             usage = Usage(model, **completion["usage"])

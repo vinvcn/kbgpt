@@ -1,3 +1,4 @@
+from collections import namedtuple
 from copy import deepcopy
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
@@ -28,6 +29,7 @@ class EvalCheckerMod(CheckerMod):
 
 class EngineMod(BaseModel):
     type: Literal["engine"]
+    # out_keys: List[str]
 
     def __repr__(self) -> str:
         return f"Engine:{self.type}"
@@ -50,11 +52,20 @@ class SimilaritySearchMod(EngineMod):
     min_threshold: Optional[float]
 
 
-class SimpleEngineMod(EngineMod):
-    type: Literal["simple_engine"] = Field("simple_engine")
+class TemplateEngineMod(EngineMod):
+    type: Literal["template_engine"]
+    stream: bool = Field(False)
     keys_in: List[str]
     models: List[str]
     name: str
+
+
+class SimpleEngineMod(TemplateEngineMod):
+    type: Literal["simple_engine"] = Field("simple_engine")
+
+
+class JinjaEngineMod(TemplateEngineMod):
+    type: Literal["jinja_engine"] = Field("jinja_engine")
 
 
 class CommentEngineMod(EngineMod):
@@ -86,6 +97,9 @@ class Selector(BaseModel):
     class Config:
         frozen = True
 
+    def with_to_key(self, to_key: str):
+        return self.copy(update={"to_key": to_key})
+
 
 class MultiplexerType(Enum):
     ALL = "all"
@@ -116,6 +130,7 @@ EngineTypes = Union[
     CommentEngineMod,
     SimpleEngineMod,
     EmbedEngineMod,
+    JinjaEngineMod,
     SimilaritySearchMod,
     MapperEngineMod,
     TestEngineMod,
@@ -145,6 +160,14 @@ class Node(BaseModel):
 
     def __repr__(self) -> str:
         return f"Node[id:{self.id},engine:{repr(self.engine)}]"
+
+    @property
+    def selectors(self):
+        if self.engine.out_keys:
+            Selectors = namedtuple("Selectors", self.engine.out_keys)
+            return Selectors(
+                *[Selector(node=self.id, key=k) for k in self.engine.out_keys]
+            )
 
 
 class GraphNode(BaseModel):

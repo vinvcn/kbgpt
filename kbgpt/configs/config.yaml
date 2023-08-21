@@ -39,6 +39,7 @@ DEFAULT:
       gpt4_model: "gpt-4"
   PRODUCT_CATALOG:
     vector_store_class: redis_no_lock
+    product_retrieval_k: 10
     redis_index_name: bullsmart-product-catalog
   # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:

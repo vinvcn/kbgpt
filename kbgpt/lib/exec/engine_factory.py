@@ -6,6 +6,7 @@ from kbgpt.lib.exec.engines import (
     CommentEngine,
     Embed,
     Engine,
+    JinjaEngine,
     ReportEngine,
     SimilaritySearch,
     SimpleEngine,
@@ -15,6 +16,7 @@ from kbgpt.lib.exec.engines import (
 from kbgpt.lib.exec.models import (
     CommentEngineMod,
     EmbedEngineMod,
+    JinjaEngineMod,
     MapperEngineMod,
     ReportEngineMod,
     SimilaritySearchMod,
@@ -36,6 +38,10 @@ class EngineFactory:
     @create_from_model.register
     def create_from_model_simple(self, mod: SimpleEngineMod) -> "SimpleEngine":
         return SimpleEngine(config=mod)
+
+    @create_from_model.register
+    def create_from_jinja_mod(self, mod: JinjaEngineMod) -> "JinjaEngineMod":
+        return JinjaEngine(config=mod)
 
     @create_from_model.register
     def create_from_model_embed(self, mod: EmbedEngineMod) -> Embed:

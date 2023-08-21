@@ -208,8 +208,8 @@ class NodeExecutor:
             # save output to context
             ctx.outputs[self.node.id] = engine_result
             logging.info("execution done for node:\n%s", self.node)
-            logging.info("inputs:\n%s", json.dumps(engine_in, indent=4))
-            logging.info("outputs:\n%s", json.dumps(engine_result, indent=4))
+            # logging.info("inputs:\n%s", json.dumps(engine_in, indent=4))
+            # logging.info("outputs:\n%s", json.dumps(engine_result, indent=4))
         except Exception as e:
             logging.exception(e)
             raise e
@@ -249,22 +249,9 @@ class GraphExecutor:
                         and not isinstance(r, CheckerFailedException)
                     ]
                     if excepts:
-                        exec_exception = ExecutionException(
-                            "execution encountered exceptions:"
-                        )
-                        for i in excepts:
-                            try:
-                                raise node_results[i]
-                            except:  # pylint: disable = bare-except
-                                exc_type, exc_value, exc_traceback = sys.exc_info()
-                                new_exc = exc_type(
-                                    f"{exec_exception}\n{node_results[i]}"
-                                )
-                                new_exc.__cause__ = exc_value
-                                new_exc.__traceback__ = exc_traceback
-                                exec_exception = new_exc
-
-                        raise exec_exception
+                        raise ExecutionException(
+                            f"execution encountered exceptions for node {ls_nodes[excepts[0]]}"
+                        ) from node_results[excepts[0]]
 
             except StopIteration:
                 pass

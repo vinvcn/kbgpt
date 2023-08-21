@@ -111,6 +111,7 @@ class ProductCatalog(SuperConfig):
     """product catalog configuration"""
 
     vector_store_class: str
+    product_retrieval_k: int
     redis_index_name: str
 
 
