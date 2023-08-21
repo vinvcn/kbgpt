@@ -167,7 +167,7 @@ async def test_some_multiplexer_execution(linear_graph):
 @pytest.mark.asyncio
 async def test_pre_cond_failed_executioin(linear_graph: Graph):
     node: GraphNode = linear_graph.nodes[2]
-    node.node.pre = EqCheckerMod(key="uri", trg_value="not equal value")
+    node.node.pre = EqCheckerMod(key="content", trg_value="not equal value")
     linear_graph.sel = SelectorMultiplexer(
         selectors=[
             Selector(node="test1", key="answer1", to_key="secondary"),

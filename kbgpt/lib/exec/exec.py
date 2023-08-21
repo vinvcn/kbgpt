@@ -253,6 +253,12 @@ class GraphExecutor:
                             f"execution encountered exceptions for node {ls_nodes[excepts[0]]}"
                         ) from node_results[excepts[0]]
 
+                    excepts = [
+                        i
+                        for i, r in enumerate(node_results)
+                        if isinstance(r, CheckerFailedException)
+                    ]
+
             except StopIteration:
                 pass
 
@@ -261,7 +267,7 @@ class GraphExecutor:
             output_dict, _ = await SelectorExec(self.graph.sel).exec(ctx)
 
             logging.debug(
-                "graph execution completes, result context:\n%s", ctx.json(indent=4)
+                "graph execution completes, result context:\n%s", ctx.outputs.keys()
             )
             logging.debug("outputs:\n%s", json.dumps(output_dict))
             return output_dict

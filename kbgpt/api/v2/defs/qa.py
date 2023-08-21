@@ -62,10 +62,11 @@ def qa_graph():
     answer_without_context = GraphNode(
         node=Node(
             id="answer_without_context",
-            engine=SimpleEngineMod(
+            engine=JinjaEngineMod(
                 name="qa.answer_without_context",
                 keys_in=["question"],
                 models=[profile.generative_model, profile.qa.generative_model],
+                stream=True,
             ),
             frm=SelectorMultiplexer(
                 selectors=[
@@ -87,6 +88,7 @@ def qa_graph():
                 name="qa.answer_question_with_context",
                 keys_in=["question", "context"],
                 models=[profile.generative_model, profile.qa.generative_model],
+                stream=True,
             ),
             frm=SelectorMultiplexer(
                 selectors=[
@@ -181,10 +183,11 @@ def qa_graph():
         node=Node(
             id="say_recommendation_hooks",
             engine=JinjaEngineMod(
-                stream=True,
+                # stream=True,
                 name="qa.say_recommendation_hooks",
                 keys_in=["question", "answer", "products"],
                 models=[profile.generative_model, profile.qa.generative_model],
+                stream=True,
             ),
             frm=SelectorMultiplexer(
                 selectors=[
