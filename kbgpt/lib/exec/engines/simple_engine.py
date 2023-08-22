@@ -11,8 +11,7 @@ class SimpleEngine(Engine):
     """clasify engine"""
 
     def __init__(self, config: SimpleMod):
-        super().__init__()
-        self.config = config
+        super().__init__(config)
         self.tmp_repo = TemplateFactory().create()
         self.openai = OpenAI()
 

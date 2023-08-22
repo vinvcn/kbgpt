@@ -11,8 +11,7 @@ class Embed(Engine):
     """engine that calculates embeddings"""
 
     def __init__(self, config: EmbedMod) -> None:
-        super().__init__()
-        self.config = config
+        super().__init__(mod=config)
         self.openai = OpenAI()
 
     async def agenerate(self, **kwargs) -> Dict[str, Any]:

@@ -14,8 +14,7 @@ from .engine import Engine
 
 class Jinja(Engine):
     def __init__(self, config: JinjaMod):
-        super().__init__()
-        self.config = config
+        super().__init__(config)
         self.tmp_repo = TemplateFactory().create()
         self.jinja_env = Environment(
             trim_blocks=True, lstrip_blocks=True, loader=Jinja2RedisLoader()

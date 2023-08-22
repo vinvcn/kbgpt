@@ -1,4 +1,5 @@
 from functools import singledispatchmethod
+from typing import List
 
 from kbgpt.lib.exec.engines.configs.models import (
     EmbedMod,
@@ -7,6 +8,9 @@ from kbgpt.lib.exec.engines.configs.models import (
     SimpleMod,
     TestMod,
 )
+from kbgpt.lib.exec.engines.factory_models import Factory, FactoryCreationFailed
+from kbgpt.lib.exec.qa.factory import QAEngFactory
+from kbgpt.lib.exec.template_factory import TemplateFactory
 from kbgpt.lib.templates.rendering.models import TemplateRepo
 
 from .embed import Embed
@@ -17,7 +21,7 @@ from .simple_engine import SimpleEngine
 from .test_engine import TestEngine
 
 
-class EngineFactory:
+class EngineFactory(Factory):
     def __init__(self, temp_repo: TemplateRepo) -> None:
         self.temp_repo: TemplateRepo = temp_repo
 
@@ -46,3 +50,21 @@ class EngineFactory:
     @create_from_model.register
     def create_from_test(self, mod: TestMod) -> "TestEngine":
         return TestEngine(confg=mod)
+
+
+class ChainedFactory(Factory):
+    def __init__(self, chain: List[Factory]):
+        self.chain = chain
+
+    def create_from_model(self, mod) -> "Engine":
+        for facto in self.chain:
+            try:
+                return facto.create_from_model(mod)
+            except:
+                pass
+        raise FactoryCreationFailed(f"failed to create object for argument {mod}")
+
+
+CORE_FACTORY = ChainedFactory(
+    chain=[EngineFactory(TemplateFactory().create()), QAEngFactory()]
+)

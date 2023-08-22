@@ -56,7 +56,8 @@ def linear_graph():
             selectors=[
                 Selector(node="test1", key="answer1", to_key="secondary"),
                 Selector(node="test3", key="answer"),
-            ]
+            ],
+            mode=MultiplexerType.SOME,
         ),
     )
     yield graph

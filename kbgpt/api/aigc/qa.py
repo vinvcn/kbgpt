@@ -29,9 +29,12 @@ from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
+from kbgpt.lib.exec.pipeline.graph_exec import GraphExecutor
 from kbgpt.svc.aigc.qa.cache_qa_services import ProxiedQAAgent
 from kbgpt.svc.aigc.qa.file_services import ProxiedDocAgent
+from kbgpt.svc.aigc.qa.qa_graph import QA_GRAPH
 from kbgpt.svc.aigc.qa.qa_services import QAagent
+from kbgpt.svc.aigc.unified import AIGCAgent
 
 QA = Blueprint("qa", url_prefix="qa")
 
@@ -109,34 +112,44 @@ async def answer_question(request: Request, body: Question):
 
     # pylint: disable=broad-except
     try:
-        question = body.question
-
-        retriever = create_vector_store_strategy(
-            profile.qa.business_type
-        ).get_retriever(k=profile.vector_store.vector_retrival_k)
-
-        docs = retriever.get_relevant_documents(query=question)
-
-        agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        agent_result = await agent.answer_question(
-            question=question, streaming=True, callbacks=callbacks, docs=docs
+        callbacks = [StreamingAsyncHandler(response.send)]
+        await GraphExecutor(QA_GRAPH).exec(
+            {
+                "question": body.question,
+                "words_limit": 38,
+                "callbacks": callbacks,
+            }
         )
-        await response.send(f"data: {agent_result.json(exclude_none=True)}\n")
 
-        final_result = None
-        if body.recomm_type == RecommType.GPT3_5 or body.recomm_type == RecommType.GPT4:
-            pass_docs = tuple(d.dict() for d in docs)
-            final_result = await recomm_by_prompt(
-                body, callbacks, agent_result, docs=pass_docs
-            )
-        elif body.recomm_type == RecommType.SIMILARITY:
-            final_result = await recomm_by_similarity(
-                body, callbacks, question, agent_result
-            )
-        else:
-            raise ValueError(f"no such recommendation type {body.recomm_type.value}")
-        if final_result:
-            await response.send(f"data: {final_result.json(exclude_none=True)}")
+        # await AIGCAgent(request).invoke(body=body)
+        # question = body.question
+
+        # retriever = create_vector_store_strategy(
+        #     profile.qa.business_type
+        # ).get_retriever(k=profile.vector_store.vector_retrival_k)
+
+        # docs = retriever.get_relevant_documents(query=question)
+
+        # agent = ProxiedQAAgent(request.app, QAagent.get_instance())
+        # agent_result = await agent.answer_question(
+        #     question=question, streaming=True, callbacks=callbacks, docs=docs
+        # )
+        # await response.send(f"data: {agent_result.json(exclude_none=True)}\n")
+
+        # final_result = None
+        # if body.recomm_type == RecommType.GPT3_5 or body.recomm_type == RecommType.GPT4:
+        #     pass_docs = tuple(d.dict() for d in docs)
+        #     final_result = await recomm_by_prompt(
+        #         body, callbacks, agent_result, docs=pass_docs
+        #     )
+        # elif body.recomm_type == RecommType.SIMILARITY:
+        #     final_result = await recomm_by_similarity(
+        #         body, callbacks, question, agent_result
+        #     )
+        # else:
+        #     raise ValueError(f"no such recommendation type {body.recomm_type.value}")
+        # if final_result:
+        #     await response.send(f"data: {final_result.json(exclude_none=True)}")
     except Exception as e:
         logging.exception(e)
         obj = {"success": False, "error": str(e)}

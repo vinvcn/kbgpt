@@ -12,8 +12,7 @@ class SimilaritySearch(Engine):
     """search redis index for given embedding"""
 
     def __init__(self, config: SimilaritySearchMod) -> None:
-        super().__init__()
-        self.config = config
+        super().__init__(config)
         embedding_func = get_embeddings()
         self.redis: MyRedis = MyRedis.from_existing_index(
             embedding_func, config.index, redis_url=profile.vector_store.redis_url

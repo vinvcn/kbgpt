@@ -50,6 +50,24 @@ class TestMod(EngineMod):
     output: Dict[str, Any] = Field({})
 
 
+class OutputMod(EngineMod):
+    type: Literal["output_engine"] = Field("output_engine")
+
+
+class RecomOutTransMod(EngineMod):
+    type: Literal["recomm_transform"] = Field("recomm_transform")
+
+
+class QAOutputMod(OutputMod):
+    type: Literal["qa_output"] = Field("qa_output")
+    stream: bool = Field(False)
+
+
+class RecomOutMod(OutputMod):
+    type: Literal["recomm_output"] = Field("recomm_output")
+    stream: bool = Field(False)
+
+
 EngineTypes = Union[
     SimpleMod,
     EmbedMod,
@@ -57,4 +75,7 @@ EngineTypes = Union[
     SimilaritySearchMod,
     MapperMod,
     TestMod,
+    QAOutputMod,
+    RecomOutTransMod,
+    RecomOutMod,
 ]

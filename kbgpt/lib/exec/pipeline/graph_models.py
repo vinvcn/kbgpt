@@ -1,15 +1,24 @@
 from copy import deepcopy
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
+from pytest import fail
 
 from kbgpt.lib.exec.pipeline.node_models import Node
 from kbgpt.lib.exec.pipeline.selector_models import SelectorMultiplexer
 
 
+class TriggerMode(Enum):
+    ALL = 0
+    ANY = 1
+    NONE = 3
+
+
 class GraphNode(BaseModel):
     node: Optional[Node]
     src: List["GraphNode"] = Field([])
+    trigger: TriggerMode = Field(TriggerMode.ALL)
 
     @property
     def id(self):
@@ -94,38 +103,65 @@ class Graph(BaseModel):
 
     def iter_next_nodes(self) -> List["GraphNode"]:
         """Returns a list of nodes with 0 source from gn and removes it from other's src list"""
-        copied = deepcopy(self)
         # visited = set()
         failed = set()
+        succeed = set()
+        pending = set(deepcopy(self).nodes)
 
         while True:
-            node_cnt_before = len(copied.nodes)
-            # find all nodes with in degree 0 and but not in failed
-            next_nodes = [
-                n for n in copied.nodes if len(n.src) == 0 and n not in failed
-            ]
+            node_cnt_before = len(pending)
+            # find all nodes with all upstream in complete state
+            next_nodes = []
+            for n in pending:
+                if len(n.src) == 0:
+                    next_nodes.append(n)
+                elif all(s not in pending for s in n.src):
+                    # if all src finished
+                    if n.trigger == TriggerMode.ALL and all(
+                        s in succeed for s in n.src
+                    ):
+                        # if all succeed
+                        next_nodes.append(n)
+                    elif n.trigger == TriggerMode.ANY and any(
+                        s in succeed for s in n.src
+                    ):
+                        # if any succeeded
+                        next_nodes.append(n)
+                    elif n.trigger == TriggerMode.NONE:
+                        # if none succeeded
+                        next_nodes.append(n)
+                else:
+                    pass
+
+            # next_nodes = [
+            #     n for n in pending if len(n.src) == 0 and n not in failed
+            # ]
             # get it from thie original graph
-            to_yield = [n for n in self.nodes if n in next_nodes]
+            # to_yield = [n for n in self.nodes if n in next_nodes]
             # yield it
-            indes = yield to_yield
+            indes = yield next_nodes
             # visited.update(next_nodes)
+            pending = pending - set(next_nodes)
             if indes:
-                # add it to visited
                 failed.update(next_nodes[i] for i in indes)
+                succeed.update(set(next_nodes) - failed)
+            else:
+                succeed.update(set(next_nodes))
 
             # remove all 0 in degree node
-            copied.nodes = [n for n in copied.nodes if len(n.src) > 0 or n in failed]
+            # copied.nodes = [n for n in copied.nodes if len(n.src) > 0 or n in failed]
 
             # remove all processed nodes from the downstream src list
-            for copied_node in copied.nodes:
-                for to_remove_node in set(next_nodes) - failed:
-                    copied_node.src = [
-                        n
-                        for n in copied_node.src
-                        if n.node.id != to_remove_node.node.id
-                    ]
+            # for copied_node in copied.nodes:
+            #     for to_remove_node in set(next_nodes) - failed:
+            #         # for all succeed nodes
+            #         copied_node.src = [
+            #             n
+            #             for n in copied_node.src
+            #             if n.node.id != to_remove_node.node.id
+            #         ]
 
-            if node_cnt_before == len(copied.nodes):
+            if node_cnt_before == len(pending):
                 # if the graph size not shrink
                 break
 

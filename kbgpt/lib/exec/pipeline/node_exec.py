@@ -1,6 +1,6 @@
 import logging
 
-import kbgpt.lib.exec.engines.engine_factory
+import kbgpt.lib.exec.engines.factory
 from kbgpt.lib.exec.pipeline.checker_exec import CheckerExec
 from kbgpt.lib.exec.pipeline.checker_factory import CheckerFactory
 from kbgpt.lib.exec.pipeline.graph_models import ExecutionContext, GraphNode
@@ -11,9 +11,7 @@ from kbgpt.lib.exec.template_factory import TemplateFactory
 class NodeExecutor:
     def __init__(self, node: GraphNode) -> None:
         self.node = node
-        self.enginefact = kbgpt.lib.exec.engines.engine_factory.EngineFactory(
-            TemplateFactory().create()
-        )
+        self.enginefact = kbgpt.lib.exec.engines.factory.CORE_FACTORY
         self.checkerfact = CheckerFactory()
 
     # async def validate(self):
