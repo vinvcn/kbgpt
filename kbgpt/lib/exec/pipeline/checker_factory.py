@@ -1,13 +1,12 @@
 from functools import singledispatchmethod
 
-from kbgpt.lib.exec.engine_checkers import (
+from kbgpt.lib.exec.pipeline.checker_exec import (
     Checker,
     EqChecker,
     EvalChecker,
     InListChecker,
 )
-from kbgpt.lib.exec.models import (
-    CheckerMod,
+from kbgpt.lib.exec.pipeline.checker_models import (
     EqCheckerMod,
     EvalCheckerMod,
     InListCheckerMod,

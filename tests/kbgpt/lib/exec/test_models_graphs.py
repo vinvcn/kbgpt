@@ -1,6 +1,8 @@
 import pytest
 
-from kbgpt.lib.exec.models import *
+from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
+from kbgpt.lib.exec.pipeline.node_models import Node
+from kbgpt.lib.exec.pipeline.selector_models import SelectorMultiplexer
 
 
 def test_is_connected_empty_graph():

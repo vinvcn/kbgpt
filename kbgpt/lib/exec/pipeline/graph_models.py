@@ -1,173 +1,10 @@
-from collections import namedtuple
 from copy import deepcopy
-from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
-from uuid import uuid4
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
-
-class CheckerMod(BaseModel):
-    type: Literal["type"]
-    key: str
-
-
-class InListCheckerMod(CheckerMod):
-    type: Literal["in_list"] = Field("in_list")
-    trg_list: Optional[List[Any]]
-
-
-class EqCheckerMod(CheckerMod):
-    type: Literal["eq"] = Field("eq")
-    trg_value: Optional[Any]
-
-
-class EvalCheckerMod(CheckerMod):
-    type: Literal["eval"] = Field("eval")
-    eval_exp: str
-
-
-class EngineMod(BaseModel):
-    type: Literal["engine"]
-    # out_keys: List[str]
-
-    def __repr__(self) -> str:
-        return f"Engine:{self.type}"
-
-
-class MapperEngineMod(EngineMod):
-    type: Literal["mapper_engine"]
-    mapping: Dict[str, Any]
-
-
-class EmbedEngineMod(EngineMod):
-    type: Literal["embed_engine"] = Field("embed_engine")
-    key_and_labels: Dict[str, str]
-
-
-class SimilaritySearchMod(EngineMod):
-    type: Literal["similarity_search_engine"] = Field("similarity_search_engine")
-    index: str
-    k: int
-    min_threshold: Optional[float]
-
-
-class TemplateEngineMod(EngineMod):
-    type: Literal["template_engine"]
-    stream: bool = Field(False)
-    keys_in: List[str]
-    models: List[str]
-    name: str
-
-
-class SimpleEngineMod(TemplateEngineMod):
-    type: Literal["simple_engine"] = Field("simple_engine")
-
-
-class JinjaEngineMod(TemplateEngineMod):
-    type: Literal["jinja_engine"] = Field("jinja_engine")
-
-
-class CommentEngineMod(EngineMod):
-    type: Literal["comment_engine"]
-    name: str
-
-
-class ReportEngineMod(EngineMod):
-    type: Literal["report_engine"] = Field("report_engine")
-    name: str
-    render_config: Dict[str, Any]
-
-
-class ToVoiceEngineMod(EngineMod):
-    type: Literal["to_voice_engine"]
-
-
-class TestEngineMod(EngineMod):
-    type: Literal["test_engine"] = Field("test_engine")
-    input_keys: List[str] = Field([])
-    output: Dict[str, Any] = Field({})
-
-
-class Selector(BaseModel):
-    node: str = Field("")
-    key: str = Field("")
-    to_key: str = Field("")
-
-    class Config:
-        frozen = True
-
-    def with_to_key(self, to_key: str):
-        return self.copy(update={"to_key": to_key})
-
-
-class MultiplexerType(Enum):
-    ALL = "all"
-    SOME = "some"
-    FIRST = "first"
-
-
-class SelectorMultiplexer(BaseModel):
-    selectors: List[Selector]
-    mode: MultiplexerType = Field(MultiplexerType.ALL)
-
-
-class Expression(BaseModel):
-    def eval(self):
-        pass
-
-
-class Condition(Expression):
-    value: Any
-
-    def eval(self):
-        return self.value
-
-
-EngineTypes = Union[
-    ToVoiceEngineMod,
-    ReportEngineMod,
-    CommentEngineMod,
-    SimpleEngineMod,
-    EmbedEngineMod,
-    JinjaEngineMod,
-    SimilaritySearchMod,
-    MapperEngineMod,
-    TestEngineMod,
-]
-
-_CheckerTypes = Union[InListCheckerMod, EqCheckerMod, EvalCheckerMod]
-
-CheckerTypes = Union[_CheckerTypes, List[_CheckerTypes]]
-
-
-class Node(BaseModel):
-    engine: Optional[EngineTypes] = Field(None, discriminator="type")
-    id: str
-    frm: Optional[SelectorMultiplexer]
-    sel: Dict[str, str] = Field({})
-    pre: Optional[CheckerTypes]
-    post: Optional[CheckerTypes]
-
-    # pylint: disable = E0213:no-self-argument
-    @validator("id", pre=True)
-    def validate_id(val):
-        """validate id field"""
-        if not val:
-            return str(uuid4())
-        else:
-            return val
-
-    def __repr__(self) -> str:
-        return f"Node[id:{self.id},engine:{repr(self.engine)}]"
-
-    @property
-    def selectors(self):
-        if self.engine.out_keys:
-            Selectors = namedtuple("Selectors", self.engine.out_keys)
-            return Selectors(
-                *[Selector(node=self.id, key=k) for k in self.engine.out_keys]
-            )
+from kbgpt.lib.exec.pipeline.node_models import Node
+from kbgpt.lib.exec.pipeline.selector_models import SelectorMultiplexer
 
 
 class GraphNode(BaseModel):
@@ -291,3 +128,11 @@ class Graph(BaseModel):
             if node_cnt_before == len(copied.nodes):
                 # if the graph size not shrink
                 break
+
+
+class ExecutionContext(BaseModel):
+    outputs: Dict[str, Any] = Field({})
+
+
+class ExecutionException(Exception):
+    pass

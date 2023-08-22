@@ -1,7 +1,15 @@
 import pytest
 
-from kbgpt.lib.exec.exec import GraphExecutor
-from kbgpt.lib.exec.models import *
+from kbgpt.lib.exec.engines.configs.models import TestMod
+from kbgpt.lib.exec.pipeline.checker_models import EqCheckerMod
+from kbgpt.lib.exec.pipeline.graph_exec import GraphExecutor
+from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
+from kbgpt.lib.exec.pipeline.node_models import Node
+from kbgpt.lib.exec.pipeline.selector_models import (
+    MultiplexerType,
+    Selector,
+    SelectorMultiplexer,
+)
 
 
 @pytest.fixture
@@ -9,7 +17,7 @@ def conditional_nodes():
     A = GraphNode(
         node=Node(
             id="A",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "no"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "no"}),
             frm=SelectorMultiplexer(
                 selectors=[Selector(node="seed", key="question", to_key="content")]
             ),
@@ -20,7 +28,7 @@ def conditional_nodes():
     B = GraphNode(
         node=Node(
             id="B",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "B"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "B"}),
             frm=SelectorMultiplexer(selectors=[Selector(node="A", key="content")]),
             sel={"answer": "content"},
             pre=EqCheckerMod(key="content", trg_value="yes"),
@@ -30,7 +38,7 @@ def conditional_nodes():
     C = GraphNode(
         node=Node(
             id="C",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "C"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "C"}),
             frm=SelectorMultiplexer(selectors=[Selector(node="A", key="content")]),
             sel={"answer": "content"},
             pre=EqCheckerMod(key="content", trg_value="no"),

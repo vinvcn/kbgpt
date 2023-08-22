@@ -4,9 +4,11 @@ import pytest
 
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.api.v2.defs.qa import qa_graph
-from kbgpt.lib.exec.engines import Embed, SimilaritySearch, SimpleEngine
-from kbgpt.lib.exec.exec import GraphExecutor
-from kbgpt.lib.exec.models import EqCheckerMod
+from kbgpt.lib.exec.engines.embed import Embed
+from kbgpt.lib.exec.engines.similarity_search import SimilaritySearch
+from kbgpt.lib.exec.engines.simple_engine import SimpleEngine
+from kbgpt.lib.exec.pipeline.checker_models import EqCheckerMod
+from kbgpt.lib.exec.pipeline.graph_exec import GraphExecutor
 
 
 @pytest.fixture

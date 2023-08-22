@@ -1,11 +1,31 @@
 import abc
 
-from kbgpt.lib.exec.models import (
+from kbgpt.lib.exec.pipeline.checker_models import (
     CheckerMod,
+    CheckerTypes,
     EqCheckerMod,
     EvalCheckerMod,
     InListCheckerMod,
 )
+
+
+class CheckerExec:
+    def __init__(self, checkers: CheckerTypes) -> None:
+        from kbgpt.lib.exec.pipeline.checker_factory import CheckerFactory
+
+        self.checkers = checkers
+        self.factory = CheckerFactory()
+
+    async def exec(self, params):
+        if not self.checkers:
+            return
+
+        if not isinstance(self.checkers, list):
+            self.checkers = [self.checkers]
+
+        for mod in self.checkers:
+            checker = self.factory.create_from_model(mod)
+            await checker.check(**params)
 
 
 class CheckerFailedException(Exception):

@@ -3,16 +3,24 @@ import logging
 
 import pytest
 
-from kbgpt.lib.exec.engines import TestEngine
-from kbgpt.lib.exec.exec import GraphExecutor
-from kbgpt.lib.exec.models import *
+from kbgpt.lib.exec.engines.configs.models import TestMod
+from kbgpt.lib.exec.engines.test_engine import TestEngine
+from kbgpt.lib.exec.pipeline.checker_models import EqCheckerMod
+from kbgpt.lib.exec.pipeline.graph_exec import GraphExecutor
+from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
+from kbgpt.lib.exec.pipeline.node_models import Node
+from kbgpt.lib.exec.pipeline.selector_models import (
+    MultiplexerType,
+    Selector,
+    SelectorMultiplexer,
+)
 
 
 @pytest.fixture
 def linear_graph():
     node1 = GraphNode(
         node=Node(
-            engine=TestEngineMod(
+            engine=TestMod(
                 input_keys=["question"], output={"answer1": "yes", "answer2": "No"}
             ),
             id="test1",
@@ -22,7 +30,7 @@ def linear_graph():
 
     node2 = GraphNode(
         node=Node(
-            engine=TestEngineMod(input_keys=["content"], output={"uri": "http://asdf"}),
+            engine=TestMod(input_keys=["content"], output={"uri": "http://asdf"}),
             id="test2",
             frm=SelectorMultiplexer(
                 selectors=[Selector(node="test1", key="answer1", to_key="content")]
@@ -33,7 +41,7 @@ def linear_graph():
 
     node3 = GraphNode(
         node=Node(
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "Yes"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "Yes"}),
             id="test3",
             frm=SelectorMultiplexer(
                 selectors=[Selector(node="test2", key="uri", to_key="content")],
@@ -68,7 +76,7 @@ async def test_diverge_execution():
     A = GraphNode(
         node=Node(
             id="A",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "A"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "A"}),
             frm=SelectorMultiplexer(
                 selectors=[Selector(node="seed", key="question", to_key="content")]
             ),
@@ -79,7 +87,7 @@ async def test_diverge_execution():
     B = GraphNode(
         node=Node(
             id="B",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "B"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "B"}),
             frm=SelectorMultiplexer(selectors=[Selector(node="A", key="content")]),
             sel={"answer": "content"},
         ),
@@ -88,7 +96,7 @@ async def test_diverge_execution():
     C = GraphNode(
         node=Node(
             id="C",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "C"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "C"}),
             frm=SelectorMultiplexer(selectors=[Selector(node="A", key="content")]),
             sel={"answer": "content"},
         ),
@@ -97,7 +105,7 @@ async def test_diverge_execution():
     D = GraphNode(
         node=Node(
             id="D",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "D"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "D"}),
             sel={"answer": "content"},
             frm=SelectorMultiplexer(selectors=[Selector(node="B", key="content")]),
         ),
@@ -106,7 +114,7 @@ async def test_diverge_execution():
     E = GraphNode(
         node=Node(
             id="E",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "E"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "E"}),
             frm=SelectorMultiplexer(selectors=[Selector(node="C", key="content")]),
             sel={"answer": "content"},
         ),
@@ -115,7 +123,7 @@ async def test_diverge_execution():
     F = GraphNode(
         node=Node(
             id="F",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "F"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "F"}),
             frm=SelectorMultiplexer(selectors=[Selector(node="E", key="content")]),
             sel={"answer": "content"},
         ),
@@ -124,7 +132,7 @@ async def test_diverge_execution():
     G = GraphNode(
         node=Node(
             id="G",
-            engine=TestEngineMod(input_keys=["content"], output={"answer": "G"}),
+            engine=TestMod(input_keys=["content"], output={"answer": "G"}),
             frm=SelectorMultiplexer(selectors=[Selector(node="D", key="content")]),
             sel={"answer": "content"},
         ),

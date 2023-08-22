@@ -1,17 +1,17 @@
 from config import profile
-from kbgpt.lib.exec.models import (
-    EmbedEngineMod,
-    EvalCheckerMod,
-    Graph,
-    GraphNode,
-    JinjaEngineMod,
+from kbgpt.lib.exec.engines.configs.models import (
+    EmbedMod,
+    JinjaMod,
+    SimilaritySearchMod,
+    TemplateMod,
+)
+from kbgpt.lib.exec.pipeline.checker_models import EvalCheckerMod
+from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
+from kbgpt.lib.exec.pipeline.node_models import Node
+from kbgpt.lib.exec.pipeline.selector_models import (
     MultiplexerType,
-    Node,
     Selector,
     SelectorMultiplexer,
-    SimilaritySearchMod,
-    SimpleEngineMod,
-    TemplateEngineMod,
 )
 
 
@@ -19,7 +19,7 @@ def qa_graph():
     embed_ques = GraphNode(
         node=Node(
             id="embed_question",
-            engine=EmbedEngineMod(key_and_labels={"question": ""}),
+            engine=EmbedMod(key_and_labels={"question": ""}),
             frm=SelectorMultiplexer(selectors=[Selector(node="seed", key="question")]),
         ),
         src=[],
@@ -44,7 +44,7 @@ def qa_graph():
     is_context_related = GraphNode(
         node=Node(
             id="is_context_related",
-            engine=JinjaEngineMod(
+            engine=JinjaMod(
                 name="qa.is_context_related",
                 keys_in=["question", "context"],
                 models=[profile.generative_model, profile.qa.generative_model],
@@ -62,7 +62,7 @@ def qa_graph():
     answer_without_context = GraphNode(
         node=Node(
             id="answer_without_context",
-            engine=JinjaEngineMod(
+            engine=JinjaMod(
                 name="qa.answer_without_context",
                 keys_in=["question"],
                 models=[profile.generative_model, profile.qa.generative_model],
@@ -84,7 +84,7 @@ def qa_graph():
     answer_question_with_context = GraphNode(
         node=Node(
             id="answer_question_with_context",
-            engine=JinjaEngineMod(
+            engine=JinjaMod(
                 name="qa.answer_question_with_context",
                 keys_in=["question", "context"],
                 models=[profile.generative_model, profile.qa.generative_model],
@@ -110,7 +110,7 @@ def qa_graph():
     embed_question_answer_context = GraphNode(
         node=Node(
             id="embed_question_answer_context",
-            engine=EmbedEngineMod(
+            engine=EmbedMod(
                 key_and_labels={
                     "context": "Context",
                     "question": "Question",
@@ -154,7 +154,7 @@ def qa_graph():
     recommend_products = GraphNode(
         node=Node(
             id="recommend_products",
-            engine=JinjaEngineMod(
+            engine=JinjaMod(
                 name="qa.recommend_products",
                 keys_in=["question", "answer", "context", "products"],
                 models=[profile.generative_model, profile.qa.generative_model],
@@ -182,7 +182,7 @@ def qa_graph():
     say_recommendation_hooks = GraphNode(
         node=Node(
             id="say_recommendation_hooks",
-            engine=JinjaEngineMod(
+            engine=JinjaMod(
                 # stream=True,
                 name="qa.say_recommendation_hooks",
                 keys_in=["question", "answer", "products"],
@@ -222,7 +222,7 @@ def qa_graph():
 
     for nod in [node.node for node in nodes]:
         engine = nod.engine
-        if isinstance(engine, TemplateEngineMod):
+        if isinstance(engine, TemplateMod):
             if engine.stream:
                 engine.keys_in.append("callbacks")
                 nod.frm.selectors.append(Selector(node="seed", key="callbacks"))
@@ -244,3 +244,6 @@ def qa_graph():
         ),
     )
     return graph
+
+
+QA_GRAPH = qa_graph()
