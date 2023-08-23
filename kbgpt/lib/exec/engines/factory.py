@@ -3,12 +3,14 @@ from typing import List
 
 from kbgpt.lib.exec.engines.configs.models import (
     EmbedMod,
+    GraphExecMod,
     JinjaMod,
     SimilaritySearchMod,
     SimpleMod,
     TestMod,
 )
 from kbgpt.lib.exec.engines.factory_models import Factory, FactoryCreationFailed
+from kbgpt.lib.exec.engines.graph import GraphExec
 from kbgpt.lib.exec.qa.factory import QAEngFactory
 from kbgpt.lib.exec.template_factory import TemplateFactory
 from kbgpt.lib.templates.rendering.models import TemplateRepo
@@ -36,6 +38,10 @@ class EngineFactory(Factory):
     @create_from_model.register
     def create_from_jinja_mod(self, mod: JinjaMod) -> "JinjaMod":
         return Jinja(config=mod)
+
+    @create_from_model.register
+    def _(self, mod: GraphExecMod) -> GraphExec:
+        return GraphExec(mod=mod)
 
     @create_from_model.register
     def create_from_model_embed(self, mod: EmbedMod) -> Embed:

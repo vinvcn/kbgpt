@@ -1,6 +1,7 @@
 from config import profile
 from kbgpt.lib.exec.engines.configs.models import (
     EmbedMod,
+    GraphExecMod,
     JinjaMod,
     OutputMod,
     QAOutputMod,
@@ -17,50 +18,17 @@ from kbgpt.lib.exec.pipeline.selector_models import (
     Selector,
     SelectorMultiplexer,
 )
+from kbgpt.svc.aigc.qa.qa_graph_sub import fetch_context_graph, recommend_sub_graph
 
 
 def qa_graph():
-    embed_ques = GraphNode(
+    fetch_context_n_is_related = GraphNode(
         node=Node(
-            id="embed_question",
-            engine=EmbedMod(key_and_labels={"question": ""}),
+            id="fetch_context_n_is_related",
+            engine=GraphExecMod(graph=fetch_context_graph()),
             frm=SelectorMultiplexer(selectors=[Selector(node="seed", key="question")]),
         ),
         src=[],
-    )
-
-    search_context = GraphNode(
-        node=Node(
-            id="search_context",
-            engine=SimilaritySearchMod(
-                index=profile.qa.redis_index,
-                k=profile.vector_store.vector_retrival_k,
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(node="embed_question", key="result", to_key="embedding")
-                ]
-            ),
-        ),
-        src=[embed_ques],
-    )
-
-    is_context_related = GraphNode(
-        node=Node(
-            id="is_context_related",
-            engine=JinjaMod(
-                name="qa.is_context_related",
-                keys_in=["question", "context"],
-                models=[profile.generative_model, profile.qa.generative_model],
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(node="seed", key="question"),
-                    Selector(node="search_context", key="result", to_key="context"),
-                ]
-            ),
-        ),
-        src=[search_context],
     )
 
     answer_without_context = GraphNode(
@@ -75,14 +43,12 @@ def qa_graph():
             frm=SelectorMultiplexer(
                 selectors=[
                     Selector(node="seed", key="question"),
-                    Selector(
-                        node="is_context_related", key="result", to_key="is_related"
-                    ),
+                    Selector(node="fetch_context_n_is_related", key="is_related"),
                 ]
             ),
             pre=EvalCheckerMod(key="is_related", eval_exp="is_related.lower() == 'no'"),
         ),
-        src=[is_context_related],
+        src=[fetch_context_n_is_related],
     )
 
     answer_question_with_context = GraphNode(
@@ -98,17 +64,35 @@ def qa_graph():
                 selectors=[
                     Selector(node="seed", key="question"),
                     Selector(node="seed", key="words_limit"),
-                    Selector(node="search_context", key="result", to_key="context"),
-                    Selector(
-                        node="is_context_related", key="result", to_key="is_related"
-                    ),
+                    Selector(node="fetch_context_n_is_related", key="context"),
+                    Selector(node="fetch_context_n_is_related", key="is_related"),
                 ]
             ),
             pre=EvalCheckerMod(
                 key="is_related", eval_exp="is_related.lower() == 'yes'"
             ),
         ),
-        src=[is_context_related],
+        src=[fetch_context_n_is_related],
+    )
+
+    make_recommendation_with_hooks = GraphNode(
+        node=Node(
+            id="make_recommendation_with_hooks",
+            engine=GraphExecMod(graph=recommend_sub_graph()),
+            frm=SelectorMultiplexer(
+                selectors=[
+                    Selector(node="seed", key="question"),
+                    Selector(node="seed", key="callbacks"),
+                    Selector(node="fetch_context_n_is_related", key="context"),
+                    Selector(
+                        node="answer_question_with_context",
+                        key="result",
+                        to_key="answer",
+                    ),
+                ]
+            ),
+        ),
+        src=[answer_question_with_context],
     )
 
     answer_output = GraphNode(
@@ -135,121 +119,6 @@ def qa_graph():
         trigger=TriggerMode.ANY,
     )
 
-    embed_question_answer_context = GraphNode(
-        node=Node(
-            id="embed_question_answer_context",
-            engine=EmbedMod(
-                key_and_labels={
-                    "context": "Context",
-                    "question": "Question",
-                    "answer": "Answer",
-                }
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(node="seed", key="question"),
-                    Selector(node="search_context", key="result", to_key="context"),
-                    Selector(
-                        node="answer_question_with_context",
-                        key="result",
-                        to_key="answer",
-                    ),
-                ]
-            ),
-        ),
-        src=[answer_question_with_context],
-    )
-
-    search_products = GraphNode(
-        node=Node(
-            id="search_products",
-            engine=SimilaritySearchMod(
-                index=profile.product_catalog.redis_index_name,
-                k=profile.product_catalog.product_retrieval_k,
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(
-                        node="embed_question_answer_context",
-                        key="result",
-                        to_key="embedding",
-                    ),
-                ]
-            ),
-        ),
-        src=[embed_question_answer_context],
-    )
-    recommend_products = GraphNode(
-        node=Node(
-            id="recommend_products",
-            engine=JinjaMod(
-                name="qa.recommend_products",
-                keys_in=["question", "answer", "context", "products"],
-                models=[profile.generative_model, profile.qa.generative_model],
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(node="seed", key="question"),
-                    Selector(
-                        node="answer_question_with_context",
-                        key="result",
-                        to_key="answer",
-                    ),
-                    Selector(node="search_context", key="result", to_key="context"),
-                    Selector(
-                        node="search_products",
-                        key="result",
-                        to_key="products",
-                    ),
-                ]
-            ),
-        ),
-        src=[search_products],
-    )
-
-    transform_recommend = GraphNode(
-        node=Node(
-            id="transform_recommend",
-            engine=RecomOutTransMod(),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(node="recommend_products", key="result", to_key="recomm"),
-                    Selector(node="search_products", key="result", to_key="products"),
-                ]
-            ),
-            pre=EvalCheckerMod(key="recomm", eval_exp="recomm.lower() != 'n/a'"),
-        ),
-        src=[recommend_products],
-    )
-
-    say_recommendation_hooks = GraphNode(
-        node=Node(
-            id="say_recommendation_hooks",
-            engine=JinjaMod(
-                name="qa.say_recommendation_hooks",
-                keys_in=["question", "answer", "products"],
-                models=[profile.generative_model, profile.qa.generative_model],
-                stream=True,
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(node="seed", key="question"),
-                    Selector(
-                        node="answer_question_with_context",
-                        key="result",
-                        to_key="answer",
-                    ),
-                    Selector(
-                        node="transform_recommend",
-                        key="result",
-                        to_key="products",
-                    ),
-                ]
-            ),
-        ),
-        src=[transform_recommend],
-    )
-
     recommend_output = GraphNode(
         node=Node(
             id="recommend_output",
@@ -257,31 +126,20 @@ def qa_graph():
             frm=SelectorMultiplexer(
                 selectors=[
                     Selector(
-                        node="transform_recommend", key="result", to_key="products"
+                        node="make_recommendation_with_hooks",
+                        key="products",
                     ),
                     Selector(
-                        node="say_recommendation_hooks", key="result", to_key="hook"
+                        node="make_recommendation_with_hooks",
+                        key="hook",
                     ),
                 ]
             ),
         ),
-        src=[transform_recommend, say_recommendation_hooks],
+        src=[make_recommendation_with_hooks],
     )
 
-    nodes = [
-        embed_ques,
-        search_context,
-        is_context_related,
-        answer_without_context,
-        answer_question_with_context,
-        embed_question_answer_context,
-        search_products,
-        recommend_products,
-        transform_recommend,
-        say_recommendation_hooks,
-        answer_output,
-        recommend_output,
-    ]
+    nodes = [v for k, v in locals().items() if isinstance(v, GraphNode)]
 
     for nod in [node.node for node in nodes]:
         engine = nod.engine

@@ -1,9 +1,16 @@
+import datetime
 import logging
-from typing import Any, Dict, Optional, Tuple
+import threading
+from ast import mod
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import openai
 from async_lru import alru_cache
+from openai.error import RateLimitError
 from pydantic import BaseModel, Field
+from redis import Redis
+from traitlets import default
 
 from config import profile
 from kbgpt.svc.utils.openai import get_total_cost
@@ -53,36 +60,77 @@ class Completion(BaseModel):
     metadata: Optional[Dict[str, Any]]
 
 
-class OpenAI:
+class QuotaCounter:
     def __init__(self) -> None:
+        self.tracker = {}
+        self._lock = threading.Lock()
+
+    def is_model_available(self, model):
+        with self._lock:
+            if model not in self.tracker:
+                return True
+            return datetime.datetime.utcnow() > self.tracker[
+                model
+            ] + datetime.timedelta(minutes=1)
+
+    def record(self, model):
+        with self._lock:
+            self.tracker[model] = datetime.datetime.utcnow()
+
+
+QUOTA_COUNTER = QuotaCounter()
+
+
+class NoModelAvailable(Exception):
+    pass
+
+
+class OpenAI:
+    def __init__(self, redis: Redis = None) -> None:
+        self.redis = redis
         if profile.openai.proxied:
             openai.api_base = str(profile.openai.api_base_url)
             openai.proxy = str(profile.openai.proxy_url)
 
     @alru_cache(maxsize=256, typed=True)
     async def chat_completion(
-        self, model: str, messages: Tuple[Message, ...], stream=False, **kwargs
+        self,
+        model: Union[str, Tuple[str, ...]],
+        messages: Tuple[Message, ...],
+        stream=False,
+        **kwargs,
     ) -> Completion:
         """chat completion"""
-        if stream:
-            return await openai.ChatCompletion.acreate(
-                model=model,
-                messages=[m.dict() for m in messages],
-                stream=True,
-                # organization="bullsmart",
-                **kwargs,
-            )
-        else:
-            completion = await openai.ChatCompletion.acreate(
-                model=model,
-                messages=[m.dict() for m in messages],
-                # organization="bullsmart",
-                **kwargs,
-            )
+        if isinstance(model, str):
+            model = [model]
+        exc = None
+        for model_name in model:
+            try:
+                if QUOTA_COUNTER.is_model_available(model_name):
+                    if stream:
+                        return await openai.ChatCompletion.acreate(
+                            model=model_name,
+                            messages=[m.dict() for m in messages],
+                            stream=True,
+                            # organization="bullsmart",
+                            **kwargs,
+                        )
+                    else:
+                        completion = await openai.ChatCompletion.acreate(
+                            model=model_name,
+                            messages=[m.dict() for m in messages],
+                            # organization="bullsmart",
+                            **kwargs,
+                        )
 
-            usage = Usage(model, **completion["usage"])
-            content = completion.choices[0].message["content"]
-            return Completion(usage=usage, content=content)
+                        usage = Usage(model_name, **completion["usage"])
+                        content = completion.choices[0].message["content"]
+                        return Completion(usage=usage, content=content)
+            except RateLimitError as e:
+                QUOTA_COUNTER.record(model_name)
+                exc = e
+
+        raise NoModelAvailable(f"no model available in {model}") from exc
 
     @alru_cache(maxsize=256)
     async def embed(self, content: str):

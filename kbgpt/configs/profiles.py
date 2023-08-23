@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional, Tuple
 
 from pydantic import AnyUrl, BaseModel, Field, RedisDsn, root_validator
 
@@ -48,7 +48,7 @@ class QA(SuperConfig):
     business_type: Literal["qa"] = Field("qa")
     embeddings_model: str
     generative_model: str
-    recomm: Recomm
+    recomm: Tuple[str, ...]
     customer_service_temperature: float
     request_timeout: int
     request_retry: int

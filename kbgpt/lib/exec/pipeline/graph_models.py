@@ -3,7 +3,6 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
-from pytest import fail
 
 from kbgpt.lib.exec.pipeline.node_models import Node
 from kbgpt.lib.exec.pipeline.selector_models import SelectorMultiplexer

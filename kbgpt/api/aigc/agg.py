@@ -32,7 +32,7 @@ async def gen_prompt(
     inquiry="",
     response="",
     stream=False,
-    gpt_model=profile.qa.recomm.gpt3_5_model,
+    gpt_model=profile.qa.recomm,
     **kwargs,
 ):
     prompt = jinja.get_template(tname).render(

@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class Selector(BaseModel):
     node: str = Field("")
-    key: str = Field("")
+    key: str
     to_key: str = Field("")
 
     class Config:

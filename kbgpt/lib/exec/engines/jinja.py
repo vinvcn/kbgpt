@@ -39,14 +39,14 @@ class Jinja(Engine):
         rendered = template.render(**kwargs)
         if not self.config.stream:
             completion = await self.openai.chat_completion(
-                self.config.models[0], tuple([Message(role="system", content=rendered)])
+                self.config.models, tuple([Message(role="system", content=rendered)])
             )
 
             return {"result": completion.content}
         else:
             assert "callbacks" in kwargs
             request = await self.openai.chat_completion(
-                self.config.models[0],
+                self.config.models,
                 tuple([Message(role="system", content=rendered)]),
                 stream=True,
             )

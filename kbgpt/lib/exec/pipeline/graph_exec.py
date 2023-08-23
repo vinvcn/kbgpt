@@ -69,7 +69,7 @@ class GraphExecutor:
             logging.debug(
                 "graph execution completes, result context:\n%s", ctx.outputs.keys()
             )
-            logging.debug("outputs:\n%s", json.dumps(output_dict))
+            logging.debug("output keys:\n%s", output_dict.keys())
             return output_dict
         except Exception as e:
             logging.exception(e)

@@ -22,7 +22,7 @@ class SimpleEngine(Engine):
 
         rendered = await self.tmp_repo.render(name=self.config.name, **kwargs)
         completion = await self.openai.chat_completion(
-            self.config.models[0], tuple([Message(role="system", content=rendered)])
+            self.config.models, tuple([Message(role="system", content=rendered)])
         )
         completion.prompt = rendered
         return {"result": completion.content}

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field
 
@@ -32,7 +32,7 @@ class TemplateMod(EngineMod):
     type: Literal["template_engine"]
     stream: bool = Field(False)
     keys_in: List[str]
-    models: List[str]
+    models: Tuple[str, ...]
     name: str
 
 
@@ -42,6 +42,11 @@ class SimpleMod(TemplateMod):
 
 class JinjaMod(TemplateMod):
     type: Literal["jinja_engine"] = Field("jinja_engine")
+
+
+class GraphExecMod(EngineMod):
+    type: Literal["graph_exec"] = Field("graph_exec")
+    graph: Optional[Any]
 
 
 class TestMod(EngineMod):
@@ -72,6 +77,7 @@ EngineTypes = Union[
     SimpleMod,
     EmbedMod,
     JinjaMod,
+    GraphExecMod,
     SimilaritySearchMod,
     MapperMod,
     TestMod,
