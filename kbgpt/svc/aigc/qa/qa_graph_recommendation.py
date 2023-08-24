@@ -6,6 +6,7 @@ from kbgpt.lib.exec.engines.configs.models import (
     SimilaritySearchMod,
 )
 from kbgpt.lib.exec.pipeline.checker_models import EvalCheckerMod
+from kbgpt.lib.exec.pipeline.constants import K_SEED
 from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
 from kbgpt.lib.exec.pipeline.node_models import Node
 from kbgpt.lib.exec.pipeline.selector_models import Selector, SelectorMultiplexer
@@ -24,10 +25,10 @@ def recommend_sub_graph():
             ),
             frm=SelectorMultiplexer(
                 selectors=[
-                    Selector(node="seed", key="question"),
-                    Selector(node="seed", key="context"),
+                    Selector(node=K_SEED, key="question"),
+                    Selector(node=K_SEED, key="context"),
                     Selector(
-                        node="seed",
+                        node=K_SEED,
                         key="answer",
                     ),
                 ]
@@ -67,12 +68,12 @@ def recommend_sub_graph():
             ),
             frm=SelectorMultiplexer(
                 selectors=[
-                    Selector(node="seed", key="question"),
+                    Selector(node=K_SEED, key="question"),
                     Selector(
-                        node="seed",
+                        node=K_SEED,
                         key="answer",
                     ),
-                    Selector(node="seed", key="context"),
+                    Selector(node=K_SEED, key="context"),
                     Selector(
                         node="search_products",
                         key="result",
@@ -113,12 +114,12 @@ def recommend_sub_graph():
             ),
             frm=SelectorMultiplexer(
                 selectors=[
-                    Selector(node="seed", key="question"),
+                    Selector(node=K_SEED, key="question"),
                     Selector(
-                        node="seed",
+                        node=K_SEED,
                         key="answer",
                     ),
-                    Selector(node="seed", key="context"),
+                    Selector(node=K_SEED, key="context"),
                     Selector(
                         node="transform_recommend1",
                         key="result",
@@ -156,10 +157,10 @@ def recommend_sub_graph():
             ),
             frm=SelectorMultiplexer(
                 selectors=[
-                    Selector(node="seed", key="question"),
-                    Selector(node="seed", key="callbacks"),
+                    Selector(node=K_SEED, key="question"),
+                    Selector(node=K_SEED, key="callbacks"),
                     Selector(
-                        node="seed",
+                        node=K_SEED,
                         key="answer",
                     ),
                     Selector(

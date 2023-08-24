@@ -4,6 +4,7 @@ import logging
 from typing import Any, Dict
 
 from kbgpt.lib.exec.pipeline.checker_exec import CheckerFailedException
+from kbgpt.lib.exec.pipeline.constants import K_SEED
 from kbgpt.lib.exec.pipeline.graph_models import (
     ExecutionContext,
     ExecutionException,
@@ -23,7 +24,7 @@ class GraphExecutor:
 
     async def exec(self, seed: Dict[str, Any] = dict()):
         """executes the given graph"""
-        ctx = ExecutionContext(outputs={"seed": seed.copy()})
+        ctx = ExecutionContext(outputs={K_SEED: seed.copy()})
 
         try:
             assert (

@@ -4,6 +4,7 @@ from kbgpt.lib.exec.engines.configs.models import (
     JinjaMod,
     SimilaritySearchMod,
 )
+from kbgpt.lib.exec.pipeline.constants import K_SEED
 from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
 from kbgpt.lib.exec.pipeline.node_models import Node
 from kbgpt.lib.exec.pipeline.selector_models import Selector, SelectorMultiplexer
@@ -14,7 +15,7 @@ def fetch_context_graph():
         node=Node(
             id="embed_question",
             engine=EmbedMod(key_and_labels={"question": ""}),
-            frm=SelectorMultiplexer(selectors=[Selector(node="seed", key="question")]),
+            frm=SelectorMultiplexer(selectors=[Selector(node=K_SEED, key="question")]),
         ),
         src=[],
     )
@@ -45,7 +46,7 @@ def fetch_context_graph():
             ),
             frm=SelectorMultiplexer(
                 selectors=[
-                    Selector(node="seed", key="question"),
+                    Selector(node=K_SEED, key="question"),
                     Selector(node="search_context", key="result", to_key="context"),
                 ]
             ),

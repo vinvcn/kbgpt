@@ -6,6 +6,7 @@ import pytest
 from kbgpt.lib.exec.engines.configs.models import TestMod
 from kbgpt.lib.exec.engines.test_engine import TestEngine
 from kbgpt.lib.exec.pipeline.checker_models import EqCheckerMod
+from kbgpt.lib.exec.pipeline.constants import K_SEED
 from kbgpt.lib.exec.pipeline.graph_exec import GraphExecutor
 from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
 from kbgpt.lib.exec.pipeline.node_models import Node
@@ -24,7 +25,7 @@ def linear_graph():
                 input_keys=["question"], output={"answer1": "yes", "answer2": "No"}
             ),
             id="test1",
-            frm=SelectorMultiplexer(selectors=[Selector(node="seed", key="question")]),
+            frm=SelectorMultiplexer(selectors=[Selector(node=K_SEED, key="question")]),
         )
     )
 
@@ -79,7 +80,7 @@ async def test_diverge_execution():
             id="A",
             engine=TestMod(input_keys=["content"], output={"answer": "A"}),
             frm=SelectorMultiplexer(
-                selectors=[Selector(node="seed", key="question", to_key="content")]
+                selectors=[Selector(node=K_SEED, key="question", to_key="content")]
             ),
             sel={"answer": "content"},
         ),

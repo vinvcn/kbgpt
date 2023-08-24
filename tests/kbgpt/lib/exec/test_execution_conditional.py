@@ -2,6 +2,7 @@ import pytest
 
 from kbgpt.lib.exec.engines.configs.models import TestMod
 from kbgpt.lib.exec.pipeline.checker_models import EqCheckerMod
+from kbgpt.lib.exec.pipeline.constants import K_SEED
 from kbgpt.lib.exec.pipeline.graph_exec import GraphExecutor
 from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
 from kbgpt.lib.exec.pipeline.node_models import Node
@@ -19,7 +20,7 @@ def conditional_nodes():
             id="A",
             engine=TestMod(input_keys=["content"], output={"answer": "no"}),
             frm=SelectorMultiplexer(
-                selectors=[Selector(node="seed", key="question", to_key="content")]
+                selectors=[Selector(node=K_SEED, key="question", to_key="content")]
             ),
             sel={"answer": "content"},
         ),

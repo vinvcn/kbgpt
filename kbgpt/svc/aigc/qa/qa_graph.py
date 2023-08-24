@@ -11,6 +11,7 @@ from kbgpt.lib.exec.engines.configs.models import (
     TemplateMod,
 )
 from kbgpt.lib.exec.pipeline.checker_models import EvalCheckerMod
+from kbgpt.lib.exec.pipeline.constants import K_SEED
 from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode, TriggerMode
 from kbgpt.lib.exec.pipeline.node_models import Node
 from kbgpt.lib.exec.pipeline.selector_models import (
@@ -27,7 +28,7 @@ def qa_graph():
         node=Node(
             id="fetch_context_n_is_related",
             engine=GraphExecMod(graph=fetch_context_graph()),
-            frm=SelectorMultiplexer(selectors=[Selector(node="seed", key="question")]),
+            frm=SelectorMultiplexer(selectors=[Selector(node=K_SEED, key="question")]),
         ),
         src=[],
     )
@@ -43,7 +44,7 @@ def qa_graph():
             ),
             frm=SelectorMultiplexer(
                 selectors=[
-                    Selector(node="seed", key="question"),
+                    Selector(node=K_SEED, key="question"),
                     Selector(node="fetch_context_n_is_related", key="is_related"),
                 ]
             ),
@@ -63,8 +64,8 @@ def qa_graph():
             ),
             frm=SelectorMultiplexer(
                 selectors=[
-                    Selector(node="seed", key="question"),
-                    Selector(node="seed", key="words_limit"),
+                    Selector(node=K_SEED, key="question"),
+                    Selector(node=K_SEED, key="words_limit"),
                     Selector(node="fetch_context_n_is_related", key="context"),
                     Selector(node="fetch_context_n_is_related", key="is_related"),
                 ]
@@ -82,8 +83,8 @@ def qa_graph():
             engine=GraphExecMod(graph=recommend_sub_graph()),
             frm=SelectorMultiplexer(
                 selectors=[
-                    Selector(node="seed", key="question"),
-                    Selector(node="seed", key="callbacks"),
+                    Selector(node=K_SEED, key="question"),
+                    Selector(node=K_SEED, key="callbacks"),
                     Selector(node="fetch_context_n_is_related", key="context"),
                     Selector(
                         node="answer_question_with_context",
@@ -147,10 +148,10 @@ def qa_graph():
         if isinstance(engine, TemplateMod):
             if engine.stream:
                 engine.keys_in.append("callbacks")
-                nod.frm.selectors.append(Selector(node="seed", key="callbacks"))
+                nod.frm.selectors.append(Selector(node=K_SEED, key="callbacks"))
         if isinstance(engine, OutputMod):
             if engine.stream:
-                nod.frm.selectors.append(Selector(node="seed", key="callbacks"))
+                nod.frm.selectors.append(Selector(node=K_SEED, key="callbacks"))
 
     graph = Graph(
         nodes=nodes,
