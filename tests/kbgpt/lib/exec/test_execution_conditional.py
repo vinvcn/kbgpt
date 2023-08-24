@@ -57,7 +57,7 @@ async def test_conditional_execution(conditional_nodes):
                 Selector(node="C", key="content"),
                 Selector(node="B", key="content"),
             ],
-            mode=MultiplexerType.SOME,
+            mode=MultiplexerType.ANY,
         ),
     )
 
@@ -85,20 +85,20 @@ async def test_conditional_execution_except(conditional_nodes):
         assert "multiplexer type is MultiplexerType.ALL" in str(e)
 
 
-@pytest.mark.asyncio
-async def test_conditional_multiplexer_first(conditional_nodes):
-    graph = Graph(
-        nodes=conditional_nodes,
-        sel=SelectorMultiplexer(
-            selectors=[
-                Selector(node="C", key="content", to_key="ccontent"),
-                Selector(node="A", key="content", to_key="acontent"),
-            ],
-            mode=MultiplexerType.FIRST,
-        ),
-    )
+# @pytest.mark.asyncio
+# async def test_conditional_multiplexer_first(conditional_nodes):
+#     graph = Graph(
+#         nodes=conditional_nodes,
+#         sel=SelectorMultiplexer(
+#             selectors=[
+#                 Selector(node="C", key="content", to_key="ccontent"),
+#                 Selector(node="A", key="content", to_key="acontent"),
+#             ],
+#             mode=MultiplexerType.FIRST,
+#         ),
+#     )
 
-    result = await GraphExecutor(graph).exec({"question": "some"})
-    assert (
-        "ccontent" in result and result["ccontent"] == "C" and "acontent" not in result
-    )
+#     result = await GraphExecutor(graph).exec({"question": "some"})
+#     assert (
+#         "ccontent" in result and result["ccontent"] == "C" and "acontent" not in result
+#     )

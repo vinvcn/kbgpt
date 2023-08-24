@@ -48,9 +48,13 @@ class SelectorExec:
 
         assert len(hit_dict) > 0, "at least one value should present"
 
-        if self.multisel.mode == MultiplexerType.FIRST:
-            return dict((hit_dict.popitem(0),)), miss_dict
-        elif self.multisel.mode == MultiplexerType.SOME:
+        # if self.multisel.mode == MultiplexerType.FIRST:
+        #     return dict((hit_dict.popitem(0),)), miss_dict
+        if self.multisel.mode == MultiplexerType.ANY:
+            assert len(hit_dict) > 0, (
+                f"multiplexer type is {self.multisel.mode}"
+                + " at least one hit should present"
+            )
             return dict(hit_dict), miss_dict
         else:
             assert not miss_dict, (

@@ -18,8 +18,9 @@ class Selector(BaseModel):
 
 class MultiplexerType(Enum):
     ALL = "all"
-    SOME = "some"
-    FIRST = "first"
+    ANY = "any"
+    # FIRST = "first"
+    NONE = "none"
 
 
 class SelectorMultiplexer(BaseModel):

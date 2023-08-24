@@ -57,7 +57,7 @@ def linear_graph():
                 Selector(node="test1", key="answer1", to_key="secondary"),
                 Selector(node="test3", key="answer"),
             ],
-            mode=MultiplexerType.SOME,
+            mode=MultiplexerType.ANY,
         ),
     )
     yield graph
@@ -165,7 +165,7 @@ async def test_some_multiplexer_execution(linear_graph):
             Selector(node="test1", key="answer1", to_key="secondary"),
             Selector(node="none_exists", key="answer", to_key="none"),
         ],
-        mode=MultiplexerType.SOME,
+        mode=MultiplexerType.ANY,
     )
 
     result = await GraphExecutor(linear_graph).exec({"question": "how are you?"})
@@ -182,7 +182,7 @@ async def test_pre_cond_failed_executioin(linear_graph: Graph):
             Selector(node="test1", key="answer1", to_key="secondary"),
             Selector(node="test3", key="answer"),
         ],
-        mode=MultiplexerType.SOME,
+        mode=MultiplexerType.ANY,
     )
     result = await GraphExecutor(linear_graph).exec({"question": "how are you?"})
     assert result["secondary"] == "yes" and "answer" not in result

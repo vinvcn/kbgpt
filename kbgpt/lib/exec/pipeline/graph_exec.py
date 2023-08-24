@@ -43,15 +43,16 @@ class GraphExecutor:
                         return_exceptions=True,
                     )
                     excepts = [
-                        i
+                        node_results[i]
                         for i, r in enumerate(node_results)
                         if isinstance(r, Exception)
                         and not isinstance(r, CheckerFailedException)
                     ]
                     if excepts:
                         raise ExecutionException(
-                            f"execution encountered exceptions for node {ls_nodes[excepts[0]]}"
-                        ) from node_results[excepts[0]]
+                            f"execution encountered exceptions for node {[n.node.id for n in ls_nodes]}",
+                            excepts,
+                        )
 
                     excepts = [
                         i
@@ -72,5 +73,4 @@ class GraphExecutor:
             logging.debug("output keys:\n%s", output_dict.keys())
             return output_dict
         except Exception as e:
-            logging.exception(e)
             raise e

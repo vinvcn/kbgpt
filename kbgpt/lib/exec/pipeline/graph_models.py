@@ -169,5 +169,5 @@ class ExecutionContext(BaseModel):
     outputs: Dict[str, Any] = Field({})
 
 
-class ExecutionException(Exception):
+class ExecutionException(ExceptionGroup):
     pass

@@ -61,6 +61,7 @@ class OutputMod(EngineMod):
 
 class RecomOutTransMod(EngineMod):
     type: Literal["recomm_transform"] = Field("recomm_transform")
+    max_output: Optional[int] = Field(4)
 
 
 class QAOutputMod(OutputMod):

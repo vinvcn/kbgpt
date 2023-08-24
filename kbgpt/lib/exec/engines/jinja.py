@@ -17,7 +17,10 @@ class Jinja(Engine):
         super().__init__(config)
         self.tmp_repo = TemplateFactory().create()
         self.jinja_env = Environment(
-            trim_blocks=True, lstrip_blocks=True, loader=Jinja2RedisLoader()
+            trim_blocks=True,
+            lstrip_blocks=True,
+            auto_reload=True,
+            loader=Jinja2RedisLoader(),
         )
         self.openai = OpenAI()
 

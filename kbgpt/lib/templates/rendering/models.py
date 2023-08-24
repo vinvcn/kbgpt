@@ -97,7 +97,7 @@ class Jinja2RedisLoader(BaseLoader):
             if not temp_json:
                 raise ValueError(f"template_id {template} not found")
             loaded_temp = Template.parse_raw(temp_json)
-            return loaded_temp.body, None, lambda: True
+            return loaded_temp.body, None, lambda: False
         except ValueError as e:
             raise TemplateNotFound(template) from e
 

@@ -18,7 +18,8 @@ from kbgpt.lib.exec.pipeline.selector_models import (
     Selector,
     SelectorMultiplexer,
 )
-from kbgpt.svc.aigc.qa.qa_graph_sub import fetch_context_graph, recommend_sub_graph
+from kbgpt.svc.aigc.qa.qa_graph_fetch_context import fetch_context_graph
+from kbgpt.svc.aigc.qa.qa_graph_recommendation import recommend_sub_graph
 
 
 def qa_graph():
@@ -112,7 +113,7 @@ def qa_graph():
                         to_key="answer",
                     ),
                 ],
-                mode=MultiplexerType.SOME,
+                mode=MultiplexerType.ANY,
             ),
         ),
         src=[answer_question_with_context, answer_without_context],
@@ -164,7 +165,7 @@ def qa_graph():
                 Selector(node="say_recommendation_hooks", key="result", to_key="hook"),
                 Selector(node="answer_without_context", key="result", to_key="answer"),
             ],
-            mode=MultiplexerType.SOME,
+            mode=MultiplexerType.ANY,
         ),
     )
     return graph

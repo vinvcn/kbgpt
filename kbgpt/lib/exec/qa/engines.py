@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Tuple
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.lib.db import Document
 from kbgpt.lib.exec.engines import Engine
+from kbgpt.lib.exec.engines.configs.models import RecomOutTransMod
 
 
 class QAOutput(Engine):
@@ -27,7 +28,8 @@ class RecommOutTransform(Engine):
     ) -> Dict[str, Any]:
         """generate the template"""
         ids = [spl.strip() for spl in recomm.split(",")]
-        ids = ids[:4]
+        config: RecomOutTransMod = self.config
+        ids = ids[: config.max_output]
         objs = [json.loads(d["content"]) for d, _ in products]
         objs_m = {o["id"]: o for o in objs}
         result = []
