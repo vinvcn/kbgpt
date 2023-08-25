@@ -7,7 +7,7 @@ import os
 
 import click
 
-FOLDER_PATH = "kbgpt"
+FOLDER_PATHS = ["kbgpt", "templates"]
 FILE_NAME = "cli.py"
 
 
@@ -22,20 +22,21 @@ def load_commands(extension_file):
     cli.add_command(module.cli)
 
 
-def find_files(folder, filename):
+def find_files(folders, filename):
     """Find files recursively"""
     matches = []
-    for root, dirs, files in os.walk(folder):
-        for file in files:
-            if file == filename:
-                matches.append(os.path.join(root, file))
+    for folder in folders:
+        for root, _, files in os.walk(folder):
+            for file in files:
+                if file == filename:
+                    matches.append(os.path.join(root, file))
     return matches
 
 
 if __name__ == "__main__":
-    result = find_files(FOLDER_PATH, FILE_NAME)
+    result = find_files(FOLDER_PATHS, FILE_NAME)
 
-    print(f"Found {len(result)} instances of CLIs in folder '{FOLDER_PATH}':")
+    print(f"Found {len(result)} instances of CLIs in folder '{FOLDER_PATHS}':")
     for file_path in result:
         modname = file_path[: file_path.rfind(".")].replace("/", ".")
         print(f"loading module {modname}")
