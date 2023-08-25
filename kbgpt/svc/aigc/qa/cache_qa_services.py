@@ -16,11 +16,13 @@ class ProxiedQAAgent:
     Proxy agent for the QA logic
     """
 
-    def __init__(self, app:Sanic, agent: AbstractAgent) -> None:
+    def __init__(self, app: Sanic, agent: AbstractAgent) -> None:
         self.agent = agent
         self.app = app
 
-    def _create_result(self, ans: str, stats: OpenAICallbackHandler, cached: bool) -> QAResponse:
+    def _create_result(
+        self, ans: str, stats: OpenAICallbackHandler, cached: bool
+    ) -> QAResponse:
         """
         Create the result
         """
@@ -32,13 +34,11 @@ class ProxiedQAAgent:
             prompt_tokens=stats.prompt_tokens,
             completion_tokens=stats.completion_tokens,
             successful_requests=stats.successful_requests,
-            hit_cache=cached
+            hit_cache=cached,
         )
 
-    async def _answer_question_with_cache(
-        self, question: str, **kwargs
-    ) -> QAResponse:
-        cache:RedisCacheStoreStrategy = self.app.ctx.redicache
+    async def _answer_question_with_cache(self, question: str, **kwargs) -> QAResponse:
+        cache: RedisCacheStoreStrategy = self.app.ctx.redicache
         cached = None
         try:
             cached = await cache.retrieve(query=question)
@@ -68,22 +68,22 @@ class ProxiedQAAgent:
 
     @alog(QARecord)
     async def answer_question(
-        self, question: str, streaming: bool = False, callbacks=None
+        self, question: str, streaming: bool = False, callbacks=None, **kwargs
     ) -> QAResponse:
         """
         Answer a question as a customer service agent
         """
         question = question.strip()
-        cache:RedisCacheStoreStrategy = self.app.ctx.redicache
+        cache: RedisCacheStoreStrategy = self.app.ctx.redicache
         if len(question) == 0:
             raise ValueError(f"Empty question {question} provided")
         if not profile.cache.use_redis_cache or not cache.is_cache_valid():
             # if not using redis cache or cache is not valid
             ans, stats = await self.agent.answer_question(
-                question=question, streaming=streaming, callbacks=callbacks
+                question=question, streaming=streaming, callbacks=callbacks, **kwargs
             )
             return self._create_result(ans, stats, False)
         else:
             return await self._answer_question_with_cache(
-                question=question, streaming=streaming, callbacks=callbacks
+                question=question, streaming=streaming, callbacks=callbacks, **kwargs
             )

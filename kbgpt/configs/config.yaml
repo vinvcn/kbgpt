@@ -26,13 +26,20 @@ DEFAULT:
     OPENAI_MODEL: "gpt-3.5-turbo-16k"
   QA:
     EMBEDDINGS_MODEL: "text-embedding-ada-002"
-    GENERATIVE_MODEL: "gpt-3.5-turbo"
-    CUSTOMER_SERVICE_TEMPERATURE: 0.3
+    GENERATIVE_MODEL: "gpt-3.5-turbo-16k"
+    CUSTOMER_SERVICE_TEMPERATURE: 0
     AGENT_CLS: builtin
     REQUEST_TIMEOUT: 60
     REQUEST_RETRY: 2
     keep_msg_history: True
-    words_limit: 50
+    words_limit: 25
+    redis_index: bullsmart-customer-services
+    recomm:
+      gpt3_5_model: "gpt-3.5-turbo-16k"
+      gpt4_model: "gpt-4"
+  PRODUCT_CATALOG:
+    vector_store_class: redis_no_lock
+    redis_index_name: bullsmart-product-catalog
   # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536
@@ -41,7 +48,7 @@ DEFAULT:
     EMBEDDINGS_FUNCTION: openai
   # ----- VECTOR STORE CONFIG -----
   VECTOR_STORE:
-    VECTOR_STORE_CLASS: redis
+    VECTOR_STORE_CLASS: redis_cache_lock
     VECTOR_RETRIVAL_K: 3
     REDIS_URL: "redis://localhost:6379"
     PINECONE_ENV: us-west4-gcp
@@ -52,9 +59,6 @@ DEFAULT:
     CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
     FRESH_BATCH_SIZE: 10
     COOL_DOWN_SECONDS: 100
-  INDEXING:
-    FLUSH_BEFORE_WRITE: True
-    CUSTOMER_SERVICE_INDEX: bullsmart-customer-services
 
 FAT:
   BASEURL: http://py-kbgpt.testbs.surfin.sg

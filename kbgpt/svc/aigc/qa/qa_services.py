@@ -79,7 +79,6 @@ class AbstractAgent(metaclass=abc.ABCMeta):
             raise ValueError("This class is a singleton!")
         else:
             super().__init__()
-            self.k = profile.vector_store.vector_retrival_k
             self.vector_store_cls = profile.vector_store.vector_store_class
             AbstractAgent.instance = self
 
@@ -91,7 +90,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
 
     async def answer_question(
         self, question: str, **kwargs
-    ) -> Tuple[str, OpenAICallbackHandler]:
+    ) -> Tuple[str, OpenAICallbackHandler, List[Document]]:
         """
         Answer a question as a customer service agent"""
         logging.debug("Started answering question: %s", question)
@@ -156,34 +155,23 @@ class AbstractAgent(metaclass=abc.ABCMeta):
                 limit_refreshed = True
 
     async def _answer_question_and_provide_cost(
-        self, question: str, streaming: bool = False, callbacks=None
-    ) -> Tuple[str, OpenAICallbackHandler]:
+        self,
+        question: str,
+        streaming: bool = False,
+        callbacks=None,
+        docs: List[Document] = None,
+        **kwargs,
+    ) -> Tuple[str, OpenAICallbackHandler, List[Document]]:
         """
         Answer a question as a customer service agent and provide the cost of the answer
         """
+        if docs is None:
+            docs = []
         stats = OpenAICallbackHandler()
         handlers = [stats]
         if callbacks:
             handlers.extend(callbacks)
         llm = chat_open_ai_llm(streaming=streaming, handlers=handlers)
-        start_counter = time.perf_counter()
-        logging.debug("Started loading vector store")
-        retriever = create_vector_store_strategy().get_retriever(k=self.k)
-        logging.debug(
-            "End of loading vector store, total time %.3f seconds",
-            time.perf_counter() - start_counter,
-        )
-
-        logging.debug(
-            "Started retrieving relevant documents for question: %s", question
-        )
-        start_counter = time.perf_counter()
-        result1 = retriever.get_relevant_documents(query=question)
-        logging.debug(
-            "%s Documents retrieved, total time %.3f seconds",
-            len(result1),
-            time.perf_counter() - start_counter,
-        )
 
         logging.debug("Started loading chain")
         start_counter = time.perf_counter()
@@ -195,7 +183,7 @@ class AbstractAgent(metaclass=abc.ABCMeta):
 
         logging.debug("Started running chain")
         start_counter = time.perf_counter()
-        value = await chain.acall({"input_documents": result1, "question": question})
+        value = await chain.acall({"input_documents": docs, "question": question})
         # chain.prep_outputs
         logging.debug(
             "End of running chain, total time %.3f seconds",

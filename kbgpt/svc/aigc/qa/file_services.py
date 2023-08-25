@@ -1,9 +1,8 @@
-
-
 import logging
 from os import listdir, pardir
 from os.path import abspath, dirname, isfile, join
-from typing import List
+from typing import Any, List
+from uuid import uuid4
 
 from aiofiles import open as aopen
 from aiofiles import tempfile
@@ -13,12 +12,16 @@ from sanic.response import JSONResponse
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
+from kbgpt.api.admin.models import TaskStatusResponse
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.db.mysql.process_file_record import ProcessFileRecord
+from kbgpt.lib.db.vector_store import BusinessType
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 from kbgpt.lib.logging import alog
+from kbgpt.lib.tasks.manager import FuncWrapper, TaskManager, TaskRecord
 
 
 async def add_file_to_customer_service(path: str, **kwargs):
@@ -48,38 +51,41 @@ async def add_kb():
 
 
 @alog(ProcessFileRecord)
-async def add_files_to_customer_service(paths: List[str], **kwargs):
+async def add_files_to_customer_service(
+    paths: List[str], business_type: str, ctx=None, **kwargs
+):
     """
     transcational add files to the customer service index
     """
     indexer = CustomerServiceFilesIndexer()
-    return await indexer.transactional_add_to_index(paths=paths, **kwargs)
+    return await indexer.transactional_add_to_index(
+        paths=paths, business_type=business_type, **kwargs
+    )
 
 
-async def a_add_file_to_customer_service(**kwargs):
-    """
-    add a file to the customer service index"""
-    add_file_to_customer_service(**kwargs)
+class WarmupTask(FuncWrapper):
+    """warm up task"""
 
+    def __init__(self, name: str, handle: str):
+        super().__init__(name, handle)
 
-@retry(stop=stop_after_attempt(3), wait=wait_fixed(3))
-async def warmup_task(app:Sanic):
-    """
-    kick off warm up task
-    """
-    cache:RedisCacheStoreStrategy = app.ctx.redicache
-    # pylint: disable=broad-except
-    try:
-        await cache.refresh_cache()
-    except LockError as e:
-        logging.exception(e)
-        logging.warning(
-            "aquiring lock failed, another thread might be working aborting"
-        )
-    except Exception as e:
-        logging.exception(e)
-        logging.warning("cache refreshing cache encountered exception")
-        raise e
+    async def __call__(self, *args: Any, app: Sanic, record: TaskRecord, **kwds: Any):
+        """
+        kick off warm up task
+        """
+        cache: RedisCacheStoreStrategy = app.ctx.redicache
+        # pylint: disable=broad-except
+        try:
+            await cache.refresh_cache()
+        except LockError as e:
+            logging.exception(e)
+            logging.warning(
+                "aquiring lock failed, another thread might be working aborting"
+            )
+        except Exception as e:
+            logging.exception(e)
+            logging.warning("cache refreshing cache encountered exception")
+            raise e
 
 
 class ProxiedDocAgent:
@@ -108,22 +114,31 @@ class ProxiedDocAgent:
                         paths.append(path)
 
                 logging.info("adding files to customer service %s\n", "\n".join(paths))
-                await add_files_to_customer_service(paths, flush_index=True)
-            if is_refresh:
-                sanic_app.add_task(warmup_task(sanic_app))
+                params = {k: v[0] for k, v in request.form.items()}
+                await add_files_to_customer_service(
+                    paths, flush_index=True, ctx=sanic_app.ctx, **params
+                )
             return jtext(OpenAIResponseBase(success=True))
         except Exception as e:
             logging.exception(e)
             return jtext(ErrorResponse(success=False, error=str(e)))
 
-    async def refresh_cache(self, sanic_app: Sanic, request: Request) -> JSONResponse:
+    async def refresh_cache(
+        self, sanic_app: Sanic, request: Request
+    ) -> TaskStatusResponse:
         """
         Trigger a refresh cache task
         """
         # pylint: disable=broad-except
         try:
-            sanic_app.add_task(warmup_task(sanic_app))
-            return jtext(OpenAIResponseBase(success=True))
+            tm: TaskManager = request.app.ctx.res.get(TaskManager.__name__)
+            name = WarmupTask.__name__
+            record = TaskRecord(
+                task_id=str(uuid4()), task_name=name, task_handle=name, parameters="{}"
+            )
+            await tm.add_task(record)
+            record = await tm.get_task(record.task_name, record.task_id)
+            return jtext(TaskStatusResponse.from_orm(record))
         except Exception as e:
             logging.exception(e)
             return jtext(ErrorResponse(success=False, error=str(e)))
