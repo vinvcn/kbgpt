@@ -47,6 +47,7 @@ async def gen_prompt(
     )
     openai = OpenAI()
     kwargs.pop("docs", "")
+    kwargs.pop("temperature", "")
     result = await openai.chat_completion(
         gpt_model,
         tuple([Message(role="system", content=prompt)]),
