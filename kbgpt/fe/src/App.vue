@@ -1,18 +1,31 @@
 <template>
-      <ChatBox></ChatBox>
+  <div class="container" style="display: flex">
+    <div>
+      Chat
+      <SSEChatBox></SSEChatBox>
+    </div>
+    <!-- <div>
+      Knowledge Base
+      <KnowledgeBox></KnowledgeBox>
+    </div> -->
+  </div>
 </template>
 
 <script>
-import ChatBox from './components/ChatBox.vue';
+// import KnowledgeBox from "./components/KnowledgeBox.vue";
+import SSEChatBox from "./components/SSEChatBox.vue";
 
 export default {
-  name: 'App',
+  name: "App",
   components: {
-    ChatBox
-  }
-}
+    SSEChatBox,
+    // KnowledgeBox,
+  },
+};
 </script>
 
 <style>
-
+div.container {
+  font-family: Arial, sans-serif;
+}
 </style>

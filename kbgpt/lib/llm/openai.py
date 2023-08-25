@@ -60,16 +60,25 @@ class OpenAI:
 
     @alru_cache(maxsize=256, typed=True)
     async def chat_completion(
-        self, model: str, messages: Tuple[Message, ...]
+        self, model: str, messages: Tuple[Message, ...], stream=False, **kwargs
     ) -> Completion:
         """chat completion"""
-        completion = await openai.ChatCompletion.acreate(
-            model=model, messages=[m.dict() for m in messages]
-        )
+        kwargs.pop("caching_flag", "")
+        if stream:
+            return await openai.ChatCompletion.acreate(
+                model=model,
+                messages=[m.dict() for m in messages],
+                stream=True,
+                **kwargs
+            )
+        else:
+            completion = await openai.ChatCompletion.acreate(
+                model=model, messages=[m.dict() for m in messages], **kwargs
+            )
 
-        usage = Usage(model, **completion["usage"])
-        content = completion.choices[0].message["content"]
-        return Completion(usage=usage, content=content)
+            usage = Usage(model, **completion["usage"])
+            content = completion.choices[0].message["content"]
+            return Completion(usage=usage, content=content)
 
     async def list_models(self):
         result = await openai.Model.alist()

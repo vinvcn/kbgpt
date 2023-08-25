@@ -46,6 +46,19 @@ def md5_file_content(path) -> str:
     return hex_digest
 
 
+def calculate_hash(string: str) -> str:
+    # Create a new SHA-256 hash object
+    sha256_hash = hashlib.sha256()
+
+    # Convert the string to bytes and update the hash object
+    sha256_hash.update(string.encode("utf-8"))
+
+    # Get the hexadecimal representation of the hash
+    hash_value = sha256_hash.hexdigest()
+
+    return hash_value
+
+
 def snake_to_camel(snake_case: str):
     """
     convert snake case string to camel case
