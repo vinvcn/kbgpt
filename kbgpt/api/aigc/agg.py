@@ -2,6 +2,7 @@ import csv
 import functools
 import logging
 from typing import List, Optional
+from uuid import uuid4
 
 from jinja2 import Environment, FileSystemLoader
 from langchain.callbacks.manager import AsyncCallbackManagerForLLMRun
@@ -16,7 +17,7 @@ from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
-from kbgpt.lib.llm.openai import Message, OpenAI
+from kbgpt.lib.llm.openai import Message, client
 from kbgpt.svc.aigc.qa.qa_services import QAagent
 
 AGG = Blueprint("agg", url_prefix="agg")
@@ -45,7 +46,7 @@ async def gen_prompt(
         },
         **kwargs,
     )
-    openai = OpenAI()
+    openai = client
     kwargs.pop("docs", "")
     kwargs.pop("temperature", "")
     result = await openai.chat_completion(
@@ -191,6 +192,7 @@ async def bouncing_ask(
         response=response,
         stream=True,
         temperature=profile.qa.customer_service_temperature,
+        caching_flag=uuid4(),
     ):
         # role = stream_resp["choices"][0]["delta"].get("role", role)
         token = stream_resp["choices"][0]["delta"].get("content", "")

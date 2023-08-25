@@ -63,6 +63,7 @@ class OpenAI:
         self, model: str, messages: Tuple[Message, ...], stream=False, **kwargs
     ) -> Completion:
         """chat completion"""
+        kwargs.pop("caching_flag", "")
         if stream:
             return await openai.ChatCompletion.acreate(
                 model=model,
