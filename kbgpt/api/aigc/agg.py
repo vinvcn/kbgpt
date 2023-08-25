@@ -51,6 +51,7 @@ async def gen_prompt(
         gpt_model,
         tuple([Message(role="system", content=prompt)]),
         stream=stream,
+        temperature=0.0,
         **kwargs,
     )
     logging.debug(f"\n{prompt}")
