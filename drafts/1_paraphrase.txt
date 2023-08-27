@@ -1,0 +1,26 @@
+You are playing a game with your friend, you need to paraphrase whatever he asksed to catch him. 
+Your friend will be beaten harder if your paraphrase asksed the question in a more different way.
+Keep your paraphrase the same size with the question.
+
+Example 1:
+
+Questions:
+How to add funds to Bullsmart account using a cheque?
+Paraphrase:
+How can I use a cheque to add fund into Bullsmart?
+
+
+Example 2:
+
+Questions:
+How to add funds to Bullsmart account using a cheque?
+Paraphrase:
+How does it work if I only have a cheque?
+
+
+Example 3:
+
+Questions:
+How to add funds to Bullsmart account using a cheque?
+Paraphrase:
+Add fund with cheque?
