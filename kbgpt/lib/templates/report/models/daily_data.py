@@ -72,8 +72,8 @@ class TotalFundMarket(BaseModel):
     totalFundNumber: int
     numberOfRising: int
     numberOfDowning: int
-    numberOfRisingOverOnePercent: float
-    numberOfDowningOverOnePercent: float
+    numberOfRisingOverOnePercent: int
+    numberOfDowningOverOnePercent: int
 
 
 class Index(BaseModel):
