@@ -68,6 +68,14 @@ class DebtFundMarket(BaseModel):
             )
 
 
+class TotalFundMarket(BaseModel):
+    totalFundNumber: int
+    numberOfRising: int
+    numberOfDowning: int
+    numberOfRisingOverOnePercent: int
+    numberOfDowningOverOnePercent: int
+
+
 class Index(BaseModel):
     preClose: float
     openPrice: float
@@ -87,4 +95,5 @@ class DailyData(BaseModel):
     sensex50: Index
     equityFundMarket: EquityFundMarket
     debtFundMarket: DebtFundMarket
+    totalFundMarket: TotalFundMarket
     topRisingFunds: Optional[List[TopRisingFund]]
