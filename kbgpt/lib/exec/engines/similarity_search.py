@@ -18,7 +18,9 @@ class SimilaritySearch(Engine):
             embedding_func, config.index, redis_url=profile.vector_store.redis_url
         )
 
-    async def agenerate(self, embedding: List[float], **kwargs) -> Dict[str, Any]:
+    async def agenerate(
+        self, *, embedding: List[float], invoke_id=None, envs=None, **kwargs
+    ) -> Dict[str, Any]:
         matchings = self.redis.similarity_search_by_vector_with_score(
             embedding, self.config.k
         )

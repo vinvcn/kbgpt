@@ -6,10 +6,11 @@ from sqlalchemy import Column, DateTime, Float, Integer, String
 
 
 class OBase:
-    """ base record """
+    """base record"""
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     invoke_id = Column(String(100, collation="utf8mb4_unicode_ci"))
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, default=datetime.utcnow)
     seconds_spent = Column(Float)
 
     def update(self, **kwargs):

@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field
@@ -28,12 +29,20 @@ class SimilaritySearchMod(EngineMod):
     min_threshold: Optional[float]
 
 
+class PersistLevel(Enum):
+    NONE = "none"
+    DEBUG = "debug"
+    INFO = "info"
+
+
 class TemplateMod(EngineMod):
     type: Literal["template_engine"]
     stream: bool = Field(False)
+    temperature: float = Field(0.0)
     keys_in: List[str]
     models: Tuple[str, ...]
     name: str
+    persist_level: str = Field(PersistLevel.INFO.value)
 
 
 class SimpleMod(TemplateMod):

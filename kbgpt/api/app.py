@@ -8,6 +8,7 @@ from sanic.server.protocols.websocket_protocol import WebSocketProtocol
 from sanic_ext import Extend
 from sanic_jinja2 import SanicJinja2
 
+import kbgpt.api.libs.resources
 from config import profile
 from kbgpt.api.aigc.report import DailyReport, WeeklyReport
 from kbgpt.api.libs.resources import ResourceMgr
@@ -65,6 +66,7 @@ async def setup_resources(sanic_app: Sanic, loop):
     mgr.add(task_manager)
 
     await mgr.init_all()
+    kbgpt.api.libs.resources.MGR = mgr
     sanic_app.ctx.res = mgr
 
     sanic_app.ctx.redicache = RedisCacheStoreStrategy()

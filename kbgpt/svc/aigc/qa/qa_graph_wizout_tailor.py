@@ -12,7 +12,7 @@ from kbgpt.lib.exec.pipeline.node_models import Node
 from kbgpt.lib.exec.pipeline.selector_models import Selector, SelectorMultiplexer
 
 
-def recommend_sub_graph():
+def recommend_sub_graph_without_tailor():
     embed_question_answer_context = GraphNode(
         node=Node(
             id="embed_question_answer_context",
@@ -57,14 +57,13 @@ def recommend_sub_graph():
         src=[embed_question_answer_context],
     )
 
-    tailor_products_before_recommendation = GraphNode(
+    recommend_products = GraphNode(
         node=Node(
-            id="tailor_products_before_recommendation",
+            id="recommend_products",
             engine=JinjaMod(
-                name="qa.recommend_tailor_products",
-                keys_in=["question", "answer", "products", "context"],
+                name="qa.recommend_products",
+                keys_in=["question", "answer", "context", "products"],
                 models=[profile.generative_model, profile.qa.generative_model],
-                # models=profile.qa.recomm,
             ),
             frm=SelectorMultiplexer(
                 selectors=[
@@ -83,52 +82,6 @@ def recommend_sub_graph():
             ),
         ),
         src=[search_products],
-    )
-
-    transform_recommend1 = GraphNode(
-        node=Node(
-            id="transform_recommend1",
-            engine=RecomOutTransMod(max_output=30),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(
-                        node="tailor_products_before_recommendation",
-                        key="result",
-                        to_key="recomm",
-                    ),
-                    Selector(node="search_products", key="result", to_key="products"),
-                ]
-            ),
-            pre=EvalCheckerMod(key="recomm", eval_exp="recomm.lower() != 'n/a'"),
-        ),
-        src=[tailor_products_before_recommendation],
-    )
-
-    recommend_products = GraphNode(
-        node=Node(
-            id="recommend_products",
-            engine=JinjaMod(
-                name="qa.recommend_products_with_tailored",
-                keys_in=["question", "answer", "context", "products"],
-                models=[profile.generative_model, profile.qa.generative_model],
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(node=K_SEED, key="question"),
-                    Selector(
-                        node=K_SEED,
-                        key="answer",
-                    ),
-                    Selector(node=K_SEED, key="context"),
-                    Selector(
-                        node="transform_recommend1",
-                        key="result",
-                        to_key="products",
-                    ),
-                ]
-            ),
-        ),
-        src=[transform_recommend1],
     )
 
     transform_recommend2 = GraphNode(

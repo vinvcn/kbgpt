@@ -4,6 +4,7 @@ from kbgpt.lib.exec.engines.configs.models import (
     GraphExecMod,
     JinjaMod,
     OutputMod,
+    PersistLevel,
     QAOutputMod,
     RecomOutMod,
     RecomOutTransMod,
@@ -21,6 +22,7 @@ from kbgpt.lib.exec.pipeline.selector_models import (
 )
 from kbgpt.svc.aigc.qa.qa_graph_fetch_context import fetch_context_graph
 from kbgpt.svc.aigc.qa.qa_graph_recommendation import recommend_sub_graph
+from kbgpt.svc.aigc.qa.qa_graph_wizout_tailor import recommend_sub_graph_without_tailor
 
 
 def qa_graph():
@@ -80,7 +82,7 @@ def qa_graph():
     make_recommendation_with_hooks = GraphNode(
         node=Node(
             id="make_recommendation_with_hooks",
-            engine=GraphExecMod(graph=recommend_sub_graph()),
+            engine=GraphExecMod(graph=recommend_sub_graph_without_tailor()),
             frm=SelectorMultiplexer(
                 selectors=[
                     Selector(node=K_SEED, key="question"),

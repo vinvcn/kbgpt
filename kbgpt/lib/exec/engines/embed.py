@@ -14,7 +14,7 @@ class Embed(Engine):
         super().__init__(mod=config)
         self.openai = OpenAI()
 
-    async def agenerate(self, **kwargs) -> Dict[str, Any]:
+    async def agenerate(self, *, invoke_id=None, envs=None, **kwargs) -> Dict[str, Any]:
         assert all([k in kwargs for k in self.config.key_and_labels])
         content = "\n".join(
             f"{l}:\n {kwargs[k]}" if l else kwargs[k]

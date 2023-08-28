@@ -1,6 +1,7 @@
 from copy import deepcopy
 from enum import Enum
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -166,8 +167,14 @@ class Graph(BaseModel):
 
 
 class ExecutionContext(BaseModel):
+    invoke_id: str = Field(str(uuid4()))
     outputs: Dict[str, Any] = Field({})
+    envs: Dict[str, Any] = Field({})
 
 
 class ExecutionException(ExceptionGroup):
+    pass
+
+
+class NodeException(Exception):
     pass

@@ -11,5 +11,5 @@ class Engine(metaclass=abc.ABCMeta):
         self.config = mod
 
     @abc.abstractmethod
-    async def agenerate(self, **kwargs) -> Dict[str, Any]:
+    async def agenerate(self, *, invoke_id=None, envs=None, **kwargs) -> Dict[str, Any]:
         """generate the template"""

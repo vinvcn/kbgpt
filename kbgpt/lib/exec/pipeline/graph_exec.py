@@ -22,9 +22,16 @@ class GraphExecutor:
     def __init__(self, graph: Graph) -> None:
         self.graph = graph
 
-    async def exec(self, seed: Dict[str, Any] = dict()):
+    async def exec(
+        self,
+        seed: Dict[str, Any] = dict(),
+        envs: Dict[str, Any] = dict(),
+        invoke_id: str = None,
+    ):
         """executes the given graph"""
-        ctx = ExecutionContext(outputs={K_SEED: seed.copy()})
+        ctx = ExecutionContext(
+            outputs={K_SEED: seed.copy()}, envs=envs, invoke_id=invoke_id
+        )
 
         try:
             assert (

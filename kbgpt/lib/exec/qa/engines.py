@@ -8,7 +8,9 @@ from kbgpt.lib.exec.engines.configs.models import RecomOutTransMod
 
 
 class QAOutput(Engine):
-    async def agenerate(self, answer: str, **kwargs) -> Dict[str, Any]:
+    async def agenerate(
+        self, *, invoke_id=None, answer: str, envs=None, **kwargs
+    ) -> Dict[str, Any]:
         """generate the template"""
         result = {
             "success": True,
@@ -24,7 +26,13 @@ class QAOutput(Engine):
 
 class RecommOutTransform(Engine):
     async def agenerate(
-        self, recomm: str, products: List[Tuple[Document, float]], **kwargs
+        self,
+        *,
+        recomm: str,
+        products: List[Tuple[Document, float]],
+        invoke_id=None,
+        envs=None,
+        **kwargs
     ) -> Dict[str, Any]:
         """generate the template"""
         ids = [spl.strip() for spl in recomm.split(",")]
@@ -40,7 +48,7 @@ class RecommOutTransform(Engine):
 
 class RecommOutput(Engine):
     async def agenerate(
-        self, products: List[Dict], hook: str, **kwargs
+        self, *, products: List[Dict], hook: str, invoke_id=None, envs=None, **kwargs
     ) -> Dict[str, Any]:
         """generate the template"""
         result = {

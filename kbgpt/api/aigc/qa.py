@@ -4,6 +4,7 @@ qa api
 import logging
 import time
 from json import dumps
+from uuid import uuid4
 
 from sanic import Blueprint, Request, text
 from sanic_ext import openapi, validate
@@ -114,11 +115,13 @@ async def answer_question(request: Request, body: Question):
     try:
         callbacks = [StreamingAsyncHandler(response.send)]
         await GraphExecutor(QA_GRAPH).exec(
-            {
+            seed={
                 "question": body.question,
                 "words_limit": 38,
                 "callbacks": callbacks,
-            }
+            },
+            envs={"res": request.app.ctx.res},
+            invoke_id=str(uuid4()),
         )
 
         # await AIGCAgent(request).invoke(body=body)
