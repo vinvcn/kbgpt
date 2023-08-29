@@ -9,7 +9,11 @@ from kbgpt.lib.exec.pipeline.checker_models import EvalCheckerMod
 from kbgpt.lib.exec.pipeline.constants import K_SEED
 from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
 from kbgpt.lib.exec.pipeline.node_models import Node
-from kbgpt.lib.exec.pipeline.selector_models import Selector, SelectorMultiplexer
+from kbgpt.lib.exec.pipeline.selector_models import (
+    MultiplexerType,
+    Selector,
+    SelectorMultiplexer,
+)
 
 
 def recommend_sub_graph_without_tailor():
@@ -134,7 +138,8 @@ def recommend_sub_graph_without_tailor():
             selectors=[
                 Selector(node="transform_recommend2", key="result", to_key="products"),
                 Selector(node="say_recommendation_hooks", key="result", to_key="hook"),
-            ]
+            ],
+            mode=MultiplexerType.NONE,
         ),
     )
     return graph

@@ -65,7 +65,7 @@ class EvalChecker(Checker):
     async def check(self, **kwargs):
         config: EvalCheckerMod = self.config
 
-        context = {self.config.key: kwargs[self.config.key]}
+        context = {self.config.key: kwargs.get(self.config.key, None)}
         if config.eval_exp and not eval(
             config.eval_exp, context
         ):  # pylint: disable = eval-used

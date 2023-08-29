@@ -10,6 +10,8 @@ from async_lru import alru_cache
 from openai.error import RateLimitError
 from pydantic import BaseModel, Field
 from redis import Redis
+from tenacity import stop_after_attempt  # for exponential backoff
+from tenacity import retry, wait_random_exponential
 from traitlets import default
 
 from config import profile
@@ -93,6 +95,7 @@ class OpenAI:
             openai.proxy = str(profile.openai.proxy_url)
 
     @alru_cache(maxsize=256, typed=True)
+    @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
     async def chat_completion(
         self,
         model: Union[str, Tuple[str, ...]],
@@ -106,31 +109,29 @@ class OpenAI:
         exc = None
         for model_name in model:
             try:
-                if QUOTA_COUNTER.is_model_available(model_name):
-                    if stream:
-                        return await openai.ChatCompletion.acreate(
-                            model=model_name,
-                            messages=[m.dict() for m in messages],
-                            stream=True,
-                            # organization="bullsmart",
-                            **kwargs,
-                        )
-                    else:
-                        completion = await openai.ChatCompletion.acreate(
-                            model=model_name,
-                            messages=[m.dict() for m in messages],
-                            # organization="bullsmart",
-                            **kwargs,
-                        )
+                if stream:
+                    return await openai.ChatCompletion.acreate(
+                        model=model_name,
+                        messages=[m.dict() for m in messages],
+                        stream=True,
+                        # organization="bullsmart",
+                        **kwargs,
+                    )
+                else:
+                    completion = await openai.ChatCompletion.acreate(
+                        model=model_name,
+                        messages=[m.dict() for m in messages],
+                        # organization="bullsmart",
+                        **kwargs,
+                    )
 
-                        usage = Usage(model_name, **completion["usage"])
-                        content = completion.choices[0].message["content"]
-                        return Completion(usage=usage, content=content)
+                    usage = Usage(model_name, **completion["usage"])
+                    content = completion.choices[0].message["content"]
+                    return Completion(usage=usage, content=content)
             except RateLimitError as e:
-                QUOTA_COUNTER.record(model_name)
                 exc = e
 
-        raise NoModelAvailable(f"no model available in {model}") from exc
+        raise exc
 
     @alru_cache(maxsize=256)
     async def embed(self, content: str):

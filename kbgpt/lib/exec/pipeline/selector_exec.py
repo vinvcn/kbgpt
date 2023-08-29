@@ -99,11 +99,11 @@ class SelectorExec:
                     ), f"default output key '{selector.key}' conflict"
                     hit_dict[selector.key] = key_exec.exec(ctx.outputs[selector.node])
 
-        assert len(hit_dict) > 0, "at least one value should present"
-
         # if self.multisel.mode == MultiplexerType.FIRST:
         #     return dict((hit_dict.popitem(0),)), miss_dict
-        if self.multisel.mode == MultiplexerType.ANY:
+        if self.multisel.mode == MultiplexerType.NONE:
+            return dict(hit_dict), miss_dict
+        elif self.multisel.mode == MultiplexerType.ANY:
             assert len(hit_dict) > 0, (
                 f"multiplexer type is {self.multisel.mode}"
                 + " at least one hit should present"

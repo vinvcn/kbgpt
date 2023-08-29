@@ -3,9 +3,11 @@ from time import perf_counter
 from typing import Any, Dict, List
 
 from jinja2 import Environment
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.api.libs.resources import ResourceMgr
+from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.db.mysql.jinja_engine_record import JinjaTemplateRecord
 from kbgpt.lib.exec.engines.configs.models import JinjaMod, PersistLevel
 from kbgpt.lib.exec.template_factory import TemplateFactory
@@ -44,6 +46,16 @@ class Jinja(Engine):
             record = JinjaTemplateRecord(**kwargs)
             await emitter.aemit([record])
 
+    async def _get_from_db_if_has(
+        self, envs: Dict[str, Any], **kwargs
+    ) -> JinjaTemplateRecord:
+        if self.config.persist_level != PersistLevel.NONE.value:
+            res_mgr: ResourceMgr = envs["res"]
+            crud: Crud = res_mgr.get(Crud.__name__)
+            return crud.get_first_by(
+                JinjaTemplateRecord, filter_params={**kwargs}, order_col="timestamp"
+            )
+
     async def agenerate(self, *, invoke_id=None, envs=None, **kwargs) -> Dict[str, Any]:
         assert all(
             [k in kwargs for k in self.config.keys_in]
@@ -52,43 +64,52 @@ class Jinja(Engine):
         start_time = perf_counter()
         template = self.jinja_env.get_template(self.config.name)
         rendered = template.render(**kwargs)
+        load_from_db = await self._get_from_db_if_has(
+            envs, invoke_id=invoke_id, node_id=self.config.name
+        )
 
         result = ""
         usage = None
         if not self.config.stream:
-            completion = await self.openai.chat_completion(
-                self.config.models,
-                tuple([Message(role="system", content=rendered)]),
-                temperature=self.config.temperature,
-            )
-
-            result, usage = completion.content, completion.usage.json()
+            if load_from_db and load_from_db.prompt == rendered:
+                result, usage = load_from_db.result, load_from_db.usage
+            else:
+                completion = await self.openai.chat_completion(
+                    self.config.models,
+                    tuple([Message(role="system", content=rendered)]),
+                    temperature=self.config.temperature,
+                )
+                result, usage = completion.content, completion.usage.json()
         else:
             assert "callbacks" in kwargs
-            request = await self.openai.chat_completion(
-                self.config.models,
-                tuple([Message(role="system", content=rendered)]),
-                stream=True,
-                temperature=self.config.temperature,
+            if load_from_db and load_from_db.prompt == rendered:
+                result, usage = load_from_db.result, load_from_db.usage
+            else:
+                request = await self.openai.chat_completion(
+                    self.config.models,
+                    tuple([Message(role="system", content=rendered)]),
+                    stream=True,
+                    temperature=self.config.temperature,
+                )
+                buffer = ""
+                callbacks: List[StreamingAsyncHandler] = kwargs["callbacks"]
+                async for stream_resp in request:
+                    token = stream_resp["choices"][0]["delta"].get("content", "")
+                    buffer += token
+                    for cb in callbacks:
+                        await cb.on_llm_new_token(token)
+
+                result, usage = buffer, "{}"
+
+        if not load_from_db:
+            await self._persist_content(
+                envs=envs,
+                invoke_id=invoke_id,
+                node_id=self.config.name,
+                prompt=rendered,
+                result=result,
+                seconds_spent=perf_counter() - start_time,
+                usage=usage,
             )
-            buffer = ""
-            callbacks: List[StreamingAsyncHandler] = kwargs["callbacks"]
-            async for stream_resp in request:
-                token = stream_resp["choices"][0]["delta"].get("content", "")
-                buffer += token
-                for cb in callbacks:
-                    await cb.on_llm_new_token(token)
-
-            result, usage = buffer, "{}"
-
-        await self._persist_content(
-            envs=envs,
-            invoke_id=invoke_id,
-            node_id=self.config.name,
-            prompt=rendered,
-            result=result,
-            seconds_spent=perf_counter() - start_time,
-            usage=usage,
-        )
 
         return {"result": result}

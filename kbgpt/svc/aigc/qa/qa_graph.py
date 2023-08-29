@@ -137,8 +137,10 @@ def qa_graph():
                         node="make_recommendation_with_hooks",
                         key="hook",
                     ),
-                ]
+                ],
+                mode=MultiplexerType.NONE,
             ),
+            pre=EvalCheckerMod(key="products", eval_exp="bool(products)"),
         ),
         src=[make_recommendation_with_hooks],
     )
