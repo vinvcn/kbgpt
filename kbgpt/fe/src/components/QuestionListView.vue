@@ -57,7 +57,7 @@ export default {
       } else {
         this.$router.push({
           name: "Home",
-          query: { ...this.$route.query.page, page: page + 1 },
+          query: { ...this.$route.query, page: page + 1 },
         });
       }
     },
@@ -68,7 +68,7 @@ export default {
       } else {
         this.$router.push({
           name: "Home",
-          query: { ...this.$route.query.page, page: page - 1 },
+          query: { ...this.$route.query, page: page - 1 },
         });
       }
     },
