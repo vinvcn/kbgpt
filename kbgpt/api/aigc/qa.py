@@ -116,9 +116,11 @@ async def answer_question(request: Request, body: Question):
 
     # pylint: disable=broad-except
     try:
-        logging.debug(f"start handling request {body.question}")
         callbacks = [StreamingAsyncHandler(response.send)]
         invoke_id = str(uuid4())
+        logging.debug(
+            "start handling request question %s invoke id %s", body.question, invoke_id
+        )
         graph_result = await GraphExecutor(QA_GRAPH).exec(
             seed={
                 "question": body.question,
