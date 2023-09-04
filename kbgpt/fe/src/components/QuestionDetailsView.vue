@@ -108,7 +108,7 @@ export default {
       console.log(query);
       this.$router.push({
         name: "Home",
-        query: { page: query.page },
+        query: { ...query },
       });
     },
     queryChange() {

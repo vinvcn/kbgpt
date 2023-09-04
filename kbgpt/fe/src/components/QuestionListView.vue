@@ -47,7 +47,7 @@ export default {
     goToDetailsPage(id) {
       this.$router.push({
         name: "Details",
-        query: { id: id, ...this.$route.query },
+        query: {  ...this.$route.query, id: id },
       });
     },
     forwardPage() {

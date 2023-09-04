@@ -20,7 +20,7 @@ class QAOutput(Engine):
             assert "callbacks" in kwargs
             for clbk in kwargs["callbacks"]:
                 clbk: StreamingAsyncHandler = clbk
-                await clbk.send(f"data: {json.dumps(result)}")
+                await clbk.send(f"data: {json.dumps(result)}\n")
         return {"result": result}
 
 
@@ -60,5 +60,5 @@ class RecommOutput(Engine):
             assert "callbacks" in kwargs
             for clbk in kwargs["callbacks"]:
                 clbk: StreamingAsyncHandler = clbk
-                await clbk.send(f"data: {json.dumps(result)}")
+                await clbk.send(f"data: {json.dumps(result)}\n")
         return {"result": result}

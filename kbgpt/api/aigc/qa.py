@@ -134,7 +134,7 @@ async def answer_question(request: Request, body: Question):
     except Exception as e:
         logging.exception(e)
         obj = {"success": False, "error": str(e)}
-        await response.send(f"data: {dumps(obj=obj)}")
+        await response.send(f"data: {dumps(obj=obj)}\n")
     else:
         qa_record = QARecord(
             invoke_id=invoke_id,

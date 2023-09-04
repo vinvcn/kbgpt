@@ -3,7 +3,7 @@
     <el-header>
       <el-row type="flex" justify="space-between">
         <el-col :span="4">
-          <el-link href="/fe/chat">Data Labeling Center </el-link></el-col
+          <el-link @click="goHome">Data Labeling Center </el-link></el-col
         >
         <el-col :span="4">
           <span>Your User Name:</span>
@@ -82,6 +82,14 @@ export default {
     },
   },
   methods: {
+    goHome(){
+      const query = this.$route.query;
+      console.log(query);
+      this.$router.push({
+        name: "Home",
+        query: { ...query },
+      });
+    },
     addRater() {
       if (!this.newRater) {
         return;
