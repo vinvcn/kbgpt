@@ -3,7 +3,7 @@
     <el-header>
       <el-row type="flex" justify="space-between">
         <el-col :span="4">
-          <el-link href="/">Data Labeling Center </el-link></el-col
+          <el-link href="/fe/chat">Data Labeling Center </el-link></el-col
         >
         <el-col :span="4">
           <span>Your User Name:</span>
