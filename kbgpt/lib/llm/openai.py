@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 from redis import Redis
 from tenacity import stop_after_attempt  # for exponential backoff
 from tenacity import retry, wait_random_exponential
-from traitlets import default
 
 from config import profile
 from kbgpt.svc.utils.openai import get_total_cost
