@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from typing import Any, Dict
 from uuid import uuid4
@@ -5,7 +6,23 @@ from uuid import uuid4
 from sqlalchemy import Column, DateTime, Float, Integer, String
 
 
-class OBase:
+class DatetimeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        try:
+            return super().default(obj)
+        except TypeError:
+            return str(obj)
+
+
+class UtilityMixin:
+    def as_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+    def as_json(self):
+        return json.dumps(self.as_dict(), indent=4, cls=DatetimeEncoder)
+
+
+class OBase(UtilityMixin):
     """base record"""
 
     id = Column(Integer, primary_key=True, autoincrement=True)

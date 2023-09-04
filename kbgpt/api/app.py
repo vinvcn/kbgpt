@@ -24,12 +24,15 @@ from .admin import ADMIN
 from .aigc import AIGC
 from .legacy.apis import LEGACY
 from .senti import SENSHIP
+from .tune import TUNE
 
 app = Sanic(
     profile.sanic.app_name,
 )
 app.config.RESPONSE_TIMEOUT = profile.sanic.response_timeout
-app.config.CORS_ORIGINS = "http://foobar.com,http://localhost:8082"
+app.config.CORS_ORIGINS = (
+    "http://foobar.com,http://localhost:8082,http://10.2.0.111:8082"
+)
 Extend(app)
 app.static("/", "kbgpt/fe/dist")
 
@@ -38,6 +41,7 @@ app.blueprint(ADMIN)
 app.blueprint(SENSHIP)
 app.blueprint(LEGACY)
 app.blueprint(FE)
+app.blueprint(TUNE)
 
 app.ctx.jinja = SanicJinja2(
     app=app,

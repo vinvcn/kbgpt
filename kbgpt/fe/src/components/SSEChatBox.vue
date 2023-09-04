@@ -90,6 +90,7 @@
 
 
 <script>
+import { get_base_url } from '@/utils/utils';
 export default {
   name: "SSEChatBox",
   data: function () {
@@ -395,7 +396,7 @@ export default {
         temperature: this.temperature
       };
       const response = await fetch(
-        `${window.location.origin}/api/v1/aigc/qa/stream_qa`,
+        `${get_base_url()}/api/v1/aigc/qa/stream_qa`,
         {
           method: "POST",
           headers: {

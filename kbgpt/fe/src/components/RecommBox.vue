@@ -26,6 +26,7 @@
 
 
 <script>
+import { get_base_url } from '@/utils/utils';
 export default {
   name: "ChatBox",
   data: function () {
@@ -55,9 +56,8 @@ export default {
 
       this.appendMessage("User", { message: message });
       const body = { product_name: message };
-      console.log(body)
       //   const body = { role: "user", content: message };
-      fetch(`${window.location.origin}/api/v1/aigc/qa/get_recomm`, {
+      fetch(`${get_base_url()}/api/v1/aigc/qa/get_recomm`, {
       // fetch(`http://localhost:8081/api/v1/aigc/qa/get_recomm`, {
         method: "POST",
         // mode: "no-cors", // no-cors
@@ -65,7 +65,6 @@ export default {
       })
         .then((resp) => resp.json())
         .then((data) => {
-          console.log(data);
           if (data.success == false){
             this.appendMessage("Bot", {message:data.error});
           } else {

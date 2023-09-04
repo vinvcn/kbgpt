@@ -27,6 +27,7 @@
 </template>
 
 <script>
+import { get_base_url } from '@/utils/utils';
 export default {
   name: "KnowledgeBox",
   data() {
@@ -37,7 +38,7 @@ export default {
   },
   methods: {
     loadQAIndexVerstion() {
-      // fetch(`${window.location.origin}/api/v1/aigc/qa/doc_version`,{
+      // fetch(`${get_base_url()}/api/v1/aigc/qa/doc_version`,{
       //   method: "GET"
       // })
       // .then((response) => response.json())
@@ -57,7 +58,7 @@ export default {
       });
       formData.set("business_type", this.business_type);
 
-      fetch(`${window.location.origin}/api/v1/aigc/qa/process_file`, {
+      fetch(`${get_base_url()}/api/v1/aigc/qa/process_file`, {
         method: "POST",
         body: formData,
       })
