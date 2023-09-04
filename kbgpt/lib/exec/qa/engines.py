@@ -20,7 +20,7 @@ class QAOutput(Engine):
             assert "callbacks" in kwargs
             for clbk in kwargs["callbacks"]:
                 clbk: StreamingAsyncHandler = clbk
-                await clbk.send(json.dumps(result))
+                await clbk.send(f"data: {json.dumps(result)}")
         return {"result": result}
 
 
@@ -32,7 +32,7 @@ class RecommOutTransform(Engine):
         products: List[Tuple[Document, float]],
         invoke_id=None,
         envs=None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """generate the template"""
         ids = [spl.strip() for spl in recomm.split(",")]
@@ -60,5 +60,5 @@ class RecommOutput(Engine):
             assert "callbacks" in kwargs
             for clbk in kwargs["callbacks"]:
                 clbk: StreamingAsyncHandler = clbk
-                await clbk.send(json.dumps(result))
+                await clbk.send(f"data: {json.dumps(result)}")
         return {"result": result}
