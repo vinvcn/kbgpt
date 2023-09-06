@@ -26,6 +26,15 @@ class OpenAI(SuperConfig):
     api_base_url: Optional[AnyUrl]
 
 
+class AzureAI(SuperConfig):
+    """azure configuration"""
+
+    api_base: AnyUrl
+    api_version: str
+    env_key_name: Optional[str]
+    deployments: List[str]
+
+
 class Sanic(SuperConfig):
     """Sanic configs"""
 
@@ -130,5 +139,6 @@ class Profile(SuperConfig):
     db_url: AnyUrl
     generative_model: str
     openai: OpenAI
+    azureai: List[AzureAI]
     baseurl: AnyUrl
     name: str = Field("DEFAULT")
