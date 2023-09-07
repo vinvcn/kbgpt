@@ -35,6 +35,11 @@ class PersistLevel(Enum):
     INFO = "info"
 
 
+class ClientStyle(Enum):
+    NATIVE = "native"
+    ROUNDROBIN = "roundrobin"
+
+
 class TemplateMod(EngineMod):
     type: Literal["template_engine"]
     stream: bool = Field(False)
@@ -43,6 +48,7 @@ class TemplateMod(EngineMod):
     models: Tuple[str, ...]
     name: str
     persist_level: str = Field(PersistLevel.INFO.value)
+    client_style: str = Field(ClientStyle.NATIVE.value)
 
 
 class SimpleMod(TemplateMod):

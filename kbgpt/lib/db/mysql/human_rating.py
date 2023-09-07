@@ -19,7 +19,7 @@ class HumanRating(Base, UtilityMixin):
     node_id = Column(String(128, collation="utf8mb4_unicode_ci"))
     rater = Column(String(64, collation="utf8mb4_unicode_ci"))
     rating = Column(String(128, collation="utf8mb4_unicode_ci"), default="")
-    comment = Column(String(128, collation="utf8mb4_unicode_ci"))
+    comment = Column(Text(collation="utf8mb4_unicode_ci"))
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 

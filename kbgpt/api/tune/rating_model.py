@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class QuestionDto(BaseModel):
@@ -26,6 +26,12 @@ class HumanRatingDto(BaseModel):
 class RaterDto(BaseModel):
     id: Optional[int]
     name: str
+
+
+class ForwardPrompt(BaseModel):
+    prompt: str
+    model: str
+    temperature: float = Field(0.0)
 
 
 class ListRaterDto(BaseModel):

@@ -20,15 +20,30 @@
         <el-card shadow="never" class="box-card">
           <div>
             <div v-for="(step, index) in item.steps" :key="index">
-              <p>#{{ index }} : {{ step.node_id }}</p>
+              <p>Step #{{ index }} : {{ step.node_id }}</p>
               <p>{{ step.result }}</p>
-              <el-radio-group
-                v-model="ratings[index]"
-                @change="saveOptions(index)"
-              >
-                <el-radio label="0">Bad</el-radio>
-                <el-radio label="1">Good</el-radio>
-              </el-radio-group>
+              <div class="link-wrapper">
+                <el-link type="primary" @click="debugPromptDialog(index)"
+                  >Show Prompt >></el-link
+                >
+              </div>
+              <el-form :model="forms[index]">
+                <el-form-item label="Rating:">
+                  <el-radio-group v-model="forms[index].rating">
+                    <el-radio label="0">Bad</el-radio>
+                    <el-radio label="1">Good</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="Comment:">
+                  <el-input v-model="forms[index].comment" type="textarea" />
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" @click="onSubmit(index)"
+                    >Save</el-button
+                  >
+                </el-form-item>
+              </el-form>
+
               <el-divider border-style="dashed" />
             </div>
           </div>
@@ -41,17 +56,53 @@
       </el-col>
     </el-row>
   </div>
-  <el-dialog v-model="showPrompt" :show-close="false">
-    <template #header="{ close, titleId, titleClass }">
+  <el-dialog v-model="debugPrompt" :show-close="true" align-center>
+    <template #header>
       <div class="my-header">
-        <h4 :id="titleId" :class="titleClass">{{ showPromptHeader }}</h4>
-        <el-button type="confirm" @click="close">
-          <el-icon class="el-icon--left"><CircleCloseFilled /></el-icon>
-          Close
-        </el-button>
+        Step #{{ promptIndex }} : {{ item.steps[promptIndex].node_id }}
       </div>
     </template>
-    {{ showPromptContent }}
+
+    <el-form>
+      <p>Baseline Result:</p>
+      <pre
+        >{{ item.steps[promptIndex].result }}
+    </pre
+      >
+      <p>Prompt Content:</p>
+      <el-form-item>
+        <el-input
+          :autosize="{ minRows: 10, maxRows: 20 }"
+          v-model="item.steps[promptIndex].prompt"
+          type="textarea"
+        />
+      </el-form-item>
+
+    </el-form>
+    <p>Run Result:</p>
+    <pre>{{ item.steps[promptIndex].debugResult }}</pre>
+    <!-- <p class="guide-wrapper">
+      Guide: Copy and paste the new prompt and save it as comment.
+    </p> -->
+    <template #footer>
+      <span class="dialog-footer">
+        <el-select
+            v-model="debugModel"
+            placeholder="Select Your User Name:"
+          >
+            <el-option
+              v-for="item in openaiModels"
+              :key="item"
+              :label="item"
+              :value="item"
+            >
+              {{ item }}
+            </el-option>
+          </el-select>
+        <el-button ref="runBtn" type="primary" @click="forwardPrompt(promptIndex)"> Run </el-button>
+        <el-button @click="debugPrompt = false"> Close </el-button>
+      </span>
+    </template>
   </el-dialog>
 </template>
 
@@ -66,10 +117,11 @@ export default {
       item: {}, // Fill with your data based on the id from route params.
       selectedOption: null,
       comment: "",
-      ratings: [],
-      showPrompt: false,
-      showPromptHeader: "",
-      showPromptContent: ""
+      forms: [],
+      debugPrompt: false,
+      promptIndex: "",
+      debugModel: "gpt-4",
+      openaiModels: ["gpt-4","gpt-3.5-turbo","gpt-3.5-turbo-16k"]
     };
   },
   mounted() {
@@ -85,23 +137,54 @@ export default {
         .then((resp) => resp.json())
         .then((data) => {
           this.item = data;
-          const newRatings = this.item.steps.map(function (item) {
+          const forms = this.item.steps.map(function (item) {
+            const rst = {};
             if (item.rating === undefined) {
-              return "";
+              rst.rating = "";
             } else {
-              return item.rating.toString();
+              rst.rating = item.rating.toString();
             }
+            rst.comment = item.comment;
+            return rst;
           });
-          for (let i = 0; i < newRatings.length; i++) {
-            this.ratings[i] = newRatings[i];
-          }
+          this.forms = forms;
+          // for (let i = 0; i < forms.length; i++) {
+          //   this.ratings[i] = forms[i];
+          // }
         });
     },
   },
   methods: {
-    handleShowPrompt(index){
-      this.showPromptHeader = this.item.steps[index].node_id
-      this.showPromptContent = this.item.steps[index].prompt
+    debugPromptDialog(index) {
+      this.debugPrompt = true;
+      this.promptIndex = index;
+    },
+    forwardPrompt(promptIndex) {
+      const prompt = this.item.steps[promptIndex].prompt
+      fetch(`${get_base_url()}/api/v1/tune/rate/forward_prompt`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(
+          {
+            prompt:prompt,
+            model:this.debugModel,
+          }
+        )
+      }).then((resp) => resp.json())
+      .then(data => {
+        this.item.steps[promptIndex].debugResult = data.result
+        this.$refs.runBtn.disabled = !(this.$refs.runBtn.disabled)
+      }).catch(err => {
+        alert(`forwarding prompt got error ${err}`)
+      });
+      this.$refs.runBtn.disabled = !(this.$refs.runBtn.disabled)
+    },
+
+    handledebugPrompt(index) {
+      this.debugPromptHeader = this.item.steps[index].node_id;
+      this.debugPromptContent = this.item.steps[index].prompt;
     },
     goBack() {
       const query = this.$route.query;
@@ -143,7 +226,9 @@ export default {
           this.turn(data);
         });
     },
-    saveOptions(index) {
+    onSubmit(index) {
+      console.log(this.forms);
+      console.log(this.forms[index]);
       fetch(`${get_base_url()}/api/v1/tune/rate/rating`, {
         method: "PUT",
         headers: {
@@ -154,9 +239,23 @@ export default {
           rater: this.$route.query.rater,
           invoke_id: this.item.invoke_id,
           node_id: this.item.steps[index].node_id,
-          rating: this.ratings[index],
+          rating:
+            this.forms[index].rating === undefined
+              ? ""
+              : this.forms[index].rating,
+          comment:
+            this.forms[index].comment === undefined
+              ? ""
+              : this.forms[index].comment,
         }),
-      }).catch((error) => alert(error));
+      })
+        .then((resp) => resp.json())
+        .then((data) => {
+          if (data.success) {
+            this.forms[index].success = true;
+          }
+        })
+        .catch((error) => alert(error));
       // Handle the user's selected option here.
     },
   },
@@ -164,6 +263,24 @@ export default {
 </script>
   
 <style scoped>
+pre {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  white-space: -moz-pre-wrap;
+  white-space: -pre-wrap;
+  white-space: -o-pre-wrap;
+  word-wrap: break-word;
+}
+.guide-wrapper {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.link-wrapper {
+  display: flex;
+  justify-content: flex-end;
+}
 .button-row {
   display: flex;
   justify-content: space-between;

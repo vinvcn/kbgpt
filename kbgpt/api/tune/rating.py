@@ -40,6 +40,7 @@ from kbgpt.api.aigc.qa_models import (
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.api.tune.rating_model import (
+    ForwardPrompt,
     HumanRatingDto,
     ListQuestionDto,
     ListRaterDto,
@@ -52,6 +53,7 @@ from kbgpt.lib.db.mysql.jinja_engine_record import JinjaTemplateRecord
 from kbgpt.lib.db.mysql.qa_record import QARecord
 from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
 from kbgpt.lib.exec.pipeline.graph_exec import GraphExecutor
+from kbgpt.lib.llm.openai import Message, client
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.svc.aigc.qa.cache_qa_services import ProxiedQAAgent
 from kbgpt.svc.aigc.qa.file_services import ProxiedDocAgent
@@ -339,3 +341,23 @@ async def list_rater(request: Request):
     raters = crud.get_all(Rater)
     results = ListRaterDto(raters=[RaterDto(**r.as_dict()) for r in raters])
     return text(results.json(indent=4), content_type=API_CONTENT_TYPE)
+
+
+@RATE.route("/forward_prompt", methods=["POST"])
+@openapi.definition(body={API_CONTENT_TYPE: ForwardPrompt.schema()})
+@validate(json=ForwardPrompt)
+async def foward(request: Request, body: ForwardPrompt):
+    # model: Union[str, Tuple[str, ...]],
+    # messages: Tuple[Message, ...],
+    completion = await client.chat_completion(
+        model=body.model,
+        messages=tuple([Message(role="system", content=body.prompt)]),
+        temperature=body.temperature,
+    )
+    return json(
+        {
+            "success": True,
+            "result": completion.content,
+            "usage": completion.usage.dict(),
+        }
+    )

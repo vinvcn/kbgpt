@@ -91,9 +91,15 @@ class NoModelAvailable(Exception):
 class OpenAI:
     def __init__(self, redis: Redis = None) -> None:
         self.redis = redis
+
+    def get_decorated_openai(self):
+        openai.api_key = os.environ["OPENAI_API_KEY"]
+        openai.api_type = "open_ai"
+        openai.api_version = None
         if profile.openai.proxied:
             openai.api_base = str(profile.openai.api_base_url)
             openai.proxy = str(profile.openai.proxy_url)
+        return openai
 
     @alru_cache(maxsize=256, typed=True)
     @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
@@ -108,10 +114,11 @@ class OpenAI:
         if isinstance(model, str):
             model = [model]
         exc = None
+        openai_client = self.get_decorated_openai()
         for model_name in model:
             try:
                 if stream:
-                    return await openai.ChatCompletion.acreate(
+                    return await openai_client.ChatCompletion.acreate(
                         model=model_name,
                         messages=[m.dict() for m in messages],
                         stream=True,
@@ -119,7 +126,7 @@ class OpenAI:
                         **kwargs,
                     )
                 else:
-                    completion = await openai.ChatCompletion.acreate(
+                    completion = await openai_client.ChatCompletion.acreate(
                         model=model_name,
                         messages=[m.dict() for m in messages],
                         # organization="bullsmart",
@@ -137,12 +144,14 @@ class OpenAI:
     @alru_cache(maxsize=256)
     async def embed(self, content: str):
         model = profile.qa.embeddings_model
-        result = await openai.Embedding.acreate(input=content, model=model)
+        result = await self.get_decorated_openai().Embedding.acreate(
+            input=content, model=model
+        )
         embedding = result["data"][0]["embedding"]
         return embedding
 
     async def list_models(self):
-        result = await openai.Model.alist()
+        result = await self.get_decorated_openai().Model.alist()
         return result
 
     async def completion(self, *args, **kwargs) -> Completion:

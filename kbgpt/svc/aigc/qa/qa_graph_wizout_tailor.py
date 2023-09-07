@@ -1,5 +1,6 @@
 from config import profile
 from kbgpt.lib.exec.engines.configs.models import (
+    ClientStyle,
     EmbedMod,
     JinjaMod,
     RecomOutTransMod,
@@ -68,6 +69,7 @@ def recommend_sub_graph_without_tailor():
                 name="qa.recommend_products",
                 keys_in=["question", "answer", "context", "products"],
                 models=[profile.generative_model, profile.qa.generative_model],
+                client_style=ClientStyle.ROUNDROBIN.value,
             ),
             frm=SelectorMultiplexer(
                 selectors=[

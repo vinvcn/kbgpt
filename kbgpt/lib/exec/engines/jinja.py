@@ -9,13 +9,22 @@ from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.db.mysql.jinja_engine_record import JinjaTemplateRecord
-from kbgpt.lib.exec.engines.configs.models import JinjaMod, PersistLevel
+from kbgpt.lib.exec.clients import CLIENT
+from kbgpt.lib.exec.engines.configs.models import ClientStyle, JinjaMod, PersistLevel
 from kbgpt.lib.exec.template_factory import TemplateFactory
 from kbgpt.lib.llm.openai import Message, OpenAI
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.lib.templates.rendering.models import Jinja2RedisLoader
 
 from .engine import Engine
+
+
+class JinjaClientProvider:
+    async def request(self):
+        pass
+
+    async def stream_request(self):
+        pass
 
 
 class Jinja(Engine):
@@ -70,21 +79,26 @@ class Jinja(Engine):
 
         result = ""
         usage = None
-        if not self.config.stream:
-            if load_from_db and load_from_db.prompt == rendered:
-                result, usage = load_from_db.result, load_from_db.usage
-            else:
+        if load_from_db and load_from_db.prompt == rendered:
+            result, usage = load_from_db.result, load_from_db.usage
+        elif self.config.client_style == ClientStyle.ROUNDROBIN.value:
+            completion = await CLIENT.chat_completion(
+                messages=[Message(role="system", content=rendered)],
+                stream=self.config.stream,
+                callbacks=kwargs.get("callbacks", None),
+                temperature=self.config.temperature,
+            )
+            result, usage = completion.content, completion.usage.json()
+        elif self.config.client_style == ClientStyle.NATIVE.value:
+            if not self.config.stream:
                 completion = await self.openai.chat_completion(
                     self.config.models,
                     tuple([Message(role="system", content=rendered)]),
                     temperature=self.config.temperature,
                 )
                 result, usage = completion.content, completion.usage.json()
-        else:
-            assert "callbacks" in kwargs
-            if load_from_db and load_from_db.prompt == rendered:
-                result, usage = load_from_db.result, load_from_db.usage
             else:
+                assert "callbacks" in kwargs
                 request = await self.openai.chat_completion(
                     self.config.models,
                     tuple([Message(role="system", content=rendered)]),
@@ -100,6 +114,8 @@ class Jinja(Engine):
                         await cb.on_llm_new_token(token)
 
                 result, usage = buffer, "{}"
+        else:
+            raise ValueError(f"no such client style '{self.config.client_style}")
 
         if not load_from_db:
             await self._persist_content(

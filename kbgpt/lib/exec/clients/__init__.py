@@ -4,6 +4,7 @@ import threading
 from ast import mod
 from collections import defaultdict
 from enum import Enum
+from io import StringIO
 from time import perf_counter
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -23,7 +24,7 @@ from tenacity import (
 from config import profile
 from kbgpt.configs.profiles import AzureAI
 from kbgpt.lib.llm.openai import Message
-from kbgpt.svc.utils.openai import get_total_cost
+from kbgpt.svc.utils.openai import get_total_cost, token_counts
 
 
 class ServiceProvider(Enum):
@@ -154,16 +155,32 @@ class AzureCompletion:
         self,
         messages: Tuple[Message, ...],
         stream=False,
+        callbacks=None,
         **kwargs,
     ) -> Completion:
         openai_client = self.get_decorated_openai()
         if stream:
-            return await openai_client.ChatCompletion.acreate(
+            assert callbacks
+            buffer = StringIO()
+            usage = Usage()
+            response = await openai_client.ChatCompletion.acreate(
                 engine=self.deployment,
                 messages=[m.dict() for m in messages],
                 stream=True,
                 **kwargs,
             )
+            async for stream_resp in response:
+                token = stream_resp["choices"][0]["delta"].get("content", "")
+                buffer.write(token)
+                for clbk in callbacks:
+                    await clbk(token)
+            pompt_tokens = token_counts(
+                self.deployment, "\n".join([m.content for m in messages])
+            )
+            comp_tokens = token_counts(self.deployment, buffer.getvalue())
+            total_token = pompt_tokens + comp_tokens
+            usage.total_tokens = total_token
+            return Completion(usage=usage, content=buffer.getvalue())
         else:
             completion = await openai_client.ChatCompletion.acreate(
                 engine=self.deployment,
@@ -178,7 +195,7 @@ class AzureCompletion:
     async def embed(self, content: str):
         model = profile.qa.embeddings_model
         result = self.get_decorated_openai().Embedding.acreate(
-            input=content, model=model
+            input=content, engine=self.deployment
         )
         embedding = result["data"][0]["embedding"]
         return embedding
@@ -201,16 +218,32 @@ class ChatCompletion:
         self,
         messages: Tuple[Message, ...],
         stream=False,
+        callbacks=None,
         **kwargs,
     ) -> Completion:
         openai_client = self.get_decorated_openai()
         if stream:
-            return await openai_client.ChatCompletion.acreate(
+            assert callbacks
+            buffer = StringIO()
+            usage = Usage()
+            response = await openai_client.ChatCompletion.acreate(
                 model=self.model,
                 messages=[m.dict() for m in messages],
                 stream=True,
                 **kwargs,
             )
+            async for stream_resp in response:
+                token = stream_resp["choices"][0]["delta"].get("content", "")
+                buffer.write(token)
+                for clbk in callbacks:
+                    await clbk(token)
+            pompt_tokens = token_counts(
+                self.model, "\n".join([m.content for m in messages])
+            )
+            comp_tokens = token_counts(self.model, buffer.getvalue())
+            total_token = pompt_tokens + comp_tokens
+            usage.total_tokens = total_token
+            return Completion(usage=usage, content=buffer.getvalue())
         else:
             completion = await openai_client.ChatCompletion.acreate(
                 model=self.model,
