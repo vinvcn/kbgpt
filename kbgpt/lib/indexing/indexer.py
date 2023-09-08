@@ -112,11 +112,11 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
 
         file_bytes = 0
         file_tokens = 0
-        for path in paths:
-            async with aopen(path, "r") as file:
-                async for line in file:
-                    file_bytes += len(line.encode("utf8"))
-                    file_tokens += token_counts(profile.qa.generative_model, line)
+        # for path in paths:
+        #     async with aopen(path, "r") as file:
+        #         async for line in file:
+        #             file_bytes += len(line.encode("utf8"))
+        #             file_tokens += token_counts(profile.qa.generative_model, line)
 
         return {
             "total_file_splits": len(documents),

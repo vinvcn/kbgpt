@@ -3,8 +3,10 @@
     <el-header>
       <el-row type="flex" justify="space-between">
         <el-col :span="4">
-          <el-link @click="goHome">Data Labeling Center </el-link></el-col
-        >
+          <el-link @click="goHome">Data Labeling Center </el-link
+          ><el-link>|</el-link>
+          <el-link type="primary" @click="goToChat">Chat</el-link>
+        </el-col>
         <el-col :span="4">
           <span>Your User Name:</span>
           <el-select
@@ -22,13 +24,13 @@
           </el-select>
         </el-col>
         <el-col :span="4">
-        <span>Filter:</span>
-        <el-radio-group v-model="showRatings">
-          <el-radio label="all">All</el-radio>
-          <el-radio label="unrated">Unrated</el-radio>
-          <el-radio label="rated">Rated</el-radio>
-        </el-radio-group>
-      </el-col>
+          <span>Filter:</span>
+          <el-radio-group v-model="showRatings">
+            <el-radio label="all">All</el-radio>
+            <el-radio label="unrated">Unrated</el-radio>
+            <el-radio label="rated">Rated</el-radio>
+          </el-radio-group>
+        </el-col>
         <el-col :span="4">
           <el-link type="primary" @click="dialogVisible = true"
             >Create New User</el-link
@@ -71,6 +73,7 @@ export default {
       const query = this.$route.query;
       this.$router.push({ name: "Home", query: { ...query, rating: newVal } });
     },
+
     selectedRater(newVal) {
       const query = this.$route.query;
       if (newVal) {
@@ -82,7 +85,10 @@ export default {
     },
   },
   methods: {
-    goHome(){
+    goToChat() {
+      this.$router.push({ name: "Chat", query: { ...this.$route.query } });
+    },
+    goHome() {
       const query = this.$route.query;
       console.log(query);
       this.$router.push({

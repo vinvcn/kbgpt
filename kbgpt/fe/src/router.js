@@ -1,5 +1,6 @@
 import DetailsView from "@/components/QuestionDetailsView.vue";
 import ListView from "@/components/QuestionListView.vue";
+import SSEChatBox from "@/components/SSEChatBox.vue";
 import { createRouter, createWebHashHistory } from "vue-router";
 
 const routes = [
@@ -12,6 +13,11 @@ const routes = [
     path: "/details",
     name: "Details",
     component: DetailsView,
+  },
+  {
+    path: "/chat",
+    name: "Chat",
+    component: SSEChatBox,
   }
 ];
 
