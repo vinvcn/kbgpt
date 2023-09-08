@@ -26,7 +26,7 @@
       ref="userInput"
     />
     <button id="sendButton" @click="sendMessage" ref="sendBtn">Send</button>
-    <div>
+    <!-- <div>
       <p id="helpMessage">{{ helpMessages[selectedOption] }}</p>
     </div>
     <div class="controls">
@@ -84,7 +84,7 @@
           AThreshold: {{ asliderValue }}
         </label>
       </div>
-    </fieldset>
+    </fieldset> -->
   </div>
 </template>
 

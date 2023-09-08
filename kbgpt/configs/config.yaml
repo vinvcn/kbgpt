@@ -8,6 +8,7 @@ DEFAULT:
     PROXIED: True
     PROXY_URL: http://18.139.228.114:81
     API_BASE_URL: http://api.openai.com/v1
+    UNPROXIED_URL: https://api.openai.com/v1
   AZUREAI:
     - api_base: "https://bullsmart-japan-east.openai.azure.com"
       api_version: "2023-05-15"

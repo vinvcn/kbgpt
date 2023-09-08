@@ -24,6 +24,7 @@ class OpenAI(SuperConfig):
     proxied: bool = Field(False)
     proxy_url: Optional[AnyUrl]
     api_base_url: Optional[AnyUrl]
+    unproxied_url: Optional[AnyUrl]
 
 
 class AzureAI(SuperConfig):
