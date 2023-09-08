@@ -4,7 +4,7 @@ Your professional heart has remind you a couple of related products that your co
 
 You need suggest your client to make a choice. If there is only one option, also prompt the choice by conveying how it can be good fit.
 
-Your next sentence should be a natural transition to the options. Try make is coherent to the conversation history and the options.
+Your next sentence should focus on the products. Try make is coherent to the conversation history and the options.
 
 Limit your response in 10 english words.
 
