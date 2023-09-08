@@ -23,6 +23,22 @@ class HumanRating(Base, UtilityMixin):
     timestamp = Column(DateTime, default=datetime.utcnow)
 
 
+class RaterPrompt(Base, UtilityMixin):
+    """ """
+
+    __tablename__ = "rating_rater_prompt"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    question_id = Column(Integer, nullable=False)
+    invoke_id = Column(String(128, collation="utf8mb4_unicode_ci"))
+    node_id = Column(String(128, collation="utf8mb4_unicode_ci"))
+    rater = Column(String(64, collation="utf8mb4_unicode_ci"))
+    debug_model = Column(String(128, collation="utf8mb4_unicode_ci"))
+    rater_prompt = Column(Text(collation="utf8mb4_unicode_ci"))
+    rater_result = Column(Text(collation="utf8mb4_unicode_ci"))
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+
 class Rater(Base, UtilityMixin):
     """
     Jinja Template Record

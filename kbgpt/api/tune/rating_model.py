@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator
 
 
 class QuestionDto(BaseModel):
@@ -11,6 +11,28 @@ class QuestionDto(BaseModel):
 
 class ListQuestionDto(BaseModel):
     questions: List[QuestionDto]
+
+
+class GetRaterPrompt(BaseModel):
+    id: Optional[int]
+    question_id: Optional[int]
+    invoke_id: Optional[str]
+    node_id: Optional[str]
+    rater: Optional[str]
+    debug_model: Optional[str]
+    rater_prompt: Optional[str]
+    rater_result: Optional[str]
+
+    @root_validator(pre=True)
+    def check_either_one_present(cls, values):
+        """validator"""
+        cond_fields = ["question_id", "invoke_id", "node_id", "rater"]
+        id_present = "id" in values
+        conditions_present = all([k in values for k in cond_fields])
+        assert (
+            id_present or conditions_present
+        ), f" either 'id' or '{cond_fields}' should present"
+        return values
 
 
 class HumanRatingDto(BaseModel):

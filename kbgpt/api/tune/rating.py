@@ -41,6 +41,7 @@ from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.api.tune.rating_model import (
     ForwardPrompt,
+    GetRaterPrompt,
     HumanRatingDto,
     ListQuestionDto,
     ListRaterDto,
@@ -48,7 +49,7 @@ from kbgpt.api.tune.rating_model import (
     RaterDto,
 )
 from kbgpt.lib.db.mysql import Crud
-from kbgpt.lib.db.mysql.human_rating import HumanRating, Rater
+from kbgpt.lib.db.mysql.human_rating import HumanRating, Rater, RaterPrompt
 from kbgpt.lib.db.mysql.jinja_engine_record import JinjaTemplateRecord
 from kbgpt.lib.db.mysql.qa_record import QARecord
 from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
@@ -311,6 +312,51 @@ async def rate_it(request: Request, body: HumanRatingDto):
     row = HumanRating(**body.dict())
     if row.id:
         crud.update_rows(HumanRating, [row])
+    else:
+        crud.add(row)
+    return json({"success": True})
+
+
+@RATE.route("/prompt", methods=["POST"])
+@openapi.description("Get the rater's prompt.")
+@openapi.definition(body={API_CONTENT_TYPE: GetRaterPrompt.schema()})
+@validate(json=GetRaterPrompt)
+async def get_prompt(request: Request, body: GetRaterPrompt):
+    res: ResourceMgr = request.app.ctx.res
+    crud: Crud = res.get(Crud.__name__)
+    record: RaterPrompt = None
+    if body.id:
+        record = crud.get_one(RaterPrompt, RaterPrompt.id == body.id)
+    else:
+        record = crud.get_one(
+            RaterPrompt,
+            and_(
+                RaterPrompt.question_id == body.question_id,
+                RaterPrompt.invoke_id == body.invoke_id,
+                RaterPrompt.node_id == body.node_id,
+                RaterPrompt.rater == body.rater,
+            ),
+            order_by=RaterPrompt.timestamp.desc(),
+        )
+    if record:
+        return text(
+            dumps({"success": True, **record.as_dict()}, default=str),
+            content_type=API_CONTENT_TYPE,
+        )
+    else:
+        return json({"success": False})
+
+
+@RATE.route("/prompt", methods=["PUT"])
+@openapi.description("Update the rater's prompt")
+@openapi.definition(body={API_CONTENT_TYPE: GetRaterPrompt.schema()})
+@validate(json=GetRaterPrompt)
+async def update_rater_prompt(request: Request, body: GetRaterPrompt):
+    res: ResourceMgr = request.app.ctx.res
+    crud: Crud = res.get(Crud.__name__)
+    row = RaterPrompt(**body.dict())
+    if row.id:
+        crud.update_rows(RaterPrompt, [row])
     else:
         crud.add(row)
     return json({"success": True})

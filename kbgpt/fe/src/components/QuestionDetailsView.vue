@@ -24,7 +24,7 @@
               <p>{{ step.result }}</p>
               <div class="link-wrapper">
                 <el-link type="primary" @click="debugPromptDialog(index)"
-                  >Show Prompt >></el-link
+                  >Debug Prompt >></el-link
                 >
               </div>
               <el-form :model="forms[index]">
@@ -35,10 +35,14 @@
                   </el-radio-group>
                 </el-form-item>
                 <el-form-item label="Comment:">
-                  <el-input v-model="forms[index].comment" type="textarea" />
+                  <el-input
+                    autosize
+                    v-model="forms[index].comment"
+                    type="textarea"
+                  />
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" @click="onSubmit(index)"
+                  <el-button type="primary" @click="onSaveRating(index)"
                     >Save</el-button
                   >
                 </el-form-item>
@@ -56,51 +60,60 @@
       </el-col>
     </el-row>
   </div>
-  <el-dialog v-model="debugPrompt" :show-close="true" align-center>
+  <el-dialog v-model="debugPrompt.visible" :show-close="true" align-center>
     <template #header>
       <div class="my-header">
-        Step #{{ promptIndex }} : {{ item.steps[promptIndex].node_id }}
+        Step #{{ debugPrompt.promptIndex }} : {{ debugPrompt.content.node_id }}
       </div>
     </template>
 
     <el-form>
       <p>Baseline Result:</p>
       <pre
-        >{{ item.steps[promptIndex].result }}
+        >{{ item.steps[debugPrompt.promptIndex].result }}
     </pre
       >
       <p>Prompt Content:</p>
       <el-form-item>
         <el-input
           :autosize="{ minRows: 10, maxRows: 20 }"
-          v-model="item.steps[promptIndex].prompt"
+          v-model="editingPrompt"
           type="textarea"
         />
       </el-form-item>
-
     </el-form>
     <p>Run Result:</p>
-    <pre>{{ item.steps[promptIndex].debugResult }}</pre>
+    <pre>{{ editingResult }}</pre>
     <!-- <p class="guide-wrapper">
       Guide: Copy and paste the new prompt and save it as comment.
     </p> -->
     <template #footer>
       <span class="dialog-footer">
-        <el-select
-            v-model="debugModel"
-            placeholder="Select Your User Name:"
+        <el-select v-model="debugModel" placeholder="Select Your User Name:">
+          <el-option
+            v-for="item in openaiModels"
+            :key="item"
+            :label="item"
+            :value="item"
           >
-            <el-option
-              v-for="item in openaiModels"
-              :key="item"
-              :label="item"
-              :value="item"
-            >
-              {{ item }}
-            </el-option>
-          </el-select>
-        <el-button ref="runBtn" type="primary" @click="forwardPrompt(promptIndex)"> Run </el-button>
-        <el-button @click="debugPrompt = false"> Close </el-button>
+            {{ item }}
+          </el-option>
+        </el-select>
+        <el-button
+          v-loading.fullscreen.lock="fullscreenLoading"
+          element-loading-background="rgba(0, 0, 0, 0.7)"
+          ref="runBtn"
+          type="primary"
+          @click="forwardPrompt()"
+        >
+          Run
+        </el-button>
+        <el-button
+          @click="onSavePrompt()"
+        >
+          Save
+        </el-button>
+        <el-button @click="debugPrompt.visible = false"> Close </el-button>
       </span>
     </template>
   </el-dialog>
@@ -109,20 +122,60 @@
 
   <script>
 import { get_base_url } from "@/utils/utils";
+import { ElMessage } from 'element-plus';
+
 export default {
   name: "DetailsView",
   data() {
     return {
+      fullscreenLoading: false,
       question_id: "",
       item: {}, // Fill with your data based on the id from route params.
       selectedOption: null,
       comment: "",
       forms: [],
-      debugPrompt: false,
-      promptIndex: "",
-      debugModel: "gpt-4",
-      openaiModels: ["gpt-4","gpt-3.5-turbo","gpt-3.5-turbo-16k"]
+      debugPrompt: {
+        visible: false,
+        promptIndex: "",
+        content: {},
+      },
+      openaiModels: ["gpt-4", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"],
     };
+  },
+  computed: {
+    editingPrompt: {
+      get() {
+        if (this.debugPrompt.content.rater_prompt) {
+          return this.debugPrompt.content.rater_prompt;
+        } else {
+          return this.item.steps[this.debugPrompt.promptIndex].prompt;
+        }
+      },
+      set(newValue) {
+        this.debugPrompt.content.rater_prompt = newValue;
+      },
+    },
+    editingResult: {
+      get() {
+        console.log(this.debugPrompt.content);
+        return this.debugPrompt.content.rater_result
+          ? this.debugPrompt.content.rater_result
+          : this.item.steps[this.debugPrompt.promptIndex].result;
+      },
+      set(newValue) {
+        this.debugPrompt.content.rater_result = newValue;
+      },
+    },
+    debugModel: {
+      get() {
+        return this.debugPrompt.content.debug_model
+          ? this.debugPrompt.content.debug_model
+          : this.openaiModels[0];
+      },
+      set(newVal) {
+        this.debugPrompt.content.debug_model = newVal;
+      },
+    },
   },
   mounted() {
     this.$nextTick(() => {
@@ -131,6 +184,36 @@ export default {
   },
   watch: {
     "$route.query": "queryChange",
+    "debugPrompt.promptIndex": function (newVal, oldVal) {
+      console.log(oldVal);
+      console.log(newVal);
+      const content = {
+        question_id: this.$route.query.id,
+        rater: this.$route.query.rater,
+        invoke_id: this.item.steps[newVal].invoke_id,
+        node_id: this.item.steps[newVal].node_id,
+      };
+      this.debugPrompt.content = content;
+
+      fetch(`${get_base_url()}/api/v1/tune/rate/prompt`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "APPLICATION/JSON",
+        },
+        body: JSON.stringify({
+          ...content,
+        }),
+      })
+        .then((resp) => resp.json())
+        .then((data) => {
+          if (data.success) {
+            this.debugPrompt.content = data;
+          }
+        })
+        .catch((err) =>
+          alert(`fetching rater editing prompt got error ${err}`)
+        );
+    },
     question_id(newVal) {
       const rater = this.$route.query.rater;
       fetch(`${get_base_url()}/api/v1/tune/rate/rating/${newVal}/${rater}`)
@@ -145,6 +228,8 @@ export default {
               rst.rating = item.rating.toString();
             }
             rst.comment = item.comment;
+            rst.rater_prompt = item.rater_prompt;
+            rst.rater_result = item.rater_result;
             return rst;
           });
           this.forms = forms;
@@ -156,35 +241,55 @@ export default {
   },
   methods: {
     debugPromptDialog(index) {
-      this.debugPrompt = true;
-      this.promptIndex = index;
+      this.debugPrompt.visible = true;
+      this.debugPrompt.promptIndex = index;
     },
-    forwardPrompt(promptIndex) {
-      const prompt = this.item.steps[promptIndex].prompt
+    forwardPrompt() {
+      this.fullscreenLoading = true;
+      const prompt = this.editingPrompt;
       fetch(`${get_base_url()}/api/v1/tune/rate/forward_prompt`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(
-          {
-            prompt:prompt,
-            model:this.debugModel,
-          }
-        )
-      }).then((resp) => resp.json())
-      .then(data => {
-        this.item.steps[promptIndex].debugResult = data.result
-        this.$refs.runBtn.disabled = !(this.$refs.runBtn.disabled)
-      }).catch(err => {
-        alert(`forwarding prompt got error ${err}`)
-      });
-      this.$refs.runBtn.disabled = !(this.$refs.runBtn.disabled)
+        body: JSON.stringify({
+          prompt: prompt,
+          model: this.debugModel,
+        }),
+      })
+        .then((resp) => resp.json())
+        .then((data) => {
+          this.editingResult = data.result;
+          this.$refs.runBtn.disabled = !this.$refs.runBtn.disabled;
+        })
+        .catch((err) => {
+          alert(`forwarding prompt got error ${err}`);
+        })
+        .finally(() => {
+          this.fullscreenLoading = false;
+        });
+      this.$refs.runBtn.disabled = !this.$refs.runBtn.disabled;
     },
-
-    handledebugPrompt(index) {
-      this.debugPromptHeader = this.item.steps[index].node_id;
-      this.debugPromptContent = this.item.steps[index].prompt;
+    onSavePrompt() {
+      fetch(`${get_base_url()}/api/v1/tune/rate/prompt`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...this.debugPrompt.content,
+        }),
+      })
+        .then((resp) => resp.json())
+        .then(() => {
+          ElMessage({
+            showClose: true,
+            message: 'Prompt Saved',
+            type: 'success',
+          })
+        })
+        .catch((err) => alert(`saving prompt got error ${err}`)).finally(() => {
+        });
     },
     goBack() {
       const query = this.$route.query;
@@ -226,7 +331,7 @@ export default {
           this.turn(data);
         });
     },
-    onSubmit(index) {
+    onSaveRating(index) {
       console.log(this.forms);
       console.log(this.forms[index]);
       fetch(`${get_base_url()}/api/v1/tune/rate/rating`, {
@@ -250,10 +355,12 @@ export default {
         }),
       })
         .then((resp) => resp.json())
-        .then((data) => {
-          if (data.success) {
-            this.forms[index].success = true;
-          }
+        .then(() => {
+          ElMessage({
+            showClose: true,
+            message: 'Rating Saved',
+            type: 'success',
+          })          
         })
         .catch((error) => alert(error));
       // Handle the user's selected option here.

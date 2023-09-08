@@ -3,7 +3,6 @@ from time import perf_counter
 from typing import Any, Dict, List
 
 from jinja2 import Environment
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.api.libs.resources import ResourceMgr
