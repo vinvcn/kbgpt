@@ -144,24 +144,28 @@ def match_file_name_turn_question(rating: str):
     return fn
 
 
-@RATE.route("/max_page", methods=["GET"])
-async def max_page(request: Request):
-    params = {k: v for k, v in request.get_query_args()}
-    rater = params.get("rater", None)
-    if rater:
-        rater = unquote(rater)
-    rating = params.get("rating", None)
+@RATE.route("/max_page/<rater:str>/<rating:str>", methods=["GET"])
+async def max_page(request: Request, rater: str, rating: str):
+    # params = {k: v for k, v in request.get_query_args()}
+    # rater = params.get("rater", None)
+    # if rater:
+    rater = unquote(rater)
+    rating = unquote(rating)
+    # rating = params.get("rating", None)
     fn = match_file_name(rating)
 
     sql_text = read_sql(fn)
-    sql_text = sql_text.format(rater=rater, columns="count(0)")
+    sql_text = sql_text.format(
+        rater=rater, columns="count(0) as cnt, min(id) as min_id, max(id) as max_id"
+    )
     res: ResourceMgr = request.app.ctx.res
     crud: Crud = res.get(Crud.__name__)
     with sessionmaker(bind=crud.engine)() as session:
         result = session.execute(stext(sql_text))
-        count = result.scalar_one_or_none()
-        max_page_no = ceil(count / PER_PAGE)
-        return json({"max_page": max_page_no})
+        columns = [col[0] for col in result.cursor.description]
+        dict_result = dict(zip(columns, result.fetchone()))
+        max_page_no = ceil(dict_result["cnt"] / PER_PAGE)
+        return json({"max_page": max_page_no, **dict_result})
 
 
 @functools.lru_cache
@@ -171,6 +175,30 @@ def read_sql(filename):
     with open(full_path, "r", encoding="utf-8") as fp:
         sql_text = fp.read()
         return sql_text
+
+
+@RATE.route("/all_questions", methods=["GET"])
+async def all_questions(request: Request):
+    params = {k: v for k, v in request.get_query_args()}
+    rater = params.get("rater", None)
+    if rater:
+        rater = unquote(rater)
+    rating = params.get("rating", None)
+    rating = unquote(rating)
+
+    fn = match_file_name(rating)
+    sql_text = read_sql(fn)
+    sql_text = sql_text.format(rater=rater, columns="q.id")
+    res: ResourceMgr = request.app.ctx.res
+    crud: Crud = res.get(Crud.__name__)
+
+    with sessionmaker(bind=crud.engine)() as session:
+        results = session.query(QARecord).from_statement(stext(sql_text)).all()
+        if results:
+            dtos = [rst.id for rst in results]
+            return text(dumps(dtos), content_type=API_CONTENT_TYPE)
+        else:
+            return text("{}")
 
 
 @RATE.route("/list_rating", methods=["GET"])

@@ -35,6 +35,11 @@ class PersistLevel(Enum):
     INFO = "info"
 
 
+class SemanticCache(Enum):
+    NONE = "none"
+    REDIS = "redis"
+
+
 class ClientStyle(Enum):
     NATIVE = "native"
     ROUNDROBIN = "roundrobin"

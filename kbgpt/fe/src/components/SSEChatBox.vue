@@ -349,6 +349,17 @@ export default {
       },
     };
   },
+  created: function(){
+    const historyString = localStorage.getItem("chatHistory")
+    if (historyString){
+      this.messages = JSON.parse(historyString);
+    }
+    window.addEventListener('beforeunload', this.persistMessage)
+
+  },
+  beforeRouteLeave: function(){
+    this.persistMessage()
+  },
   methods: {
     appendMessage: function (sender, message) {
       this.messages.push({
@@ -357,6 +368,10 @@ export default {
       });
 
       this.scrollToBottom();
+    },
+    persistMessage: function(){
+      const historyString = JSON.stringify(this.messages);
+      localStorage.setItem("chatHistory", historyString);
     },
     fetchProductCatalog: async function () {
       try {

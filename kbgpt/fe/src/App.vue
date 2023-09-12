@@ -4,8 +4,8 @@
       <el-row type="flex" justify="space-between">
         <el-col :span="4">
           <el-link @click="goHome">Data Labeling Center </el-link
-          ><el-link>|</el-link>
-          <el-link type="primary" @click="goToChat">Chat</el-link>
+          ><el-link><span> | </span></el-link>
+          <el-link @click="goToChat">Chat</el-link>
         </el-col>
         <el-col :span="4">
           <span>Your User Name:</span>
@@ -58,7 +58,7 @@ export default {
   name: "App",
   data() {
     return {
-      showRatings: "all",
+      showRatings: 'all',
       raters: [],
       selectedRater: null,
       newRater: "",
@@ -67,13 +67,13 @@ export default {
   },
   mounted: async function () {
     await this.fetchRaters();
+    this.showRatings = this.$route.query.rating ? this.$route.query.rating : "all"
   },
   watch: {
     showRatings(newVal) {
       const query = this.$route.query;
-      this.$router.push({ name: "Home", query: { ...query, rating: newVal } });
+      this.$router.push({ name: "Home", query: { ...query, rating: newVal , page: 1} });
     },
-
     selectedRater(newVal) {
       const query = this.$route.query;
       if (newVal) {

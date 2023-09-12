@@ -3,12 +3,13 @@
     <el-page-header @back="goBack">
       <template #content>
         <span class="text-large font-600 mr-3">
-          Question #{{ item.id }}: {{ item.question }}
+          Question #{{ this.questionIndex }} (ID {{ item.id }}):
+          {{ item.question }}
         </span>
       </template>
     </el-page-header>
-    <el-row>
-      <el-col :span="6"><div class="grid-content ep-bg-purple" /></el-col>
+    <el-row justify="center">
+      <el-col :span="6"> </el-col>
     </el-row>
     <el-row>
       <el-col :span="1">
@@ -17,46 +18,100 @@
         </el-button>
       </el-col>
       <el-col :span="11">
-        <el-card shadow="never" class="box-card">
-          <div>
-            <div v-for="(step, index) in item.steps" :key="index">
-              <p>Step #{{ index }} : {{ step.node_id }}</p>
-              <p>{{ step.result }}</p>
-              <div class="link-wrapper">
-                <el-link type="primary" @click="debugPromptDialog(index)"
-                  >Debug Prompt >></el-link
-                >
-              </div>
-              <el-form :model="forms[index]">
-                <el-form-item label="Rating:">
-                  <el-radio-group v-model="forms[index].rating">
-                    <el-radio label="0">Bad</el-radio>
-                    <el-radio label="1">Good</el-radio>
-                  </el-radio-group>
-                </el-form-item>
-                <el-form-item label="Comment:">
-                  <el-input
-                    autosize
-                    v-model="forms[index].comment"
-                    type="textarea"
-                  />
-                </el-form-item>
-                <el-form-item>
-                  <el-button type="primary" @click="onSaveRating(index)"
-                    >Save</el-button
-                  >
-                </el-form-item>
-              </el-form>
-
-              <el-divider border-style="dashed" />
-            </div>
+        <!-- <el-row justify="center">
+          <div class="button-row">
+            <span v-for="number in this.validQuestionIds" :key="number">
+              <el-link v-if="number == $route.query.id" type="primary" disabled
+                >[{{ number }}]</el-link
+              >
+              <el-link
+                @click="goToPage(number)"
+                v-else-if="
+                  number == $route.query.minId || number == $route.query.maxId
+                "
+                >{{ number }}</el-link
+              >
+              <el-link v-else>{{ number }}</el-link>
+            </span>
           </div>
-        </el-card>
+        </el-row> -->
+        <el-row justify="center">
+          <el-card shadow="never" class="box-card" style="width: 100%">
+            <div>
+              <div v-for="(step, index) in item.steps" :key="index">
+                <p>Step #{{ index }} : {{ step.node_id }}</p>
+                <p>{{ step.result }}</p>
+                <div class="link-wrapper">
+                  <el-link type="primary" @click="debugPromptDialog(index)"
+                    >Debug Prompt >></el-link
+                  >
+                </div>
+                <el-form :model="forms[index]">
+                  <el-form-item label="Rating:">
+                    <el-radio-group v-model="forms[index].rating">
+                      <el-radio label="0">Bad</el-radio>
+                      <el-radio label="1">Good</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                  <el-form-item label="Comment:">
+                    <el-input
+                      autosize
+                      v-model="forms[index].comment"
+                      type="textarea"
+                    />
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button type="primary" @click="onSaveRating(index)"
+                      >Save</el-button
+                    >
+                  </el-form-item>
+                </el-form>
+
+                <el-divider border-style="dashed" />
+              </div>
+            </div> </el-card
+        ></el-row>
       </el-col>
       <el-col :span="1">
         <el-button class="prev-btn" @click="next">
           <el-icon :size="40"><ArrowRightBold /></el-icon>
         </el-button>
+      </el-col>
+      <el-col :span="1">
+        <p>Question List:</p>
+        <el-scrollbar height="600px" ref="questionIndexScrollBar">
+          <el-row
+            v-for="(idx, rindex) in genRange(
+              0,
+              this.validQuestionIds.length / 2
+            )"
+            :key="rindex"
+          >
+            <span
+              class="noMargin"
+              v-for="cindex in genRange(1, 3)"
+              :key="cindex"
+            >
+              <el-link
+                v-if="idx * 2 + cindex == this.questionIndex"
+                type="primary"
+                disabled
+                ref="activeQuestionIndex"
+              >
+                [{{ idx * 2 + cindex }}]
+              </el-link>
+              <el-link
+                v-else-if="idx * 2 + cindex <= this.validQuestionIds.length"
+                @click="
+                  turn({
+                    question_id: this.validQuestionIds[idx * 2 + cindex - 1],
+                  })
+                "
+                >{{ idx * 2 + cindex }}</el-link
+              >
+            </span>
+          </el-row>
+        </el-scrollbar>
       </el-col>
     </el-row>
   </div>
@@ -108,11 +163,7 @@
         >
           Run
         </el-button>
-        <el-button
-          @click="onSavePrompt()"
-        >
-          Save
-        </el-button>
+        <el-button @click="onSavePrompt()"> Save </el-button>
         <el-button @click="debugPrompt.visible = false"> Close </el-button>
       </span>
     </template>
@@ -122,13 +173,15 @@
 
   <script>
 import { get_base_url } from "@/utils/utils";
-import { ElMessage } from 'element-plus';
+import { ElMessage } from "element-plus";
 
 export default {
   name: "DetailsView",
   data() {
     return {
       fullscreenLoading: false,
+      validQuestionIds: [],
+      pageIndex: "",
       question_id: "",
       item: {}, // Fill with your data based on the id from route params.
       selectedOption: null,
@@ -143,6 +196,19 @@ export default {
     };
   },
   computed: {
+    // page: {
+    //   get() {
+    //     return this.$route.query.id - this.$route.query.minId + 1;
+    //   },
+    //   set(newVal) {
+    //     const newId = Number(this.$route.query.minId) + Number(newVal) - 1;
+    //     console.log(newId);
+    //     this.turn({ question_id: newId });
+    //   },
+    // },
+    questionIndex: function () {
+      return this.validQuestionIds.indexOf(this.item.id) + 1;
+    },
     editingPrompt: {
       get() {
         if (this.debugPrompt.content.rater_prompt) {
@@ -177,9 +243,28 @@ export default {
       },
     },
   },
+  created() {
+    fetch(
+      `${get_base_url()}/api/v1/tune/rate/all_questions?` +
+        new URLSearchParams({
+          ...this.$route.query,
+        }),
+      {
+        method: "GET",
+      }
+    )
+      .then((resp) => resp.json())
+      .then((data) => (this.validQuestionIds = data))
+      .catch((err) => alert(`fetching all questions got error ${err}`));
+  },
+  updated(){
+    this.$nextTick(() => {
+    })
+  },
   mounted() {
     this.$nextTick(() => {
       this.question_id = this.$route.query.id;
+      // this.$refs.activeQuestionIndex.scrollIntoView({behavior: 'smooth'});
     });
   },
   watch: {
@@ -233,13 +318,15 @@ export default {
             return rst;
           });
           this.forms = forms;
-          // for (let i = 0; i < forms.length; i++) {
-          //   this.ratings[i] = forms[i];
-          // }
         });
     },
   },
   methods: {
+    genRange(start, end) {
+      return Array(Math.ceil(end) - Math.ceil(start))
+        .fill()
+        .map((_, idx) => start + idx);
+    },
     debugPromptDialog(index) {
       this.debugPrompt.visible = true;
       this.debugPrompt.promptIndex = index;
@@ -284,12 +371,12 @@ export default {
         .then(() => {
           ElMessage({
             showClose: true,
-            message: 'Prompt Saved',
-            type: 'success',
-          })
+            message: "Prompt Saved",
+            type: "success",
+          });
         })
-        .catch((err) => alert(`saving prompt got error ${err}`)).finally(() => {
-        });
+        .catch((err) => alert(`saving prompt got error ${err}`))
+        .finally(() => {});
     },
     goBack() {
       const query = this.$route.query;
@@ -358,9 +445,9 @@ export default {
         .then(() => {
           ElMessage({
             showClose: true,
-            message: 'Rating Saved',
-            type: 'success',
-          })          
+            message: "Rating Saved",
+            type: "success",
+          });
         })
         .catch((error) => alert(error));
       // Handle the user's selected option here.
@@ -396,5 +483,8 @@ pre {
   width: 100%;
   height: 100%;
   border: none;
+}
+span.noMargin {
+  margin-right: 10px;
 }
 </style>
