@@ -1,1 +1,1 @@
-SELECT {columns} FROM log_qa_record 
+SELECT {columns} FROM log_qa_record q
