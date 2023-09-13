@@ -73,7 +73,6 @@ class WeeklyAgent(Agent):
         list_start_at = adjust1.content.lower().index(fund_list_start_str)
         list_content = adjust1.content[list_start_at:]
         polish1 = await polishengine.agenerate(content=adjust1.content[:list_start_at])
-        polish1.content += "\n\n" + list_content
 
         pages = [
             re.sub(r"#TB-.*?-TB#", "", l.strip())
@@ -92,7 +91,7 @@ class WeeklyAgent(Agent):
             content=adjust1.content,
             pages=pages,
             ssml=ssml,
-            polish_content=polish1.content,
+            polish_content=polish1.content + "\n\n" + list_content,
             data=jinja_with_listing.metadata["data"],
             **adjust1.usage.__dict__,
         )
@@ -135,14 +134,14 @@ class ReportAgent(Agent):
             completion2 = await polish_engine.agenerate(
                 content=completion1.content[:list_tag_start_index]
             )
-            completion2.content += "\n" + funds_list
+            # completion2.content += "\n" + funds_list
 
             logging.debug("result")
             logging.debug("\n%s", completion2)
             usage = completion2.usage + completion1.usage
             return ReportResponse(
                 content=completion1.content,
-                polish_content=completion2.content,
+                polish_content=completion2.content + "\n" + funds_list,
                 data=jinja_completion.metadata["data"],
                 comp_tokens=usage.completion_tokens,
                 **usage.__dict__,
