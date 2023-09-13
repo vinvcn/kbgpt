@@ -22,6 +22,7 @@ from kbgpt.api.aigc.report_models import (
     ReportResponse,
     ToVoice,
     ToVoiceResponse,
+    Type,
 )
 from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
@@ -67,7 +68,13 @@ class WeeklyAgent(Agent):
             show_listing=False,
         )
         adjust1 = await adjustformat.agenerate(content=jinja_with_listing.content)
-        polish1 = await polishengine.agenerate(content=adjust1.content)
+
+        fund_list_start_str = "<a style=" if req.type == Type.WEEKLY else "fund name:"
+        list_start_at = adjust1.content.lower().index(fund_list_start_str)
+        list_content = adjust1.content[list_start_at:]
+        polish1 = await polishengine.agenerate(content=adjust1.content[:list_start_at])
+        polish1.content += "\n\n" + list_content
+
         pages = [
             re.sub(r"#TB-.*?-TB#", "", l.strip())
             for l in re.split(r"#PB-.*-PB#", jinja_with_listing.content)
@@ -123,7 +130,12 @@ class ReportAgent(Agent):
         logging.debug("\n%s", completion1.prompt)
         logging.debug("\n%s", completion1.content)
         if req.polish:
-            completion2 = await polish_engine.agenerate(content=completion1.content)
+            list_tag_start_index = completion1.content.index("<a style=")
+            funds_list = completion1.content[list_tag_start_index:]
+            completion2 = await polish_engine.agenerate(
+                content=completion1.content[:list_tag_start_index]
+            )
+            completion2.content += "\n" + funds_list
 
             logging.debug("result")
             logging.debug("\n%s", completion2)
