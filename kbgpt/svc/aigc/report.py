@@ -52,7 +52,7 @@ class WeeklyAgent(Agent):
         polishengine = SimpleEngine(
             self.polish_template.format(ty),
             self.app.ctx.temp_repo,
-            model=profile.report.openai_model,
+            model=profile.report.gpt_4_model,
         )
         jinja_with_listing = await self.report_engine.agenerate(
             req.date,
