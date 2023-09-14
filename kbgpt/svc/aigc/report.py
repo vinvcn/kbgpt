@@ -113,7 +113,9 @@ class ReportAgent(Agent):
         """analyze the request and provide response"""
         ty = req.type.value.lower()
         polish_engine = SimpleEngine(
-            self.polish_template.format(ty), self.app.ctx.temp_repo
+            self.polish_template.format(ty),
+            self.app.ctx.temp_repo,
+            model=profile.report.gpt_4_model,
         )
         adjust_format = SimpleEngine(
             self.adjust_template.format(ty), self.app.ctx.temp_repo
