@@ -31,6 +31,7 @@ DEFAULT:
     BACKEND_ADMIN_URL: "http://test1.backend-admin.testbs.surfin.sg/v1/internal/aigc/create"
     TRENDING_URL: "http://mb-api-gateway.testbs.surfin.sg"
     OPENAI_MODEL: "gpt-3.5-turbo-16k"
+    GPT_4_MODEL: "gpt-4"
   QA:
     EMBEDDINGS_MODEL: "text-embedding-ada-002"
     GENERATIVE_MODEL: "gpt-3.5-turbo-16k"

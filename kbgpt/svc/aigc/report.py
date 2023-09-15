@@ -22,6 +22,7 @@ from kbgpt.api.aigc.report_models import (
     ReportResponse,
     ToVoice,
     ToVoiceResponse,
+    Type,
 )
 from kbgpt.lib.llm.openai import Completion, Message, OpenAI, Usage
 from kbgpt.lib.templates.engine import ReportEngine, SimpleEngine
@@ -51,7 +52,7 @@ class WeeklyAgent(Agent):
         polishengine = SimpleEngine(
             self.polish_template.format(ty),
             self.app.ctx.temp_repo,
-            model=profile.report.openai_model,
+            model=profile.report.gpt_4_model,
         )
         jinja_with_listing = await self.report_engine.agenerate(
             req.date,
@@ -67,7 +68,12 @@ class WeeklyAgent(Agent):
             show_listing=False,
         )
         adjust1 = await adjustformat.agenerate(content=jinja_with_listing.content)
-        polish1 = await polishengine.agenerate(content=adjust1.content)
+
+        fund_list_start_str = "<a style=" if req.type == Type.WEEKLY else "fund name:"
+        list_start_at = adjust1.content.lower().index(fund_list_start_str)
+        list_content = adjust1.content[list_start_at:]
+        polish1 = await polishengine.agenerate(content=adjust1.content[:list_start_at])
+
         pages = [
             re.sub(r"#TB-.*?-TB#", "", l.strip())
             for l in re.split(r"#PB-.*-PB#", jinja_with_listing.content)
@@ -85,7 +91,7 @@ class WeeklyAgent(Agent):
             content=adjust1.content,
             pages=pages,
             ssml=ssml,
-            polish_content=polish1.content,
+            polish_content=polish1.content + "\n\n" + list_content,
             data=jinja_with_listing.metadata["data"],
             **adjust1.usage.__dict__,
         )
@@ -107,7 +113,9 @@ class ReportAgent(Agent):
         """analyze the request and provide response"""
         ty = req.type.value.lower()
         polish_engine = SimpleEngine(
-            self.polish_template.format(ty), self.app.ctx.temp_repo
+            self.polish_template.format(ty),
+            self.app.ctx.temp_repo,
+            model=profile.report.gpt_4_model,
         )
         adjust_format = SimpleEngine(
             self.adjust_template.format(ty), self.app.ctx.temp_repo
@@ -123,14 +131,19 @@ class ReportAgent(Agent):
         logging.debug("\n%s", completion1.prompt)
         logging.debug("\n%s", completion1.content)
         if req.polish:
-            completion2 = await polish_engine.agenerate(content=completion1.content)
+            list_tag_start_index = completion1.content.index("<a style=")
+            funds_list = completion1.content[list_tag_start_index:]
+            completion2 = await polish_engine.agenerate(
+                content=completion1.content[:list_tag_start_index]
+            )
+            # completion2.content += "\n" + funds_list
 
             logging.debug("result")
             logging.debug("\n%s", completion2)
             usage = completion2.usage + completion1.usage
             return ReportResponse(
                 content=completion1.content,
-                polish_content=completion2.content,
+                polish_content=completion2.content + "\n" + funds_list,
                 data=jinja_completion.metadata["data"],
                 comp_tokens=usage.completion_tokens,
                 **usage.__dict__,
