@@ -248,6 +248,7 @@ class ChatCompletion:
                 **self.invoke_params,
                 **kwargs,
             )
+            logging.debug(self.invoke_params)
 
             usage = Usage(self.model, **completion["usage"])
             content = completion.choices[0].message["content"]
