@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional, Tuple
 
 from pydantic import AnyUrl, BaseModel, Field, RedisDsn, root_validator
 
@@ -24,6 +24,16 @@ class OpenAI(SuperConfig):
     proxied: bool = Field(False)
     proxy_url: Optional[AnyUrl]
     api_base_url: Optional[AnyUrl]
+    unproxied_url: Optional[AnyUrl]
+
+
+class AzureAI(SuperConfig):
+    """azure configuration"""
+
+    api_base: AnyUrl
+    api_version: str
+    env_key_name: Optional[str]
+    deployments: List[str]
 
 
 class Sanic(SuperConfig):
@@ -49,6 +59,7 @@ class QA(SuperConfig):
     embeddings_model: str
     generative_model: str
     recomm: Recomm
+    recomm_lst: Tuple[str, ...]
     customer_service_temperature: float
     request_timeout: int
     request_retry: int
@@ -132,3 +143,4 @@ class Profile(SuperConfig):
     openai: OpenAI
     baseurl: AnyUrl
     name: str = Field("DEFAULT")
+    azureai: List[AzureAI]

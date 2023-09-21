@@ -17,6 +17,7 @@ from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
+from kbgpt.lib.llm.multi_client import CLIENT
 from kbgpt.lib.llm.openai import Message, client
 from kbgpt.svc.aigc.qa.qa_services import QAagent
 
@@ -49,13 +50,21 @@ async def gen_prompt(
     openai = client
     kwargs.pop("docs", "")
     kwargs.pop("temperature", "")
-    result = await openai.chat_completion(
-        gpt_model,
-        tuple([Message(role="system", content=prompt)]),
-        stream=stream,
-        temperature=0.0,
-        **kwargs,
-    )
+    if tname == "recom_by_conversation.txt":
+        result = await CLIENT.chat_completion(
+            messages=[Message(role="system", content=prompt)],
+            stream=stream,
+            temperature=0.0,
+            **kwargs,
+        )
+    else:
+        result = await openai.chat_completion(
+            gpt_model,
+            tuple([Message(role="system", content=prompt)]),
+            stream=stream,
+            temperature=0.0,
+            **kwargs,
+        )
     logging.debug(f"\n{prompt}")
     if not stream:
         logging.debug(f"\n{result.content}")
