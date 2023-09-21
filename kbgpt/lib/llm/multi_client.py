@@ -201,12 +201,12 @@ class ChatCompletion:
             "api_key": os.environ["OPENAI_API_KEY"],
             "api_type": "open_ai",
             "api_version": None,
-            "api_base": str(profile.openai.api_base_url),
+            "api_base": str(profile.openai.unproxied_url),
         }
 
     def get_decorated_openai(self):
         if profile.openai.proxied:
-            openai.api_base = str(profile.openai.api_base_url)
+            self.invoke_params["api_base"] = str(profile.openai.api_base_url)
             openai.proxy = str(profile.openai.proxy_url)
         return openai
 
