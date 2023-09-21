@@ -242,13 +242,13 @@ class ChatCompletion:
             usage.total_tokens = total_token
             return Completion(usage=usage, content=buffer.getvalue())
         else:
+            logging.debug(self.invoke_params)
             completion = await openai_client.ChatCompletion.acreate(
                 model=self.model,
                 messages=[m.dict() for m in messages],
                 **self.invoke_params,
                 **kwargs,
             )
-            logging.debug(self.invoke_params)
 
             usage = Usage(self.model, **completion["usage"])
             content = completion.choices[0].message["content"]
