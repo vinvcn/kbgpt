@@ -8,6 +8,13 @@ DEFAULT:
     PROXIED: True
     PROXY_URL: http://18.139.228.114:81
     API_BASE_URL: http://api.openai.com/v1
+    UNPROXIED_URL: https://api.openai.com/v1
+  AZUREAI:
+    - api_base: "https://bullsmart-japan-east.openai.azure.com"
+      api_version: "2023-05-15"
+      env_key_name: "JAPAN_EAST_AZUREAI_API_KEY"
+      deployments:
+        - "gpt-4"
   # ----- SANIC SERVER PORT ----
   SANIC:
     APP_NAME: kbgpt
@@ -38,6 +45,9 @@ DEFAULT:
     recomm:
       gpt3_5_model: "gpt-3.5-turbo-16k"
       gpt4_model: "gpt-4"
+    recomm_lst:
+      - "gpt-4-0314"
+      - "gpt-4"
   PRODUCT_CATALOG:
     vector_store_class: redis_no_lock
     redis_index_name: bullsmart-product-catalog
