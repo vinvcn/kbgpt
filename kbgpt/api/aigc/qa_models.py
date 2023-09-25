@@ -8,7 +8,7 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from kbgpt.api.aigc.agg_models import Matching
-from kbgpt.api.libs.base_model import OpenAIResponseBase
+from kbgpt.api.libs.base_model import OpenAIResponseBase, ResponseBase
 
 
 class RecommType(Enum):
@@ -56,3 +56,9 @@ class DocInfo(OpenAIResponseBase):
 
     version: str
     timestamp: datetime
+
+
+class FileProcessResponse(ResponseBase):
+    """file process response"""
+
+    msg: Optional[str]

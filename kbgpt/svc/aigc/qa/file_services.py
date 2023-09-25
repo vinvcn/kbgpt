@@ -9,16 +9,15 @@ from aiofiles import tempfile
 from redis.exceptions import LockError
 from sanic import Request, Sanic
 from sanic.response import JSONResponse
-from tenacity import retry, stop_after_attempt, wait_fixed
 
 from config import profile
 from kbgpt.api.admin.models import TaskStatusResponse
+from kbgpt.api.aigc.qa_models import FileProcessResponse
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
-from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.db.mysql.process_file_record import ProcessFileRecord
-from kbgpt.lib.db.vector_store import BusinessType
+from kbgpt.lib.exec.clients.redis import REDIS_CLIENT
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 from kbgpt.lib.logging import alog
 from kbgpt.lib.tasks.manager import FuncWrapper, TaskManager, TaskRecord
@@ -118,7 +117,13 @@ class ProxiedDocAgent:
                 await add_files_to_customer_service(
                     paths, flush_index=True, ctx=sanic_app.ctx, **params
                 )
-            return jtext(OpenAIResponseBase(success=True))
+                indexes = sanic_app.ctx.cache["indexes"]
+                REDIS_CLIENT.reset_all_indexes(indexes=indexes)
+            return jtext(
+                FileProcessResponse(
+                    success=True, msg="Indexes reset" + ",".join(indexes)
+                )
+            )
         except Exception as e:
             logging.exception(e)
             return jtext(ErrorResponse(success=False, error=str(e)))

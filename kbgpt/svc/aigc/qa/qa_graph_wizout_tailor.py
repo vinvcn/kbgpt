@@ -1,5 +1,6 @@
 from config import profile
 from kbgpt.lib.exec.engines.configs.models import (
+    CacheMod,
     ClientStyle,
     EmbedMod,
     JinjaMod,
@@ -70,6 +71,11 @@ def recommend_sub_graph_without_tailor():
                 keys_in=["question", "answer", "context", "products"],
                 models=[profile.generative_model, profile.qa.generative_model],
                 client_style=ClientStyle.ROUNDROBIN.value,
+                cache=CacheMod(
+                    enabled=True,
+                    query_key="question",
+                    index_name=f"{profile.cache.customer_service_cache_index}:recommend_products",
+                ),
             ),
             frm=SelectorMultiplexer(
                 selectors=[
@@ -113,6 +119,11 @@ def recommend_sub_graph_without_tailor():
                 keys_in=["question", "answer", "products", "callbacks"],
                 models=[profile.generative_model, profile.qa.generative_model],
                 stream=True,
+                cache=CacheMod(
+                    enabled=True,
+                    query_key="question",
+                    index_name=f"{profile.cache.customer_service_cache_index}:say_recommendation_hooks",
+                ),
             ),
             frm=SelectorMultiplexer(
                 selectors=[
@@ -145,3 +156,6 @@ def recommend_sub_graph_without_tailor():
         ),
     )
     return graph
+
+
+RECOMMEND_GRAPH = recommend_sub_graph_without_tailor()

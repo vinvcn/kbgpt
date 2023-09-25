@@ -15,10 +15,15 @@ from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.fe.fe import FE
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql import Crud
+from kbgpt.lib.exec.clients.redis import REDIS_CLIENT
+from kbgpt.lib.exec.qa.utils import get_cache_index_from_graph
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.lib.tasks.manager import TaskManager
 from kbgpt.lib.templates.rendering.models import RedisTemplateProvider, TemplateRepo
 from kbgpt.svc.aigc.qa.file_services import WarmupTask
+from kbgpt.svc.aigc.qa.qa_graph import QA_GRAPH
+from kbgpt.svc.aigc.qa.qa_graph_fetch_context import CONTEXT_GRAPH
+from kbgpt.svc.aigc.qa.qa_graph_wizout_tailor import RECOMMEND_GRAPH
 
 from .admin import ADMIN
 from .aigc import AIGC
@@ -78,6 +83,13 @@ async def setup_resources(sanic_app: Sanic, loop):
     sanic_app.ctx.temp_repo = TemplateRepo(RedisTemplateProvider(redis))
     sanic_app.add_task(sql_emitter.aloop_drain(), name="sql_emitter_drain_loop")
     sanic_app.add_task(task_manager.schedule, name="task_scheduler_loop")
+
+    cache_indexes = []
+    cache_indexes.extend(get_cache_index_from_graph(QA_GRAPH))
+    cache_indexes.extend(get_cache_index_from_graph(CONTEXT_GRAPH))
+    cache_indexes.extend(get_cache_index_from_graph(RECOMMEND_GRAPH))
+    sanic_app.ctx.cache = {"indexes": cache_indexes}
+    REDIS_CLIENT.init_all_indexes(cache_indexes)
 
 
 @app.after_server_stop

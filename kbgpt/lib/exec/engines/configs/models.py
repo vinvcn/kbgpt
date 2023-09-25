@@ -45,6 +45,12 @@ class ClientStyle(Enum):
     ROUNDROBIN = "roundrobin"
 
 
+class CacheMod(BaseModel):
+    enabled: bool = Field(False)
+    query_key: str = Field("question")
+    index_name: Optional[str]
+
+
 class TemplateMod(EngineMod):
     type: Literal["template_engine"]
     stream: bool = Field(False)
@@ -54,6 +60,7 @@ class TemplateMod(EngineMod):
     name: str
     persist_level: str = Field(PersistLevel.INFO.value)
     client_style: str = Field(ClientStyle.NATIVE.value)
+    cache: Optional[CacheMod]
 
 
 class SimpleMod(TemplateMod):

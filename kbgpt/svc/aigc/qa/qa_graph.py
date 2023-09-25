@@ -1,14 +1,11 @@
 from config import profile
 from kbgpt.lib.exec.engines.configs.models import (
-    EmbedMod,
+    CacheMod,
     GraphExecMod,
     JinjaMod,
     OutputMod,
-    PersistLevel,
     QAOutputMod,
     RecomOutMod,
-    RecomOutTransMod,
-    SimilaritySearchMod,
     TemplateMod,
 )
 from kbgpt.lib.exec.pipeline.checker_models import EvalCheckerMod
@@ -20,16 +17,15 @@ from kbgpt.lib.exec.pipeline.selector_models import (
     Selector,
     SelectorMultiplexer,
 )
-from kbgpt.svc.aigc.qa.qa_graph_fetch_context import fetch_context_graph
-from kbgpt.svc.aigc.qa.qa_graph_recommendation import recommend_sub_graph
-from kbgpt.svc.aigc.qa.qa_graph_wizout_tailor import recommend_sub_graph_without_tailor
+from kbgpt.svc.aigc.qa.qa_graph_fetch_context import CONTEXT_GRAPH
+from kbgpt.svc.aigc.qa.qa_graph_wizout_tailor import RECOMMEND_GRAPH
 
 
 def qa_graph():
     fetch_context_n_is_related = GraphNode(
         node=Node(
             id="fetch_context_n_is_related",
-            engine=GraphExecMod(graph=fetch_context_graph()),
+            engine=GraphExecMod(graph=CONTEXT_GRAPH),
             frm=SelectorMultiplexer(selectors=[Selector(node=K_SEED, key="question")]),
         ),
         src=[],
@@ -43,6 +39,11 @@ def qa_graph():
                 keys_in=["question"],
                 models=[profile.generative_model, profile.qa.generative_model],
                 stream=True,
+                cache=CacheMod(
+                    enabled=True,
+                    query_key="question",
+                    index_name=f"{profile.cache.customer_service_cache_index}:answer_without_context",
+                ),
             ),
             frm=SelectorMultiplexer(
                 selectors=[
@@ -63,6 +64,11 @@ def qa_graph():
                 keys_in=["question", "context"],
                 models=[profile.generative_model, profile.qa.generative_model],
                 stream=True,
+                cache=CacheMod(
+                    enabled=True,
+                    query_key="question",
+                    index_name=f"{profile.cache.customer_service_cache_index}:answer_question_with_context",
+                ),
             ),
             frm=SelectorMultiplexer(
                 selectors=[
@@ -82,7 +88,7 @@ def qa_graph():
     make_recommendation_with_hooks = GraphNode(
         node=Node(
             id="make_recommendation_with_hooks",
-            engine=GraphExecMod(graph=recommend_sub_graph_without_tailor()),
+            engine=GraphExecMod(graph=RECOMMEND_GRAPH),
             frm=SelectorMultiplexer(
                 selectors=[
                     Selector(node=K_SEED, key="question"),

@@ -257,7 +257,7 @@ class ChatCompletion:
 
     async def embed(self, content: str):
         model = profile.qa.embeddings_model
-        result = self.get_decorated_openai().Embedding.acreate(
+        result = await self.get_decorated_openai().Embedding.acreate(
             input=content, model=model
         )
         embedding = result["data"][0]["embedding"]

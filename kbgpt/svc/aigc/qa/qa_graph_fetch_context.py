@@ -1,5 +1,6 @@
 from config import profile
 from kbgpt.lib.exec.engines.configs.models import (
+    CacheMod,
     EmbedMod,
     JinjaMod,
     SimilaritySearchMod,
@@ -43,6 +44,11 @@ def fetch_context_graph():
                 name="qa.is_context_related",
                 keys_in=["question", "context"],
                 models=[profile.generative_model, profile.qa.generative_model],
+                cache=CacheMod(
+                    enabled=True,
+                    query_key="question",
+                    index_name=f"{profile.cache.customer_service_cache_index}:is_context_related",
+                ),
             ),
             frm=SelectorMultiplexer(
                 selectors=[
@@ -65,3 +71,6 @@ def fetch_context_graph():
         ),
     )
     return graph
+
+
+CONTEXT_GRAPH = fetch_context_graph()
