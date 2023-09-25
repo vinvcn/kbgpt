@@ -2063,23 +2063,6 @@ url = "http://mirrors.aliyun.com/pypi/simple"
 reference = "ali"
 
 [[package]]
-name = "multimethod"
-version = "1.9.1"
-description = "Multiple argument dispatching."
-category = "main"
-optional = false
-python-versions = ">=3.7"
-files = [
-    {file = "multimethod-1.9.1-py3-none-any.whl", hash = "sha256:52f8f1f2b9d5a4c7adfdcc114dbeeebe3245a4420801e8807e26522a79fb6bc2"},
-    {file = "multimethod-1.9.1.tar.gz", hash = "sha256:1589bf52ca294667fd15527ea830127c763f5bfc38562e3642591ffd0fd9d56f"},
-]
-
-[package.source]
-type = "legacy"
-url = "http://mirrors.aliyun.com/pypi/simple"
-reference = "ali"
-
-[[package]]
 name = "mypy-extensions"
 version = "1.0.0"
 description = "Type system extensions for programs checked with the mypy type checker."
@@ -4449,4 +4432,4 @@ reference = "ali"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "0e178e60781956cc3a93bd2888223ad88bf721be67d95141e86a9b700f9997b0"
+content-hash = "9bef1d51c05abf0ff22ff97c60fc156ddca63dc63fb25180151178b60cdf27d3"
