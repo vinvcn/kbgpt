@@ -58,8 +58,7 @@ class QA(SuperConfig):
     business_type: Literal["qa"] = Field("qa")
     embeddings_model: str
     generative_model: str
-    recomm: Recomm
-    recomm_lst: Tuple[str, ...]
+    recomm: Tuple[str, ...]
     customer_service_temperature: float
     request_timeout: int
     request_retry: int
@@ -123,6 +122,7 @@ class ProductCatalog(SuperConfig):
     """product catalog configuration"""
 
     vector_store_class: str
+    product_retrieval_k: int
     redis_index_name: str
 
 
@@ -141,6 +141,6 @@ class Profile(SuperConfig):
     db_url: AnyUrl
     generative_model: str
     openai: OpenAI
+    azureai: List[AzureAI]
     baseurl: AnyUrl
     name: str = Field("DEFAULT")
-    azureai: List[AzureAI]

@@ -2,7 +2,6 @@ import csv
 import functools
 import logging
 from typing import List, Optional
-from uuid import uuid4
 
 from jinja2 import Environment, FileSystemLoader
 from langchain.callbacks.manager import AsyncCallbackManagerForLLMRun
@@ -17,8 +16,7 @@ from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
-from kbgpt.lib.llm.multi_client import CLIENT, AllClientRateExceedError, Completion
-from kbgpt.lib.llm.openai import Message, client
+from kbgpt.lib.llm.openai import Message, OpenAI
 from kbgpt.svc.aigc.qa.qa_services import QAagent
 
 AGG = Blueprint("agg", url_prefix="agg")
@@ -34,7 +32,7 @@ async def gen_prompt(
     inquiry="",
     response="",
     stream=False,
-    gpt_model=profile.qa.recomm.gpt3_5_model,
+    gpt_model=profile.qa.recomm,
     **kwargs,
 ):
     prompt = jinja.get_template(tname).render(
@@ -47,30 +45,14 @@ async def gen_prompt(
         },
         **kwargs,
     )
-    openai = client
+    openai = OpenAI()
     kwargs.pop("docs", "")
-    kwargs.pop("temperature", "")
-    if tname == "recom_by_conversation.txt":
-        try:
-            result = await CLIENT.chat_completion(
-                messages=[Message(role="system", content=prompt)],
-                stream=stream,
-                temperature=0.0,
-                **kwargs,
-            )
-        except AllClientRateExceedError as e:
-            result = Completion(
-                prompt=prompt,
-                content="Sorry, we are currently having an issue, please try again later.",
-            )
-    else:
-        result = await openai.chat_completion(
-            gpt_model,
-            tuple([Message(role="system", content=prompt)]),
-            stream=stream,
-            temperature=0.0,
-            **kwargs,
-        )
+    result = await openai.chat_completion(
+        gpt_model,
+        tuple([Message(role="system", content=prompt)]),
+        stream=stream,
+        **kwargs,
+    )
     logging.debug(f"\n{prompt}")
     if not stream:
         logging.debug(f"\n{result.content}")
@@ -167,7 +149,7 @@ async def get_recommendation_by_conversation(question, answer, gpt_model, **kwar
         data=data,
         inquiry=question,
         response=answer,
-        gpt_model=profile.qa.recomm.gpt4_model,
+        gpt_model=gpt_model,
         **kwargs,
     )
     if result.content.strip() == "N/A":
@@ -207,7 +189,6 @@ async def bouncing_ask(
         response=response,
         stream=True,
         temperature=profile.qa.customer_service_temperature,
-        caching_flag=uuid4(),
     ):
         # role = stream_resp["choices"][0]["delta"].get("role", role)
         token = stream_resp["choices"][0]["delta"].get("content", "")

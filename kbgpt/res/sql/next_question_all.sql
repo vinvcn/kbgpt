@@ -1,0 +1,1 @@
+SELECT * FROM log_qa_record where {where_clause} ORDER BY {order_by} LIMIT 1

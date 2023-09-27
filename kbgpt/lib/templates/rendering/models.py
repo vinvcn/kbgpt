@@ -3,11 +3,14 @@ template rendering
 """
 import importlib
 from datetime import datetime
-from typing import Any, Awaitable, Callable, List, Optional
+from typing import Any, Awaitable, Callable, List, Optional, Tuple
 
+from jinja2 import BaseLoader, TemplateNotFound
+from jinja2.environment import Environment
 from pydantic import BaseModel, Field
 from redis import Redis
 
+from config import profile
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.db.mysql.prompt_template import PromptTemplate
 from kbgpt.lib.templates.constants import REPO_DIR
@@ -18,7 +21,7 @@ class Template(BaseModel):
 
     template_id: str = Field("")
     body: str
-    keywords: List[str]
+    keywords: Optional[List[str]]
     timestamp: datetime = Field(datetime.utcnow())
 
     @classmethod
@@ -29,11 +32,6 @@ class Template(BaseModel):
 
     def render(self, *args, **kwargs) -> str:
         """rendering the template"""
-        if len(args) + len(kwargs.keys()) > len(self.keywords):
-            raise ValueError("Number of argument does not match")
-        for k in kwargs:
-            if k not in self.keywords:
-                raise ValueError(f"key {k} is not expected. ")
         params = dict(zip(self.keywords[: len(args)], args))
         params.update(kwargs)
         return self.body.format(**params)
@@ -82,6 +80,31 @@ class RedisTemplateProvider:
             raise ValueError(f"template_id {template_id} not found")
         temp = Template.parse_raw(temp_json)
         return temp
+
+
+class Jinja2RedisLoader(BaseLoader):
+    def __init__(self) -> None:
+        super().__init__()
+        self.redis = Redis.from_url(profile.vector_store.redis_url)
+        self.key_factory = RedisTemplateKeyFactory()
+
+    def get_source(
+        self, environment: Environment, template: str
+    ) -> Tuple[str, str | None, Callable[[], bool] | None]:
+        try:
+            key = self.key_factory(template)
+            temp_json = self.redis.json().get(key)
+            if not temp_json:
+                raise ValueError(f"template_id {template} not found")
+            loaded_temp = Template.parse_raw(temp_json)
+            return loaded_temp.body, None, lambda: False
+        except ValueError as e:
+            raise TemplateNotFound(template) from e
+
+    def list_templates(self) -> List[str]:
+        _, keys = self.redis.scan(0, match=self.key_factory("*"), count=100000)
+        prefix_len = len(self.key_factory(""))
+        return [k.decode()[prefix_len:] for k in keys if k]
 
 
 class TemplateRepo:

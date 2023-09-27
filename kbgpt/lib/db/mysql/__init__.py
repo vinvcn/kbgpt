@@ -5,8 +5,9 @@ doc string
 __all__ = ["Crud", "Base"]
 
 import logging
+from math import ceil
 from traceback import print_exc
-from typing import Dict, Type
+from typing import Any, Dict, List, Type
 
 import sqlalchemy
 from sanic import Sanic
@@ -93,13 +94,76 @@ class Crud(LifeCycleMixin):
             return result
 
     def get_all(
-        self, cls: Type[Base], the_filter: sqlalchemy.ColumnElement[bool] = None
+        self,
+        cls: Type[Base],
+        the_filter: sqlalchemy.ColumnElement[bool] = None,
+        order_by: sqlalchemy.ColumnElement[Any] = None,
+        limit: int = None,
     ):
         with sessionmaker(bind=self.engine)() as session:
+            query = session.query(cls)
             if the_filter is not None:
-                return session.query(cls).filter(the_filter).all()
-            else:
-                return session.query(cls).all()
+                query = query.filter(the_filter)
+            if order_by is not None:
+                query = query.order_by(order_by)
+            if limit is not None:
+                query = query.limit(limit)
+            return query.all()
+
+    def get_max_page(
+        self,
+        cls: Type[Base] | List[Type[Base]],
+        the_filter: sqlalchemy.ColumnElement[bool] = None,
+        order_col: sqlalchemy.ColumnElement[Any] = None,
+        join_on: sqlalchemy.ColumnElement[Any] = None,
+        on_clause: sqlalchemy.ColumnElement[bool] = None,
+        item_per_page: int = 5,
+    ):
+        with sessionmaker(bind=self.engine)() as session:
+            if not isinstance(cls, list):
+                cls = [cls]
+            query = session.query(*cls)
+            if the_filter is not None:
+                query = query.filter(the_filter)
+            if order_col is not None:
+                query = query.order_by(order_col)
+            if join_on is not None and on_clause is not None:
+                query = query.outerjoin(join_on, on_clause)
+            count = query.count()
+            return ceil(count / item_per_page)
+
+    def get_page_order_by(
+        self,
+        cls: Type[Base] | List[Type[Base]],
+        the_filter: sqlalchemy.ColumnElement[bool],
+        order_col: sqlalchemy.ColumnElement[Any],
+        join_on: sqlalchemy.ColumnElement[Any] = None,
+        on_clause: sqlalchemy.ColumnElement[bool] = None,
+        page: int = 1,
+        item_per_page: int = 5,
+    ):
+        with sessionmaker(bind=self.engine)() as session:
+            if not isinstance(cls, list):
+                cls = [cls]
+            query = session.query(*cls)
+            if the_filter is not None:
+                query = query.filter(the_filter)
+            if order_col is not None:
+                query = query.order_by(order_col)
+            if join_on is not None and on_clause is not None:
+                query = query.outerjoin(join_on, on_clause)
+            query = query.offset((page - 1) * item_per_page).limit(item_per_page)
+            return query.all()
+
+    def get_one(
+        self,
+        cls: Type[Base],
+        the_filter: sqlalchemy.ColumnElement[bool] = None,
+        order_by: sqlalchemy.ColumnElement[Any] = None,
+    ):
+        results = self.get_all(cls, the_filter, order_by, 1)
+        if results:
+            return results[0]
 
     def __del__(self):
         self.close_all_connections()
@@ -114,3 +178,6 @@ class Crud(LifeCycleMixin):
             logging.exception(e)
         else:
             self.engine = None
+
+    def select_all_by_join(self):
+        pass

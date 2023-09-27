@@ -1,4 +1,3 @@
-
 import logging
 import traceback
 from typing import Type
@@ -12,16 +11,16 @@ from kbgpt.api.libs.base_model import ErrorResponse
 from kbgpt.svc.aigc import Agent
 
 
-def jtext(model:BaseModel):
+def jtext(model: BaseModel):
     return text(model.json(), content_type=API_CONTENT_TYPE)
 
 
-async def invoke_agent(app:Sanic, agent_cls:Type[Agent], body:BaseModel):
+async def invoke_agent(app: Sanic, agent_cls: Type[Agent], body: BaseModel):
     try:
         agent = agent_cls(app=app)
         result = await agent.analyze(body)
         return jtext(result)
-    except Exception as e: # pylint: disable=broad-exception-caught
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logging.exception(e)
         error_msg = "".join(traceback.format_exception(e))
         return jtext(ErrorResponse(success=False, error=error_msg))

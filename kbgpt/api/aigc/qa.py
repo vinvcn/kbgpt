@@ -4,6 +4,7 @@ qa api
 import logging
 import time
 from json import dumps
+from uuid import uuid4
 
 from sanic import Blueprint, Request, text
 from sanic_ext import openapi, validate
@@ -26,12 +27,18 @@ from kbgpt.api.aigc.qa_models import (
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
+from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
+from kbgpt.lib.db.mysql.qa_record import QARecord
 from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
+from kbgpt.lib.exec.pipeline.graph_exec import GraphExecutor
+from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.svc.aigc.qa.cache_qa_services import ProxiedQAAgent
 from kbgpt.svc.aigc.qa.file_services import ProxiedDocAgent
+from kbgpt.svc.aigc.qa.qa_graph import QA_GRAPH
 from kbgpt.svc.aigc.qa.qa_services import QAagent
+from kbgpt.svc.aigc.unified import AIGCAgent
 
 QA = Blueprint("qa", url_prefix="qa")
 
@@ -109,38 +116,36 @@ async def answer_question(request: Request, body: Question):
 
     # pylint: disable=broad-except
     try:
-        question = body.question
-
-        retriever = create_vector_store_strategy(
-            profile.qa.business_type
-        ).get_retriever(k=profile.vector_store.vector_retrival_k)
-
-        docs = retriever.get_relevant_documents(query=question)
-
-        agent = ProxiedQAAgent(request.app, QAagent.get_instance())
-        agent_result = await agent.answer_question(
-            question=question, streaming=True, callbacks=callbacks, docs=docs
+        callbacks = [StreamingAsyncHandler(response.send)]
+        invoke_id = str(uuid4())
+        logging.debug(
+            "start handling request question %s invoke id %s", body.question, invoke_id
         )
-        await response.send(f"data: {agent_result.json(exclude_none=True)}\n")
+        graph_result = await GraphExecutor(QA_GRAPH).exec(
+            seed={
+                "question": body.question,
+                "words_limit": 38,
+                "callbacks": callbacks,
+            },
+            envs={"res": request.app.ctx.res},
+            invoke_id=invoke_id,
+        )
 
-        final_result = None
-        if body.recomm_type == RecommType.GPT3_5 or body.recomm_type == RecommType.GPT4:
-            pass_docs = tuple(d.dict() for d in docs)
-            final_result = await recomm_by_prompt(
-                body, callbacks, agent_result, docs=pass_docs
-            )
-        elif body.recomm_type == RecommType.SIMILARITY:
-            final_result = await recomm_by_similarity(
-                body, callbacks, question, agent_result
-            )
-        else:
-            raise ValueError(f"no such recommendation type {body.recomm_type.value}")
-        if final_result:
-            await response.send(f"data: {final_result.json(exclude_none=True)}")
     except Exception as e:
         logging.exception(e)
         obj = {"success": False, "error": str(e)}
-        await response.send(f"data: {dumps(obj=obj)}")
+        await response.send(f"data: {dumps(obj=obj)}\n")
+    else:
+        qa_record = QARecord(
+            invoke_id=invoke_id,
+            seconds_spent=time.perf_counter() - start_counter,
+            question=body.question,
+            answer=graph_result["answer"],
+            streaming=True,
+        )
+        res: ResourceMgr = request.app.ctx.res
+        emitter: MySqlEmitter = res.get(MySqlEmitter.__name__)
+        await emitter.aemit([qa_record])
     finally:
         await response.eof()
         logging.debug(

@@ -45,6 +45,17 @@ class VersionNotFound(Exception):
     """
 
 
+class RedisStore:
+    def __init__(self) -> None:
+        pass
+
+    async def retrieve(self, query: str) -> Optional[Document]:
+        pass
+
+    async def write_to_store(self, question: str, answer: str) -> VectorStoreRetriever:
+        pass
+
+
 class RedisCacheStoreStrategy:
     """
     A singleton thread-safe Redis cache store strategy

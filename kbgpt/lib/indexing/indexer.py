@@ -22,7 +22,7 @@ from pydantic import BaseModel
 
 from config import profile
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
-from kbgpt.lib.indexing.csv_loader_and_spliter import CSVLoader
+from kbgpt.lib.indexing.csv_loader_and_spliter import CSVJSONLoader, CSVTextLoader
 from kbgpt.lib.indexing.double_line_breaks_splitter import PondAstonPondSplitter
 from kbgpt.lib.utils import calculate_hash
 from kbgpt.svc.utils.openai import token_counts
@@ -51,7 +51,8 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         r".*\.shtml": (UnstructuredHTMLLoader, RECR_SPL),
         r".*\.docx": (UnstructuredWordDocumentLoader, RECR_SPL),
         r".*\.doc": (UnstructuredWordDocumentLoader, RECR_SPL),
-        r".*\.csv": (CSVLoader, RECR_SPL),
+        r".*\.kb\.csv": (CSVTextLoader, None),
+        r".*\.csv": (CSVJSONLoader, None),
     }
 
     def _get_loader_and_split(self, path: str) -> Tuple[TextLoader, TextSplitter]:
@@ -111,11 +112,11 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
 
         file_bytes = 0
         file_tokens = 0
-        for path in paths:
-            async with aopen(path, "r") as file:
-                async for line in file:
-                    file_bytes += len(line.encode("utf8"))
-                    file_tokens += token_counts(profile.qa.generative_model, line)
+        # for path in paths:
+        #     async with aopen(path, "r") as file:
+        #         async for line in file:
+        #             file_bytes += len(line.encode("utf8"))
+        #             file_tokens += token_counts(profile.qa.generative_model, line)
 
         return {
             "total_file_splits": len(documents),

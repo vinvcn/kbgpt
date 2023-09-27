@@ -26,7 +26,7 @@
       ref="userInput"
     />
     <button id="sendButton" @click="sendMessage" ref="sendBtn">Send</button>
-    <div>
+    <!-- <div>
       <p id="helpMessage">{{ helpMessages[selectedOption] }}</p>
     </div>
     <div class="controls">
@@ -84,12 +84,13 @@
           AThreshold: {{ asliderValue }}
         </label>
       </div>
-    </fieldset>
+    </fieldset> -->
   </div>
 </template>
 
 
 <script>
+import { get_base_url } from '@/utils/utils';
 export default {
   name: "SSEChatBox",
   data: function () {
@@ -348,6 +349,17 @@ export default {
       },
     };
   },
+  created: function(){
+    const historyString = localStorage.getItem("chatHistory")
+    if (historyString){
+      this.messages = JSON.parse(historyString);
+    }
+    window.addEventListener('beforeunload', this.persistMessage)
+
+  },
+  beforeRouteLeave: function(){
+    this.persistMessage()
+  },
   methods: {
     appendMessage: function (sender, message) {
       this.messages.push({
@@ -356,6 +368,10 @@ export default {
       });
 
       this.scrollToBottom();
+    },
+    persistMessage: function(){
+      const historyString = JSON.stringify(this.messages);
+      localStorage.setItem("chatHistory", historyString);
     },
     fetchProductCatalog: async function () {
       try {
@@ -395,7 +411,7 @@ export default {
         temperature: this.temperature
       };
       const response = await fetch(
-        `${window.location.origin}/api/v1/aigc/qa/stream_qa`,
+        `${get_base_url()}/api/v1/aigc/qa/stream_qa`,
         {
           method: "POST",
           headers: {
