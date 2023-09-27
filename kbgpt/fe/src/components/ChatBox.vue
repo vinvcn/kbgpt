@@ -26,6 +26,7 @@
 
 
 <script>
+import { get_base_url } from '@/utils/utils';
 export default {
   name: "ChatBox",
   data: function () {
@@ -56,7 +57,7 @@ export default {
       this.appendMessage("User", { message: message });
       const body = { question: message, threshold: 20 };
       //   const body = { role: "user", content: message };
-      fetch(`${window.location.origin}/api/v1/aigc/agg/agg`, {
+      fetch(`${get_base_url()}/api/v1/aigc/agg/agg`, {
         method: "POST",
         // mode: "no-cors", // no-cors
         body: JSON.stringify(body),

@@ -66,3 +66,7 @@ class ResourceMgr:
         copied.reverse()
         for res in copied:
             await res.destroy(self.app)
+
+
+# this will be ingected
+MGR: ResourceMgr = None

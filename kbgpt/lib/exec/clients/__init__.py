@@ -1,16 +1,25 @@
 import logging
 import os
 import threading
+from ast import mod
+from collections import defaultdict
 from enum import Enum
 from io import StringIO
+from time import perf_counter
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import openai
+from async_lru import alru_cache
 from openai.error import RateLimitError
 from pydantic import BaseModel, Field
 from redis import Redis
 from tenacity import retry  # for exponential backoff
-from tenacity import retry_if_exception_type, stop_after_attempt, wait_fixed
+from tenacity import (
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_fixed,
+    wait_random_exponential,
+)
 
 from config import profile
 from kbgpt.configs.profiles import AzureAI
@@ -57,27 +66,27 @@ class Completion(BaseModel):
     metadata: Optional[Dict[str, Any]]
 
 
-# class OpenAIBroker:
-#     def __init__(self) -> None:
-#         pass
+class OpenAIBroker:
+    def __init__(self) -> None:
+        pass
 
-#     def get_service(self, provider: ServiceProvider = ServiceProvider.OPENAI):
-#         match provider:
-#             case ServiceProvider.OPENAI:
-#                 openai.api_key = os.environ["OPENAI_API_KEY"]
-#                 openai.api_type = "open_ai"
-#                 if profile.openai.proxied:
-#                     openai.api_base = str(profile.openai.api_base_url)
-#                     openai.proxy = str(profile.openai.proxy_url)
-#                 return openai
-#             case ServiceProvider.AZURE:
-#                 openai.api_key = os.environ["AZUREAI_API_KEY"]
-#                 openai.api_type = "azure"
-#                 openai.api_base = str(profile.azureai.api_base)
-#                 openai.proxy = None
-#                 return openai
-#             case _:
-#                 raise ValueError("invalid provider type")
+    def get_service(self, provider: ServiceProvider = ServiceProvider.OPENAI):
+        match provider:
+            case ServiceProvider.OPENAI:
+                openai.api_key = os.environ["OPENAI_API_KEY"]
+                openai.api_type = "open_ai"
+                if profile.openai.proxied:
+                    openai.api_base = str(profile.openai.api_base_url)
+                    openai.proxy = str(profile.openai.proxy_url)
+                return openai
+            case ServiceProvider.AZURE:
+                openai.api_key = os.environ["AZUREAI_API_KEY"]
+                openai.api_type = "azure"
+                openai.api_base = str(profile.azureai.api_base)
+                openai.proxy = None
+                return openai
+            case _:
+                raise ValueError("invalid provider type")
 
 
 class AllClientRateExceedError(Exception):
@@ -129,16 +138,16 @@ class AzureCompletion:
     def __init__(
         self, api_base: str, env_key_name: str, deployment: str, api_version: str
     ) -> None:
+        self.api_base = api_base
         self.env_key_name = env_key_name
         self.deployment = deployment
-        self.invoke_params = {
-            "api_key": os.environ[self.env_key_name],
-            "api_type": "azure",
-            "api_version": api_version,
-            "api_base": str(api_base),
-        }
+        self.api_version = api_version
 
     def get_decorated_openai(self):
+        openai.api_key = os.environ[self.env_key_name]
+        openai.api_type = "azure"
+        openai.api_version = self.api_version
+        openai.api_base = self.api_base
         openai.proxy = None
         return openai
 
@@ -158,7 +167,6 @@ class AzureCompletion:
                 engine=self.deployment,
                 messages=[m.dict() for m in messages],
                 stream=True,
-                **self.invoke_params,
                 **kwargs,
             )
             async for stream_resp in response:
@@ -177,7 +185,6 @@ class AzureCompletion:
             completion = await openai_client.ChatCompletion.acreate(
                 engine=self.deployment,
                 messages=[m.dict() for m in messages],
-                **self.invoke_params,
                 **kwargs,
             )
 
@@ -197,17 +204,17 @@ class AzureCompletion:
 class ChatCompletion:
     def __init__(self, model) -> None:
         self.model = model
-        self.invoke_params = {
-            "api_key": os.environ["OPENAI_API_KEY"],
-            "api_type": "open_ai",
-            "api_version": None,
-            "api_base": str(profile.openai.unproxied_url),
-        }
 
     def get_decorated_openai(self):
+        openai.api_key = os.environ["OPENAI_API_KEY"]
+        openai.api_type = "open_ai"
+        openai.api_version = None
         if profile.openai.proxied:
-            self.invoke_params["api_base"] = str(profile.openai.api_base_url)
+            openai.api_base = str(profile.openai.api_base_url)
             openai.proxy = str(profile.openai.proxy_url)
+        else:
+            openai.api_base = str(profile.openai.unproxied_url)
+            openai.proxy = None
         return openai
 
     async def chat_completion(
@@ -226,7 +233,6 @@ class ChatCompletion:
                 model=self.model,
                 messages=[m.dict() for m in messages],
                 stream=True,
-                **self.invoke_params,
                 **kwargs,
             )
             async for stream_resp in response:
@@ -242,11 +248,9 @@ class ChatCompletion:
             usage.total_tokens = total_token
             return Completion(usage=usage, content=buffer.getvalue())
         else:
-            logging.debug(self.invoke_params)
             completion = await openai_client.ChatCompletion.acreate(
                 model=self.model,
                 messages=[m.dict() for m in messages],
-                **self.invoke_params,
                 **kwargs,
             )
 
@@ -256,14 +260,14 @@ class ChatCompletion:
 
     async def embed(self, content: str):
         model = profile.qa.embeddings_model
-        result = self.get_decorated_openai().Embedding.acreate(
+        result = await self.get_decorated_openai().Embedding.acreate(
             input=content, model=model
         )
         embedding = result["data"][0]["embedding"]
         return embedding
 
 
-OPENAI_GPT4_ENGINES = [ChatCompletion(model=model) for model in profile.qa.recomm_lst]
+OPENAI_GPT4_ENGINES = [ChatCompletion(model=model) for model in profile.qa.recomm]
 AZURE_ENGINES = []
 for config in profile.azureai:
     for dep in config.deployments:

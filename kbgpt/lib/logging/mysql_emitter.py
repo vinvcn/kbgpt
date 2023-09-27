@@ -23,16 +23,13 @@ class MySqlEmitter(Emitter, LifeCycleMixin):
         self.crud = crud
         self.queue = Queue(0)
 
-
     async def init(self, app: Sanic):
         pass
-
 
     async def destroy(self, app: Sanic):
         events = await self.dequeue()
         self.crud.batch_insert(events)
         await self.queue.join()
-
 
     async def aemit(self, events: List[Any] | Any = None):
         if not events:
@@ -41,7 +38,6 @@ class MySqlEmitter(Emitter, LifeCycleMixin):
             events = [events]
         for e in events:
             await self.queue.put(e)
-
 
     async def dequeue(self) -> List[Any]:
         """
@@ -56,7 +52,6 @@ class MySqlEmitter(Emitter, LifeCycleMixin):
         except asyncio.QueueEmpty:
             pass
         return events
-
 
     async def aloop_drain(self, *args, **kwargs):
         """
@@ -74,7 +69,7 @@ class MySqlEmitter(Emitter, LifeCycleMixin):
             except SQLAlchemyError:
                 # sql errror while inserting do not clear the events
                 pass
-            except: # pylint: disable=bare-except
+            except:  # pylint: disable=bare-except
                 # other type of exceptions caught clear the events
                 events = []
             finally:
