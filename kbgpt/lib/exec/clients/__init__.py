@@ -212,6 +212,9 @@ class ChatCompletion:
         if profile.openai.proxied:
             openai.api_base = str(profile.openai.api_base_url)
             openai.proxy = str(profile.openai.proxy_url)
+        else:
+            openai.api_base = str(profile.openai.unproxied_url)
+            openai.proxy = None
         return openai
 
     async def chat_completion(
