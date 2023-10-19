@@ -48,7 +48,17 @@ class ClientStyle(Enum):
 class CacheMod(BaseModel):
     enabled: bool = Field(False)
     query_key: str = Field("question")
+    clear_on_init: bool = Field(False)
     index_name: Optional[str]
+
+
+class ClassificationMod(EngineMod):
+    type: Literal["classification_engine"] = Field("classification_engine")
+    model: str
+    client_style: str = Field(ClientStyle.NATIVE.value)
+    temperature: float = Field(0.0)
+    mapping: Dict[int, str]
+    cache: Optional[CacheMod]
 
 
 class TemplateMod(EngineMod):
@@ -107,6 +117,7 @@ EngineTypes = Union[
     JinjaMod,
     GraphExecMod,
     SimilaritySearchMod,
+    ClassificationMod,
     MapperMod,
     TestMod,
     QAOutputMod,

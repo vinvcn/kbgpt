@@ -44,6 +44,12 @@ class QAResponse(OpenAIResponseBase):
         return json_str.replace("\\n", "<br/>")
 
 
+class UpdateFromDb(BaseModel):
+    """update from database"""
+
+    pass
+
+
 class GetRecomm(BaseModel):
     """get recommendation"""
 

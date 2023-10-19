@@ -50,16 +50,24 @@ class GraphExecutor:
                         *[NodeExecutor(node=n).exec(ctx) for n in ls_nodes],
                         return_exceptions=True,
                     )
+
+                    exception_nodes = [
+                        (rst, nod)
+                        for rst, nod in zip(node_results, ls_nodes)
+                        if isinstance(rst, Exception)
+                        and not isinstance(rst, CheckerFailedException)
+                    ]
+
                     excepts = [
                         node_results[i]
                         for i, r in enumerate(node_results)
                         if isinstance(r, Exception)
                         and not isinstance(r, CheckerFailedException)
                     ]
-                    if excepts:
+                    if exception_nodes:
                         raise ExecutionException(
-                            f"execution encountered exceptions for node {[n.node.id for n in ls_nodes]}",
-                            excepts,
+                            f"execution encountered exceptions for node {[nod.node.id for _, nod in exception_nodes]}",
+                            [exp for exp, _ in exception_nodes],
                         )
 
                     excepts = [

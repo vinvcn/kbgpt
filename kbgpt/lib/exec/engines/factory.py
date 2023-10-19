@@ -2,6 +2,7 @@ from functools import singledispatchmethod
 from typing import List
 
 from kbgpt.lib.exec.engines.configs.models import (
+    ClassificationMod,
     EmbedMod,
     GraphExecMod,
     JinjaMod,
@@ -11,6 +12,7 @@ from kbgpt.lib.exec.engines.configs.models import (
 )
 from kbgpt.lib.exec.engines.factory_models import Factory, FactoryCreationFailed
 from kbgpt.lib.exec.engines.graph import GraphExec
+from kbgpt.lib.exec.engines.select_item_number import ClassificationEngine
 from kbgpt.lib.exec.qa.factory import QAEngFactory
 from kbgpt.lib.exec.template_factory import TemplateFactory
 from kbgpt.lib.templates.rendering.models import TemplateRepo
@@ -52,6 +54,12 @@ class EngineFactory(Factory):
         self, mod: SimilaritySearchMod
     ) -> SimilaritySearch:
         return SimilaritySearch(config=mod)
+
+    @create_from_model.register
+    def create_from_model_classification(
+        self, mod: ClassificationMod
+    ) -> ClassificationEngine:
+        return ClassificationEngine(mod=mod)
 
     @create_from_model.register
     def create_from_test(self, mod: TestMod) -> "TestEngine":

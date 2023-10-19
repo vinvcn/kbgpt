@@ -101,6 +101,7 @@ class Cache(SuperConfig):
     customer_service_cache_index: str
     cool_down_seconds: int
     fresh_batch_size: int
+    global_enabled: bool
 
 
 class Sentiment(SuperConfig):
@@ -135,6 +136,7 @@ class Profile(SuperConfig):
     report: Report
     qa: QA
     product_catalog: ProductCatalog
+    amc_catalog: ProductCatalog
     embedding: Embedding
     vector_store: VectorStore
     cache: Cache

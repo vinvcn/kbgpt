@@ -3,6 +3,7 @@ from csv import DictReader
 from os.path import basename
 from typing import List, Optional
 
+import pandas as pd
 from langchain.docstore.document import Document
 from langchain.document_loaders.base import BaseLoader
 
@@ -52,3 +53,28 @@ class CSVJSONLoader(BaseLoader):
                     )
                 )
             return documents
+
+
+class ExcelJSONLoader(BaseLoader):
+    """Load excel files"""
+
+    def __init__(self, file_path: str, encoding: Optional[str] = None) -> None:
+        super().__init__()
+        self.file_path = file_path
+        self.encoding = encoding if encoding else "utf-8"
+
+    def load(self) -> List[Document]:
+        """load from file path"""
+        documents = []
+        df = pd.read_excel(self.file_path)
+        json_data = df.to_json(orient="records")
+
+        for row in json.loads(json_data):
+            documents.append(
+                Document(
+                    page_content=json.dumps(row, indent=4),
+                    metadata={"source": basename(self.file_path)},
+                ),
+            )
+
+        return documents

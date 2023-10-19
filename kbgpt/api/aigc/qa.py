@@ -10,6 +10,7 @@ from sanic import Blueprint, Request, text
 from sanic_ext import openapi, validate
 
 from config import profile
+from kbgpt.api.admin.models import TaskStatusResponse
 from kbgpt.api.aigc.agg import (
     bouncing_ask,
     get_recommendation,
@@ -23,6 +24,7 @@ from kbgpt.api.aigc.qa_models import (
     QAResponse,
     Question,
     RecommType,
+    UpdateFromDb,
 )
 from kbgpt.api.constants import API_CONTENT_TYPE
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
@@ -34,10 +36,14 @@ from kbgpt.lib.db.mysql.qa_record import QARecord
 from kbgpt.lib.db.vector_store import BusinessType, create_vector_store_strategy
 from kbgpt.lib.exec.pipeline.graph_exec import GraphExecutor
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
+from kbgpt.lib.tasks.manager import TaskManager, TaskRecord
+from kbgpt.svc.aigc.kb import UpdateKBFromDB
 from kbgpt.svc.aigc.qa.cache_qa_services import ProxiedQAAgent
 from kbgpt.svc.aigc.qa.file_services import ProxiedDocAgent
 from kbgpt.svc.aigc.qa.qa_graph import QA_GRAPH
 from kbgpt.svc.aigc.qa.qa_services import QAagent
+from kbgpt.svc.aigc.qa.qa_top import QA_TOP_GRAPH
+from kbgpt.svc.aigc.qa.service_dir import CLASS_GRAPH
 from kbgpt.svc.aigc.unified import AIGCAgent
 
 QA = Blueprint("qa", url_prefix="qa")
@@ -121,7 +127,7 @@ async def answer_question(request: Request, body: Question):
         logging.debug(
             "start handling request question %s invoke id %s", body.question, invoke_id
         )
-        graph_result = await GraphExecutor(QA_GRAPH).exec(
+        graph_result = await GraphExecutor(QA_TOP_GRAPH).exec(
             seed={
                 "question": body.question,
                 "words_limit": 38,
@@ -130,7 +136,6 @@ async def answer_question(request: Request, body: Question):
             envs={"res": request.app.ctx.res},
             invoke_id=invoke_id,
         )
-
     except Exception as e:
         logging.exception(e)
         obj = {"success": False, "error": str(e)}
@@ -172,49 +177,6 @@ async def recomm_by_prompt(body: Question, callbacks, agent_result, **kwargs):
             recomm.matching, body.question, agent_result.answer, callbacks[0]
         )
         final_result.answer = prompt_result.answer
-    return final_result
-
-
-async def recomm_by_similarity(body, callbacks, question, agent_result: QAResponse):
-    cretriver = create_vector_store_strategy(
-        BusinessType.PRODUCT_CATALOG.value
-    ).get_retriever(4, score_threshold=body.cthreshold)
-
-    aretriver = create_vector_store_strategy(
-        BusinessType.PRODUCT_CATALOG.value
-    ).get_retriever(4, score_threshold=body.athreshold)
-
-    q_match = await cretriver.aget_relevant_documents(question)
-    matchings = document_to_matchings(q_match)
-    final_result = QAResponse()
-    if matchings:
-        # if question find match
-        if len(matchings) == 1:
-            # one match only, talk
-            final_result.intents = matchings
-        else:
-            # more matches, ask
-            choice_prompt_result = await bouncing_ask(
-                matchings, question, "", callbacks[0]
-            )
-            choice_prompt_result.intents = matchings
-            final_result = choice_prompt_result
-    else:
-        # no match for customer question
-
-        a_match = await aretriver.aget_relevant_documents(agent_result.answer)
-        matchings = document_to_matchings(a_match)
-
-        if matchings and len(matchings) > 1:
-            prompt_reuslt = await bouncing_ask(
-                matchings, question, agent_result.answer, callbacks[0]
-            )
-            final_result = QAResponse(
-                answer=agent_result.answer + "\n\n" + prompt_reuslt.answer,
-                intents=matchings,
-            )
-        else:
-            final_result.intents = matchings
     return final_result
 
 
@@ -295,3 +257,34 @@ async def process_file(request: Request):
     return await agent.process_file_and_refresh_cache(
         sanic_app=request.app, request=request
     )
+
+
+@QA.route("/process_from_db", methods=["POST"])
+@openapi.description("Grab knowledge update from DB.")
+@openapi.definition(body={API_CONTENT_TYPE: UpdateFromDb.schema()})
+@openapi.response(
+    200,
+    {
+        API_CONTENT_TYPE: OpenAIResponseBase.schema(),
+    },
+)
+@validate(json=UpdateFromDb)
+async def process_from_db(request: Request, body: UpdateFromDb):
+    """
+    POST endpoint to process file"""
+    # pylint: disable=broad-except
+
+    try:
+        tm: TaskManager = request.app.ctx.res.get(TaskManager.__name__)
+        record = TaskRecord(
+            task_id=str(uuid4()),
+            task_name=UpdateKBFromDB.__name__,
+            task_handle=UpdateKBFromDB.__name__,
+            parameters=body.json(),
+        )
+        await tm.add_task(record)
+        record = await tm.get_task(record.task_name, record.task_id)
+        return jtext(TaskStatusResponse.from_orm(record))
+    except Exception as e:
+        logging.exception(e)
+        return jtext(ErrorResponse(success=False, error=str(e)))

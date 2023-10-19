@@ -6,7 +6,7 @@ DEFAULT:
   GENERATIVE_MODEL: "gpt-3.5-turbo"
   OPENAI:
     PROXIED: True
-    PROXY_URL: http://18.139.228.114:81
+    PROXY_URL: http://3.6.141.226:8080
     API_BASE_URL: http://api.openai.com/v1
     UNPROXIED_URL: https://api.openai.com/v1
   AZUREAI:
@@ -49,6 +49,10 @@ DEFAULT:
     vector_store_class: redis_no_lock
     product_retrieval_k: 10
     redis_index_name: bullsmart-product-catalog
+  AMC_CATALOG:
+    vector_store_class: redis_no_lock
+    product_retrieval_k: 3
+    redis_index_name: bullsmart-amc-catalog
   # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536
@@ -68,6 +72,7 @@ DEFAULT:
     CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
     FRESH_BATCH_SIZE: 10
     COOL_DOWN_SECONDS: 100
+    global_enabled: True
 
 FAT:
   BASEURL: http://py-kbgpt.testbs.surfin.sg
@@ -77,6 +82,8 @@ FAT:
     DEBUG: True
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
+  CACHE:
+    global_enabled: TRUE
 
 PRE:
   BASEURL: http://py-kbgpt-pre.bullsmart.in
@@ -89,6 +96,8 @@ PRE:
   REPORT:
     BACKEND_ADMIN_URL: "http://backend-admin-pre.bullsmart.in/v1/internal/aigc/create"
     TRENDING_URL: "https://mb-api-gateway-pre.bullsmart.in"
+  CACHE:
+    global_enabled: TRUE
 
 PROD:
   BASEURL: http://py-kbgpt.bullsmart.in
@@ -101,3 +110,5 @@ PROD:
   REPORT:
     BACKEND_ADMIN_URL: "https://backend-admin.bullsmart.in/v1/internal/aigc/create"
     TRENDING_URL: "https://mb-api-gateway.bullsmart.in"
+  CACHE:
+    global_enabled: TRUE

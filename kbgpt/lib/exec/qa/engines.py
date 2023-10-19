@@ -38,7 +38,7 @@ class RecommOutTransform(Engine):
         ids = [spl.strip() for spl in recomm.split(",")]
         config: RecomOutTransMod = self.config
         ids = ids[: config.max_output]
-        objs = [json.loads(d["content"]) for d, _ in products]
+        objs = [json.loads(d["content"]) for d in products]
         objs_m = {o["id"]: o for o in objs}
         result = []
         for i in ids:

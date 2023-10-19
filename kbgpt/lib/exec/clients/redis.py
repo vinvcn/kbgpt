@@ -219,13 +219,10 @@ class RedisStore:
 
         return index_version
 
-    async def retrieve(self, query: str, index_name: str) -> Optional[CacheDocument]:
-        """
-        get relavent document
-        """
-
+    async def retrieve_by_embed(
+        self, embeddings: List[float], index_name: str
+    ) -> Optional[CacheDocument]:
         self._init_if_needed(index_name)
-        embeddings = await self.embedding_client.embed(query)
         docs_n_scores = await self._sim_search_wiz_score(
             index_name=index_name,
             vector=embeddings,
@@ -243,11 +240,18 @@ class RedisStore:
                 doc, _ = filtered[0]
                 return doc
 
-    async def write_to_store(self, question: str, answer: str, index_name: str) -> bool:
+    async def retrieve(self, query: str, index_name: str) -> Optional[CacheDocument]:
         """
-        write it to store
+        get relavent document
         """
 
+        embeddings = await self.embedding_client.embed(query)
+        await self.retrieve_by_embed(embeddings=embeddings, index_name=index_name)
+
+    async def write_to_store_wiz_embed(
+        self, question: str, embeddings: List[float], answer: str, index_name: str
+    ) -> bool:
+        """write to store with embedding"""
         self._init_if_needed(index_name=index_name)
         version_number = ""
         try:
@@ -257,14 +261,25 @@ class RedisStore:
             logger.exception(e)
             logger.warning("index version not found")
 
-        embedding = await self.embedding_client.embed(question)
         doc = CacheDocument.from_one(
             content=question,
             metadata=CacheMetadata(version=version_number, answer=answer),
-            vector=embedding,
+            vector=embeddings,
         )
         key = self._redis_key(self._redis_prefix(index_name))
         self.redis_client.hset(key, mapping=doc.dict())
+
+    async def write_to_store(self, question: str, answer: str, index_name: str) -> bool:
+        """
+        write it to store
+        """
+        embeddings = await self.embedding_client.embed(question)
+        await self.write_to_store_wiz_embed(
+            question=question,
+            embeddings=embeddings,
+            answer=answer,
+            index_name=index_name,
+        )
 
 
 REDIS_CLIENT = RedisStore(profile.vector_store.redis_url)
