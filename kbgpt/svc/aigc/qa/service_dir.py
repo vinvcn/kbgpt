@@ -77,7 +77,7 @@ def service_dir():
             engine=ClassificationMod(
                 model="gpt-3.5-turbo",
                 mapping={
-                    1: "Customer question does not relate to anything in context.",
+                    1: "Customer question is unrelated.",
                     2: "Customer question is similar to some in Similar Questions list.",
                     3: "Customer mentioned a product in the Product list.",
                     4: "Customer mentioned an AMC in the AMC list.",
