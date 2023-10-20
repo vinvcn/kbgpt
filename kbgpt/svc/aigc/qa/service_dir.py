@@ -84,6 +84,7 @@ def service_dir():
                     5: "Customer question is vague.",
                     6: "The answer can be found in About Bullsmart.",
                     7: "The answer can be inferred by information in Similar Questions list.",
+                    8: "The question is related to the field of business of Bullsmart.",
                 },
                 cache=CacheMod(
                     enabled=True,

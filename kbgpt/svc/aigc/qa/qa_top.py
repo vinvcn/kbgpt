@@ -88,7 +88,7 @@ def qa_top():
                     Selector(node="classify_actions", key="embedding"),
                 ]
             ),
-            pre=InListCheckerMod(key="action", trg_list=["2", "3", "6", "7"]),
+            pre=InListCheckerMod(key="action", trg_list=["2", "3", "6", "7", "8"]),
         ),
         src=[classify_actions],
     )
