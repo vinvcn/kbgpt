@@ -88,29 +88,29 @@ def qa_top():
                     Selector(node="classify_actions", key="embedding"),
                 ]
             ),
-            pre=InListCheckerMod(key="action", trg_list=["2", "3", "6", "7", "8"]),
+            pre=InListCheckerMod(key="action", trg_list=["2", "6", "7", "8"]),
         ),
         src=[classify_actions],
     )
 
-    # recommend_and_output = GraphNode(
-    #     node=Node(
-    #         id="recommend_and_output",
-    #         engine=GraphExecMod(graph=RECOMMEND_GRAPH),
-    #         frm=SelectorMultiplexer(
-    #             selectors=[
-    #                 Selector(node=K_SEED, key="question"),
-    #                 Selector(node=K_SEED, key="question", to_key="answer"),
-    #                 Selector(node="classify_actions", key="context"),
-    #                 Selector(node="classify_actions", key="product"),
-    #                 Selector(node="classify_actions", key="action"),
-    #                 Selector(node="classify_actions", key="embedding"),
-    #             ]
-    #         ),
-    #         pre=EvalCheckerMod(key="action", eval_exp="action == '3'"),
-    #     ),
-    #     src=[classify_actions],
-    # )
+    recommend_and_output = GraphNode(
+        node=Node(
+            id="recommend_and_output",
+            engine=GraphExecMod(graph=RECOMMEND_GRAPH),
+            frm=SelectorMultiplexer(
+                selectors=[
+                    Selector(node=K_SEED, key="question"),
+                    Selector(node=K_SEED, key="question", to_key="answer"),
+                    Selector(node="classify_actions", key="context"),
+                    Selector(node="classify_actions", key="product"),
+                    Selector(node="classify_actions", key="action"),
+                    Selector(node="classify_actions", key="embedding"),
+                ]
+            ),
+            pre=EvalCheckerMod(key="action", eval_exp="action == '3'"),
+        ),
+        src=[classify_actions],
+    )
 
     search_amc_catalog = GraphNode(
         node=Node(
