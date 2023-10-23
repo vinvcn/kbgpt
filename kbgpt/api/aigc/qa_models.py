@@ -44,10 +44,19 @@ class QAResponse(OpenAIResponseBase):
         return json_str.replace("\\n", "<br/>")
 
 
+class TextMaterial(BaseModel):
+    """text material"""
+
+    text_category: str
+    text_topic: str
+    topic_introduction: str
+    text_content: str
+
+
 class UpdateFromDb(BaseModel):
     """update from database"""
 
-    pass
+    items: List[TextMaterial]
 
 
 class GetRecomm(BaseModel):

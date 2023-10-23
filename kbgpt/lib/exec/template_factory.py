@@ -2,7 +2,7 @@ import json
 from itertools import chain
 from typing import List
 
-from jinja2 import Environment
+from jinja2 import Environment, FileSystemLoader
 from redis import Redis
 
 from config import profile
@@ -43,3 +43,5 @@ def init_jinja_env():
 
 
 JINJA_ENV = init_jinja_env()
+
+JINJA_FS_ENV = Environment(loader=FileSystemLoader("./kbgpt/res/"), auto_reload=False)

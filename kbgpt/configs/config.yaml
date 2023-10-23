@@ -4,6 +4,9 @@ DEFAULT:
   DB_URL: mysql+pymysql://user:password@localhost:3306/db
   BASEURL: http://localhost:8081
   GENERATIVE_MODEL: "gpt-3.5-turbo"
+  OPS:
+    ALERT:
+      DINGTALK_GROUP: False
   OPENAI:
     PROXIED: True
     PROXY_URL: http://3.6.141.226:8080
@@ -72,10 +75,13 @@ DEFAULT:
     CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
     FRESH_BATCH_SIZE: 10
     COOL_DOWN_SECONDS: 100
-    global_enabled: True
+    global_enabled: False
 
 FAT:
   BASEURL: http://py-kbgpt.testbs.surfin.sg
+  OPS:
+    ALERT:
+      DINGTALK_GROUP: False
   OPENAI:
     PROXIED: False
   SANIC:
@@ -87,6 +93,9 @@ FAT:
 
 PRE:
   BASEURL: http://py-kbgpt-pre.bullsmart.in
+  OPS:
+    ALERT:
+      DINGTALK_GROUP: True
   OPENAI:
     PROXIED: False
   SANIC:
@@ -101,6 +110,9 @@ PRE:
 
 PROD:
   BASEURL: http://py-kbgpt.bullsmart.in
+  OPS:
+    ALERT:
+      DINGTALK_GROUP: True
   OPENAI:
     PROXIED: False
   SANIC:

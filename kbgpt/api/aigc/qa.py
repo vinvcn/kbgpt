@@ -275,16 +275,10 @@ async def process_from_db(request: Request, body: UpdateFromDb):
     # pylint: disable=broad-except
 
     try:
-        tm: TaskManager = request.app.ctx.res.get(TaskManager.__name__)
-        record = TaskRecord(
-            task_id=str(uuid4()),
-            task_name=UpdateKBFromDB.__name__,
-            task_handle=UpdateKBFromDB.__name__,
-            parameters=body.json(),
+        agent = ProxiedDocAgent()
+        return await agent.process_request_and_refresh_cache(
+            sanic_app=request.app, update_db=body
         )
-        await tm.add_task(record)
-        record = await tm.get_task(record.task_name, record.task_id)
-        return jtext(TaskStatusResponse.from_orm(record))
     except Exception as e:
         logging.exception(e)
         return jtext(ErrorResponse(success=False, error=str(e)))

@@ -1,4 +1,5 @@
 import logging
+import uuid
 from os import listdir, pardir
 from os.path import abspath, dirname, isfile, join
 from typing import Any, List
@@ -12,7 +13,7 @@ from sanic.response import JSONResponse
 
 from config import profile
 from kbgpt.api.admin.models import TaskStatusResponse
-from kbgpt.api.aigc.qa_models import FileProcessResponse
+from kbgpt.api.aigc.qa_models import FileProcessResponse, UpdateFromDb
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
@@ -91,6 +92,28 @@ class ProxiedDocAgent:
     """
     Wrapper for all Doc and Cache logic
     """
+
+    async def process_request_and_refresh_cache(
+        self, sanic_app: Sanic, update_db: UpdateFromDb, is_refresh: bool = False
+    ):
+        try:
+            async with tempfile.TemporaryDirectory() as temp_dir:
+                paths = []
+                for txt_mtl in update_db.items:
+                    fname = str(uuid.uuid4())
+                    path = f"{temp_dir}/{fname}.txt"
+                    async with aopen(path, "w", encoding="utf-8") as f:
+                        await f.write(txt_mtl.text_content)
+                        await f.flush()
+                        paths.append(path)
+                await add_file_to_customer_service(
+                    paths, flush_index=False, ctx=None, business_type="qa"
+                )
+                indexes = sanic_app.ctx.cache["indexes"]
+                REDIS_CLIENT.reset_all_indexes(indexes=indexes)
+        except Exception as e:
+            logging.exception(e)
+            return jtext(ErrorResponse(success=False, error=str(e)))
 
     async def process_file_and_refresh_cache(
         self, sanic_app: Sanic, request: Request, is_refresh: bool = False

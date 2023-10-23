@@ -127,6 +127,18 @@ class ProductCatalog(SuperConfig):
     redis_index_name: str
 
 
+class Alert(SuperConfig):
+    """alert config"""
+
+    dingtalk_group: bool
+
+
+class OPS(SuperConfig):
+    """operation config"""
+
+    alert: Alert
+
+
 class Profile(SuperConfig):
     """Profile configs"""
 
@@ -145,4 +157,5 @@ class Profile(SuperConfig):
     openai: OpenAI
     azureai: List[AzureAI]
     baseurl: AnyUrl
+    ops: OPS
     name: str = Field("DEFAULT")

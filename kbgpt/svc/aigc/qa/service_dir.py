@@ -81,7 +81,7 @@ def service_dir():
                     2: "Customer question is similar to some in Similar Questions list.",
                     3: "Customer mentioned a product in the Product list.",
                     4: "Customer mentioned an AMC in the AMC list.",
-                    5: "Customer question is vague.",
+                    5: "Customer question is related, but I can not answer it with given information.",
                     6: "The answer can be found in About Bullsmart.",
                     7: "The answer can be inferred by information in Similar Questions list.",
                     8: "The question is related to the field of business of Bullsmart.",
