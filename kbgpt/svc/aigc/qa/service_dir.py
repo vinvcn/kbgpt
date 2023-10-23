@@ -91,8 +91,8 @@ def service_dir():
                     query_key="question",
                     index_name=f"{profile.cache.customer_service_cache_index}:select_service_directory_item",
                     clear_on_init=True,
-                )
-                # client_style=ClientStyle.ROUNDROBIN.value,
+                ),
+                client_style=ClientStyle.ROUNDROBIN.value,
             ),
             frm=SelectorMultiplexer(
                 selectors=[
