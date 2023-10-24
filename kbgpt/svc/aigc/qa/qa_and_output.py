@@ -167,6 +167,7 @@ def qa_and_output_graph():
             frm=SelectorMultiplexer(
                 selectors=[
                     Selector(node=K_SEED, key="question"),
+                    Selector(node=K_SEED, key="product"),
                     Selector(node=K_SEED, key="words_limit"),
                     Selector(node=K_SEED, key="context"),
                     Selector(node=K_SEED, key="embedding"),

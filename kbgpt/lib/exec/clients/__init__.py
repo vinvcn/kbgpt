@@ -147,7 +147,7 @@ class AzureCompletion:
         openai.api_key = os.environ[self.env_key_name]
         openai.api_type = "azure"
         openai.api_version = self.api_version
-        openai.api_base = self.api_base
+        openai.api_base = str(self.api_base)
         openai.proxy = None
         return openai
 

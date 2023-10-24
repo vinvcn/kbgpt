@@ -46,7 +46,7 @@ DEFAULT:
     words_limit: 25
     redis_index: bullsmart-customer-services
     recomm:
-      - "gpt-4-0314"
+      # - "gpt-4-0314"
       - "gpt-4"
   PRODUCT_CATALOG:
     vector_store_class: redis_no_lock
