@@ -86,6 +86,69 @@ def qa_and_output_no_recomm(template, cache_index):
     return graph
 
 
+def qa_context_output_no_recomm():
+    """doc"""
+    answer_question_with_context = GraphNode(
+        node=Node(
+            id="answer_question_with_context",
+            engine=JinjaMod(
+                name="qa.answer_question_with_context",
+                keys_in=["question", "context"],
+                models=[profile.generative_model, profile.qa.generative_model],
+                stream=True,
+                cache=CacheMod(
+                    enabled=True,
+                    query_key="question",
+                    index_name=f"{profile.cache.customer_service_cache_index}:answer_question_with_context",
+                ),
+            ),
+            frm=SelectorMultiplexer(
+                selectors=[
+                    Selector(node=K_SEED, key="question"),
+                    Selector(node=K_SEED, key="words_limit"),
+                    Selector(node=K_SEED, key="context"),
+                    Selector(node=K_SEED, key="embedding"),
+                ]
+            ),
+        ),
+        src=[],
+    )
+
+    answer_output = GraphNode(
+        node=Node(
+            id="answer_output",
+            engine=QAOutputMod(stream=True),
+            frm=SelectorMultiplexer(
+                selectors=[
+                    Selector(
+                        node="answer_question_with_context",
+                        key="result",
+                        to_key="answer",
+                    )
+                ],
+                mode=MultiplexerType.ANY,
+            ),
+        ),
+        src=[answer_question_with_context],
+    )
+    nodes = create_nodes_and_update_callbacks(locals().items())
+
+    graph = Graph(
+        nodes=nodes,
+        sel=SelectorMultiplexer(
+            selectors=[
+                Selector(
+                    node="answer_question_with_context",
+                    key="result",
+                    to_key="answer",
+                ),
+            ],
+        ),
+    )
+
+    return graph
+
+
 def qa_and_output_graph():
     answer_question_with_context = GraphNode(
         node=Node(
@@ -257,3 +320,5 @@ def qa_and_output_graph():
 
 
 CONTEXT_QA_AND_OUTPUT = qa_and_output_graph()
+
+CONTEXT_QA_NO_RECOMM = qa_context_output_no_recomm()

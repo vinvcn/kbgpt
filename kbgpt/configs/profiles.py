@@ -125,6 +125,7 @@ class ProductCatalog(SuperConfig):
     vector_store_class: str
     product_retrieval_k: int
     redis_index_name: str
+    redis_qa_index_name: Optional[str]
 
 
 class Alert(SuperConfig):

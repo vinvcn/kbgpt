@@ -56,6 +56,7 @@ DEFAULT:
     vector_store_class: redis_no_lock
     product_retrieval_k: 3
     redis_index_name: bullsmart-amc-catalog
+    redis_qa_index_name: "bullsmart-amc-qa"
   # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536

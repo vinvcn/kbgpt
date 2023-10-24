@@ -11,6 +11,7 @@ from kbgpt.lib.exec.pipeline.constants import K_SEED
 from kbgpt.lib.exec.pipeline.graph_models import Graph, GraphNode
 from kbgpt.lib.exec.pipeline.node_models import Node
 from kbgpt.lib.exec.pipeline.selector_models import Selector, SelectorMultiplexer
+from kbgpt.lib.exec.pipeline.utils import create_nodes_and_update_callbacks
 
 
 def service_dir():
@@ -55,6 +56,22 @@ def service_dir():
         src=[embed_ques],
     )
 
+    search_amc_qa = GraphNode(
+        node=Node(
+            id="search_amc_qa",
+            engine=SimilaritySearchMod(
+                index=profile.amc_catalog.redis_qa_index_name,
+                k=profile.amc_catalog.product_retrieval_k,
+            ),
+            frm=SelectorMultiplexer(
+                selectors=[
+                    Selector(node="embed_question", key="result", to_key="embedding")
+                ]
+            ),
+        ),
+        src=[embed_ques],
+    )
+
     search_product = GraphNode(
         node=Node(
             id="search_product",
@@ -81,7 +98,7 @@ def service_dir():
                     2: "Customer question has an accurate match in Knowledge list",
                     3: "Customer mentioned a product in the Product list.",
                     4: "Customer mentioned an AMC in the AMC list.",
-                    # 5: "Customer question is related, but I can not answer it with given information.",
+                    5: "Customer question is about AMC in general.",
                     6: "The answer can be found in About Bullsmart.",
                     7: "The answer can be inferred by information in Similar Questions list.",
                     8: "The question is related to the field of business of Bullsmart.",
@@ -106,19 +123,15 @@ def service_dir():
         ),
         src=[search_context, search_amc, search_product],
     )
+    nodes = create_nodes_and_update_callbacks(locals().items())
 
     graph = Graph(
-        nodes=[
-            embed_ques,
-            search_context,
-            search_amc,
-            search_product,
-            select_service_directory_item,
-        ],
+        nodes=nodes,
         sel=SelectorMultiplexer(
             selectors=[
                 Selector(node="search_context", key="result", to_key="context"),
                 Selector(node="search_amc", key="result", to_key="amc"),
+                Selector(node="search_amc_qa", key="result", to_key="amc_qa"),
                 Selector(node="search_product", key="result", to_key="product"),
                 Selector(node="embed_question", key="result", to_key="embedding"),
                 Selector(

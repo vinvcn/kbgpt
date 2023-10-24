@@ -12,6 +12,7 @@ from kbgpt.lib.exec.pipeline.selector_models import (
 from kbgpt.lib.exec.pipeline.utils import create_nodes_and_update_callbacks
 from kbgpt.svc.aigc.qa.qa_and_output import (
     CONTEXT_QA_AND_OUTPUT,
+    CONTEXT_QA_NO_RECOMM,
     qa_and_output_no_recomm,
 )
 from kbgpt.svc.aigc.qa.recommend_product import RECOMMEND_GRAPH
@@ -28,28 +29,28 @@ def qa_top():
         src=[],
     )
 
-    ask_clarification_question = GraphNode(
-        node=Node(
-            id="ask_clarification_question",
-            engine=GraphExecMod(
-                graph=qa_and_output_no_recomm(
-                    "qa.ask_clarification_question", "ask_clarification_question"
-                )
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(node=K_SEED, key="question"),
-                    Selector(node=K_SEED, key="words_limit"),
-                    Selector(node="classify_actions", key="context"),
-                    Selector(node="classify_actions", key="action"),
-                    Selector(node="classify_actions", key="product"),
-                    Selector(node="classify_actions", key="embedding"),
-                ]
-            ),
-            pre=InListCheckerMod(key="action", trg_list=["5"]),
-        ),
-        src=[classify_actions],
-    )
+    # ask_clarification_question = GraphNode(
+    #     node=Node(
+    #         id="ask_clarification_question",
+    #         engine=GraphExecMod(
+    #             graph=qa_and_output_no_recomm(
+    #                 "qa.ask_clarification_question", "ask_clarification_question"
+    #             )
+    #         ),
+    #         frm=SelectorMultiplexer(
+    #             selectors=[
+    #                 Selector(node=K_SEED, key="question"),
+    #                 Selector(node=K_SEED, key="words_limit"),
+    #                 Selector(node="classify_actions", key="context"),
+    #                 Selector(node="classify_actions", key="action"),
+    #                 Selector(node="classify_actions", key="product"),
+    #                 Selector(node="classify_actions", key="embedding"),
+    #             ]
+    #         ),
+    #         pre=InListCheckerMod(key="action", trg_list=["5"]),
+    #     ),
+    #     src=[classify_actions],
+    # )
 
     qa_random_chat = GraphNode(
         node=Node(
@@ -115,18 +116,35 @@ def qa_top():
     search_amc_catalog = GraphNode(
         node=Node(
             id="search_amc_catalog",
-            engine=GraphExecMod(graph=CONTEXT_QA_AND_OUTPUT),
+            engine=GraphExecMod(graph=CONTEXT_QA_NO_RECOMM),
             frm=SelectorMultiplexer(
                 selectors=[
                     Selector(node=K_SEED, key="question"),
                     Selector(node=K_SEED, key="words_limit"),
                     Selector(node="classify_actions", key="amc", to_key="context"),
                     Selector(node="classify_actions", key="action"),
-                    Selector(node="classify_actions", key="product"),
                     Selector(node="classify_actions", key="embedding"),
                 ]
             ),
             pre=EvalCheckerMod(key="action", eval_exp="action == '4'"),
+        ),
+        src=[classify_actions],
+    )
+
+    answer_amc_question = GraphNode(
+        node=Node(
+            id="answer_amc_question",
+            engine=GraphExecMod(graph=CONTEXT_QA_NO_RECOMM),
+            frm=SelectorMultiplexer(
+                selectors=[
+                    Selector(node=K_SEED, key="question"),
+                    Selector(node=K_SEED, key="words_limit"),
+                    Selector(node="classify_actions", key="amc_qa", to_key="context"),
+                    Selector(node="classify_actions", key="action"),
+                    Selector(node="classify_actions", key="embedding"),
+                ]
+            ),
+            pre=EvalCheckerMod(key="action", eval_exp="action == '5'"),
         ),
         src=[classify_actions],
     )
@@ -139,6 +157,7 @@ def qa_top():
             selectors=[
                 Selector(node="ask_clarification_question", key="answer"),
                 Selector(node="qa_random_chat", key="answer"),
+                Selector(node="answer_amc_question", key="answer"),
                 Selector(node="context_qa_and_output", key="answer"),
                 Selector(node="recommend_and_output", key="answer"),
                 Selector(node="search_amc_catalog", key="answer"),
