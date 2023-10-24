@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from kbgpt.api.aigc.agg_models import Matching
 from kbgpt.api.libs.base_model import OpenAIResponseBase, ResponseBase
@@ -44,6 +44,7 @@ class QAResponse(OpenAIResponseBase):
         return json_str.replace("\\n", "<br/>")
 
 
+# pylint: disable=no-self-argument
 class TextMaterial(BaseModel):
     """text material"""
 
@@ -51,6 +52,26 @@ class TextMaterial(BaseModel):
     text_topic: str
     topic_introduction: str
     text_content: str
+
+    @validator("text_category", pre=True)
+    def validate_text_category(cls, value):
+        return value
+
+    @validator("text_topic", pre=True)
+    def validate_text_topic(cls, value):
+        return value
+
+    @validator("topic_introduction", pre=True)
+    def validate_topic_introduction(cls, value):
+        return value
+
+    @validator("text_content", pre=True)
+    def validate_text_content(cls, value):
+        """validate text content"""
+        assert (
+            value is not None and len(value) > 0
+        ), "text content but be present and longer than 1"
+        return value
 
 
 class UpdateFromDb(BaseModel):

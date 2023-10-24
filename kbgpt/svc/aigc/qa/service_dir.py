@@ -78,10 +78,10 @@ def service_dir():
                 model="gpt-3.5-turbo",
                 mapping={
                     1: "Customer question is unrelated.",
-                    2: "Customer question is similar to some in Similar Questions list.",
+                    2: "Customer question has an accurate match in Knowledge list",
                     3: "Customer mentioned a product in the Product list.",
                     4: "Customer mentioned an AMC in the AMC list.",
-                    5: "Customer question is related, but I can not answer it with given information.",
+                    # 5: "Customer question is related, but I can not answer it with given information.",
                     6: "The answer can be found in About Bullsmart.",
                     7: "The answer can be inferred by information in Similar Questions list.",
                     8: "The question is related to the field of business of Bullsmart.",

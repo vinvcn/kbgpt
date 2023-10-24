@@ -106,11 +106,16 @@ class ProxiedDocAgent:
                         await f.write(txt_mtl.text_content)
                         await f.flush()
                         paths.append(path)
-                await add_file_to_customer_service(
-                    paths, flush_index=False, ctx=None, business_type="qa"
+                await add_files_to_customer_service(
+                    paths, flush_index=True, ctx=None, business_type="qa"
                 )
                 indexes = sanic_app.ctx.cache["indexes"]
                 REDIS_CLIENT.reset_all_indexes(indexes=indexes)
+            return jtext(
+                FileProcessResponse(
+                    success=True, msg="Indexes reset" + ",".join(indexes)
+                )
+            )
         except Exception as e:
             logging.exception(e)
             return jtext(ErrorResponse(success=False, error=str(e)))
