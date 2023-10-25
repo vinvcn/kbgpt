@@ -2,6 +2,7 @@ from config import profile
 from kbgpt.lib.exec.engines.configs.models import (
     CacheMod,
     ClientStyle,
+    FunctionOutMod,
     GraphExecMod,
     JinjaMod,
     OutputMod,
@@ -9,6 +10,7 @@ from kbgpt.lib.exec.engines.configs.models import (
     RecomOutMod,
     RecomOutTransMod,
     TemplateMod,
+    TestMod,
 )
 from kbgpt.lib.exec.pipeline.checker_models import EvalCheckerMod
 from kbgpt.lib.exec.pipeline.constants import K_SEED
@@ -20,6 +22,53 @@ from kbgpt.lib.exec.pipeline.selector_models import (
     SelectorMultiplexer,
 )
 from kbgpt.lib.exec.pipeline.utils import create_nodes_and_update_callbacks
+
+
+def predefined_output():
+    recommend_fund_trade = GraphNode(
+        node=Node(
+            id="recommend_fund_trade",
+            engine=TestMod(
+                input_keys=[],
+                output={
+                    "answer": "What type of funds What type of funds are you interested in investing in?",
+                    "recommend": 1,
+                },
+            ),
+        ),
+        src=[]
+        # frm=SelectorMultiplexer(selectors=[Selector(node=K_SEED, key="choice")]),
+    )
+
+    output_recommend = GraphNode(
+        node=Node(
+            id="output_recommend",
+            engine=FunctionOutMod(stream=True),
+            frm=SelectorMultiplexer(
+                selectors=[
+                    Selector(node="recommend_fund_trade", key="answer"),
+                    Selector(node="recommend_fund_trade", key="recommend"),
+                ],
+            ),
+        ),
+        src=[recommend_fund_trade],
+    )
+
+    nodes = create_nodes_and_update_callbacks(locals().items())
+
+    graph = Graph(
+        nodes=nodes,
+        sel=SelectorMultiplexer(
+            selectors=[
+                Selector(
+                    node="recommend_fund_trade",
+                    key="answer",
+                ),
+            ],
+        ),
+    )
+
+    return graph
 
 
 def qa_and_output_no_recomm(template, cache_index):

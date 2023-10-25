@@ -62,3 +62,22 @@ class RecommOutput(Engine):
                 clbk: StreamingAsyncHandler = clbk
                 await clbk.send(f"data: {json.dumps(result)}\n")
         return {"result": result}
+
+
+class FunctionOutput(Engine):
+    """function output"""
+
+    async def agenerate(
+        self, *, answer, recommend, invoke_id=None, envs=None, **kwargs
+    ) -> Dict[str, Any]:
+        result = {
+            "success": True,
+            "answer": answer,
+            "recommend": recommend,
+        }
+        if self.config.stream:
+            assert "callbacks" in kwargs
+            for clbk in kwargs["callbacks"]:
+                clbk: StreamingAsyncHandler = clbk
+                await clbk.send(f"data: {json.dumps(result)}\n")
+        return {"result": result}

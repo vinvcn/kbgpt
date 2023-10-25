@@ -1,5 +1,6 @@
 from kbgpt.lib.exec.engines.configs.models import (
     CacheMod,
+    FunctionOutMod,
     GraphExecMod,
     JinjaMod,
     OutputMod,

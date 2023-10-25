@@ -111,6 +111,11 @@ class RecomOutMod(OutputMod):
     stream: bool = Field(False)
 
 
+class FunctionOutMod(OutputMod):
+    type: Literal["function_output"] = Field("function_output")
+    stream: bool = Field(False)
+
+
 EngineTypes = Union[
     SimpleMod,
     EmbedMod,
@@ -121,6 +126,7 @@ EngineTypes = Union[
     MapperMod,
     TestMod,
     QAOutputMod,
+    FunctionOutMod,
     RecomOutTransMod,
     RecomOutMod,
 ]

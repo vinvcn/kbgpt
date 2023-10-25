@@ -13,6 +13,7 @@ from kbgpt.lib.exec.pipeline.utils import create_nodes_and_update_callbacks
 from kbgpt.svc.aigc.qa.qa_and_output import (
     CONTEXT_QA_AND_OUTPUT,
     CONTEXT_QA_NO_RECOMM,
+    predefined_output,
     qa_and_output_no_recomm,
 )
 from kbgpt.svc.aigc.qa.recommend_product import RECOMMEND_GRAPH
@@ -89,7 +90,7 @@ def qa_top():
                     Selector(node="classify_actions", key="embedding"),
                 ]
             ),
-            pre=InListCheckerMod(key="action", trg_list=["2", "6", "7", "8"]),
+            pre=InListCheckerMod(key="action", trg_list=["2", "6", "7", "9"]),
         ),
         src=[classify_actions],
     )
@@ -149,6 +150,22 @@ def qa_top():
         src=[classify_actions],
     )
 
+    trigger_function = GraphNode(
+        node=Node(
+            id="trigger_function",
+            engine=GraphExecMod(
+                graph=predefined_output(),
+            ),
+            frm=SelectorMultiplexer(
+                selectors=[
+                    Selector(node="classify_actions", key="action"),
+                ]
+            ),
+            pre=EvalCheckerMod(key="action", eval_exp="action == '8'"),
+        ),
+        src=[classify_actions],
+    )
+
     nodes = create_nodes_and_update_callbacks(locals().items())
 
     graph = Graph(
@@ -161,6 +178,7 @@ def qa_top():
                 Selector(node="context_qa_and_output", key="answer"),
                 Selector(node="recommend_and_output", key="answer"),
                 Selector(node="search_amc_catalog", key="answer"),
+                Selector(node="trigger_function", key="answer"),
             ],
             mode=MultiplexerType.NONE,
         ),

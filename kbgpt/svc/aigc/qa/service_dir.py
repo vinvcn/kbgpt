@@ -100,8 +100,9 @@ def service_dir():
                     4: "Customer mentioned an AMC in the AMC list.",
                     5: "Customer question is about AMC in general.",
                     6: "The answer can be found in About Bullsmart.",
-                    7: "The answer can be inferred by information in Similar Questions list.",
-                    8: "The question is related to the field of business of Bullsmart.",
+                    7: "The answer can be inferred by information in Knowledge list.",
+                    8: "Customer question hits Recommend Condition.",
+                    9: "The question is redated to the field of business of Bullsmart.",
                 },
                 cache=CacheMod(
                     enabled=True,
