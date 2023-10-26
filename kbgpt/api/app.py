@@ -18,7 +18,7 @@ from kbgpt.fe.fe import FE
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.exec.clients.redis import REDIS_CLIENT
-from kbgpt.lib.exec.qa.utils import get_cache_index_from_graph
+from kbgpt.lib.exec.qa.utils import get_cache_index_from_graph, get_lru_cache_from_graph
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.lib.tasks.manager import TaskManager
 from kbgpt.lib.templates.rendering.models import RedisTemplateProvider, TemplateRepo

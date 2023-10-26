@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from aiofiles import open as aopen
 from aiofiles import tempfile
+from async_lru import alru_cache
 from redis.exceptions import LockError
 from sanic import Request, Sanic
 from sanic.response import JSONResponse
@@ -19,6 +20,8 @@ from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql.process_file_record import ProcessFileRecord
 from kbgpt.lib.exec.clients.redis import REDIS_CLIENT
+from kbgpt.lib.exec.qa.engines import RecommOutTransform
+from kbgpt.lib.exec.qa.utils import find_classes, find_methods_with_annotation
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 from kbgpt.lib.logging import alog
 from kbgpt.lib.tasks.manager import FuncWrapper, TaskManager, TaskRecord

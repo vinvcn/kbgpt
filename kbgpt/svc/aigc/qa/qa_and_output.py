@@ -285,11 +285,6 @@ def qa_and_output_graph():
             frm=SelectorMultiplexer(
                 selectors=[
                     Selector(node="recommend_products", key="result", to_key="recomm"),
-                    Selector(
-                        node=K_SEED,
-                        key="product",
-                        to_key="products",
-                    ),
                 ]
             ),
             pre=EvalCheckerMod(key="recomm", eval_exp="recomm.lower() != 'n/a'"),
