@@ -107,7 +107,7 @@ def service_dir():
                                 ("Unrelated", "Customer question is unrelated."),
                                 (
                                     "Product",
-                                    "Customer mentioned a product in the Product list.",
+                                    "It is possible to recommend a product",
                                 ),
                                 (
                                     "Knowledge",
