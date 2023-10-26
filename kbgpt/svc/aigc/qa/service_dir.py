@@ -104,7 +104,10 @@ def service_dir():
                         "Others": DTreeNode(
                             template="classification.classification_with_context_and_question",
                             mapping=[
-                                ("Unrelated", "Customer question is unrelated."),
+                                (
+                                    "Unrelated",
+                                    "Customer question is irrelevant to our business.",
+                                ),
                                 (
                                     "Product",
                                     "It is possible to recommend a product",
