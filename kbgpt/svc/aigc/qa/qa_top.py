@@ -71,7 +71,7 @@ def qa_top():
                     Selector(node="classify_actions", key="embedding"),
                 ]
             ),
-            pre=InListCheckerMod(key="action", trg_list=["1"]),
+            pre=InListCheckerMod(key="action", trg_list=["Unrelated"]),
         ),
         src=[classify_actions],
     )
@@ -90,7 +90,7 @@ def qa_top():
                     Selector(node="classify_actions", key="embedding"),
                 ]
             ),
-            pre=InListCheckerMod(key="action", trg_list=["2", "6", "7", "9"]),
+            pre=InListCheckerMod(key="action", trg_list=["Knowledge", "Others"]),
         ),
         src=[classify_actions],
     )
@@ -109,7 +109,7 @@ def qa_top():
                     Selector(node="classify_actions", key="embedding"),
                 ]
             ),
-            pre=EvalCheckerMod(key="action", eval_exp="action == '3'"),
+            pre=EvalCheckerMod(key="action", eval_exp="action == 'Product'"),
         ),
         src=[classify_actions],
     )
@@ -127,7 +127,7 @@ def qa_top():
                     Selector(node="classify_actions", key="embedding"),
                 ]
             ),
-            pre=EvalCheckerMod(key="action", eval_exp="action == '4'"),
+            pre=EvalCheckerMod(key="action", eval_exp="action == 'AMC'"),
         ),
         src=[classify_actions],
     )
@@ -145,7 +145,7 @@ def qa_top():
                     Selector(node="classify_actions", key="embedding"),
                 ]
             ),
-            pre=EvalCheckerMod(key="action", eval_exp="action == '5'"),
+            pre=EvalCheckerMod(key="action", eval_exp="action == 'AMC_QA'"),
         ),
         src=[classify_actions],
     )
@@ -161,7 +161,7 @@ def qa_top():
                     Selector(node="classify_actions", key="action"),
                 ]
             ),
-            pre=EvalCheckerMod(key="action", eval_exp="action == '8'"),
+            pre=EvalCheckerMod(key="action", eval_exp="action == 'Function'"),
         ),
         src=[classify_actions],
     )

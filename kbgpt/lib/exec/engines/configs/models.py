@@ -1,3 +1,4 @@
+import json
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
@@ -52,13 +53,29 @@ class CacheMod(BaseModel):
     index_name: Optional[str]
 
 
-class ClassificationMod(EngineMod):
-    type: Literal["classification_engine"] = Field("classification_engine")
+class DecisionMod(EngineMod):
+    type: Literal["decision_engine"] = Field("decision_engine")
     model: str
     client_style: str = Field(ClientStyle.NATIVE.value)
     temperature: float = Field(0.0)
-    mapping: Dict[int, str]
     cache: Optional[CacheMod]
+    rst_regex: Optional[str]
+
+
+class ClassificationMod(DecisionMod):
+    type: Literal["classification_engine"] = Field("classification_engine")
+    mapping: List[Tuple[str, str]]
+
+
+class DTreeNode(BaseModel):
+    template: str
+    mapping: List[Tuple[str, str]]
+    children: Dict[str, "DTreeNode"] = Field(dict())
+
+
+class DecisionTreeMod(DecisionMod):
+    type: Literal["decision_tree_engine"] = Field("decision_tree_engine")
+    root: DTreeNode
 
 
 class TemplateMod(EngineMod):
@@ -123,6 +140,7 @@ EngineTypes = Union[
     GraphExecMod,
     SimilaritySearchMod,
     ClassificationMod,
+    DecisionTreeMod,
     MapperMod,
     TestMod,
     QAOutputMod,

@@ -1,10 +1,10 @@
 from config import profile
 from kbgpt.lib.exec.engines.configs.models import (
     CacheMod,
-    ClassificationMod,
     ClientStyle,
+    DecisionTreeMod,
+    DTreeNode,
     EmbedMod,
-    JinjaMod,
     SimilaritySearchMod,
 )
 from kbgpt.lib.exec.pipeline.constants import K_SEED
@@ -91,19 +91,47 @@ def service_dir():
     select_service_directory_item = GraphNode(
         node=Node(
             id="select_service_directory_item",
-            engine=ClassificationMod(
+            engine=DecisionTreeMod(
                 model="gpt-3.5-turbo",
-                mapping={
-                    1: "Customer question is unrelated.",
-                    2: "Customer question has an accurate match in Knowledge list",
-                    3: "Customer mentioned a product in the Product list.",
-                    4: "Customer mentioned an AMC in the AMC list.",
-                    5: "Customer question is about AMC in general.",
-                    6: "The answer can be found in About Bullsmart.",
-                    7: "The answer can be inferred by information in Knowledge list.",
-                    8: "Customer question hits Recommend Condition.",
-                    9: "The question is redated to the field of business of Bullsmart.",
-                },
+                rst_regex="^[^:]*",
+                root=DTreeNode(
+                    template="classification.classification_with_trigger_mf_recommendation",
+                    mapping=[
+                        ("Function", "Customer question meets condition in Function."),
+                        ("Others", "None of the above."),
+                    ],
+                    children={
+                        "Others": DTreeNode(
+                            template="classification.classification_with_context_and_question",
+                            mapping=[
+                                ("Unrelated", "Customer question is unrelated."),
+                                (
+                                    "Product",
+                                    "Customer mentioned a product in the Product list.",
+                                ),
+                                (
+                                    "Knowledge",
+                                    "Customer question has an accurate match in Knowledge list",
+                                ),
+                                (
+                                    "Knowledge",
+                                    "The answer can be inferred by information in Knowledge list.",
+                                ),
+                                (
+                                    "Knowledge",
+                                    "The answer can be found in About Bullsmart.",
+                                ),
+                                ("AMC", "Customer mentioned an AMC in the AMC list."),
+                                (
+                                    "AMC_QA",
+                                    "Customer question is about AMC in general.",
+                                ),
+                                ("Others", "None of the above."),
+                            ],
+                            children={},
+                        )
+                    },
+                ),
                 cache=CacheMod(
                     enabled=True,
                     query_key="question",
@@ -124,6 +152,57 @@ def service_dir():
         ),
         src=[search_context, search_amc, search_product],
     )
+
+    # select_service_directory_item = GraphNode(
+    #     node=Node(
+    #         id="select_service_directory_item",
+    #         engine=DecisionTreeMod(
+    #             model="gpt-3.5-turbo",
+    #             rst_regex="^[^:]*",
+    #             root=DTreeNode(
+    #                 template="classification.trigger_qa_amc_product_others",
+    #                 mapping=[
+    #                     ("Unrelated", "Customer question is unrelated."),
+    #                     (
+    #                         "Product",
+    #                         "Customer mentioned a product in the Product list.",
+    #                     ),
+    #                     (
+    #                         "Knowledge",
+    #                         "Customer question has an accurate match in Knowledge list",
+    #                     ),
+    #                     (
+    #                         "Knowledge",
+    #                         "The answer can be inferred by information in Knowledge list.",
+    #                     ),
+    #                     ("Knowledge", "The answer can be found in About Bullsmart."),
+    #                     ("AMC", "Customer mentioned an AMC in the AMC list."),
+    #                     ("AMC_QA", "Customer question is about AMC in general."),
+    #                     ("Function", "Customer question meets condition in Function."),
+    #                     ("Others", "None of the above."),
+    #                 ],
+    #             ),
+    #             cache=CacheMod(
+    #                 enabled=True,
+    #                 query_key="question",
+    #                 index_name=f"{profile.cache.customer_service_cache_index}:select_service_directory_item",
+    #                 clear_on_init=True,
+    #             ),
+    #             client_style=ClientStyle.ROUNDROBIN.value,
+    #         ),
+    #         frm=SelectorMultiplexer(
+    #             selectors=[
+    #                 Selector(node=K_SEED, key="question"),
+    #                 Selector(node="embed_question", key="result", to_key="embedding"),
+    #                 Selector(node="search_context", key="result", to_key="context"),
+    #                 Selector(node="search_amc", key="result", to_key="amc"),
+    #                 Selector(node="search_product", key="result", to_key="product"),
+    #             ]
+    #         ),
+    #     ),
+    #     src=[search_context, search_amc, search_product],
+    # )
+
     nodes = create_nodes_and_update_callbacks(locals().items())
 
     graph = Graph(
