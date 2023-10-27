@@ -82,7 +82,7 @@ FAT:
   BASEURL: http://py-kbgpt.testbs.surfin.sg
   OPS:
     ALERT:
-      DINGTALK_GROUP: False
+      DINGTALK_GROUP: True
   OPENAI:
     PROXIED: False
   SANIC:

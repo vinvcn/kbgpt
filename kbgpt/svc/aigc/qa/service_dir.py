@@ -113,6 +113,15 @@ def service_dir():
                                     "It is possible to recommend a product",
                                 ),
                                 (
+                                    "Product",
+                                    "Customer is commanding to perform a service that's in the product list.",
+                                ),
+                                ("Knowledge", "Customer inquiry for information."),
+                                (
+                                    "Knowledge",
+                                    "Customer mentioned something not existing.",
+                                ),
+                                (
                                     "Knowledge",
                                     "Customer question has an accurate match in Knowledge list",
                                 ),
