@@ -138,7 +138,11 @@ async def answer_question(request: Request, body: Question):
         )
     except Exception as e:
         logging.exception(e)
-        obj = {"success": False, "error": str(e)}
+        # obj = {"success": False, "error": str(e)}
+        obj = {
+            "success": True,
+            "error": "Sorry, We are having difficulties, please try again later.",
+        }
         await response.send(f"data: {dumps(obj=obj)}\n")
     else:
         qa_record = QARecord(
