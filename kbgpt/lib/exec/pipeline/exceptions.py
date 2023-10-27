@@ -5,6 +5,7 @@ from os import environ
 import aiohttp
 
 from config import profile
+from kbgpt.lib.exec.pipeline.graph_models import NodeException
 from kbgpt.lib.exec.template_factory import JINJA_FS_ENV
 
 
@@ -26,11 +27,14 @@ class DingtalkAlertHandler(NodeExceptionHandler):
         if not profile.ops.alert.dingtalk_group:
             return
 
+        exce_str = str(exce)
+        if exce.__cause__:
+            exce_str += f" cause: {exce.__cause__}"
         msg = self.render_temp(
             env=environ["KBGPT_APP_ACTIVE_PROFILE"],
             invoke_id=invoke_id,
             node_id=repr(node.node),
-            stacktrace=str(exce),
+            stacktrace=exce_str,
         )
         url = environ["DINGTALK_ALERT_WEBHOOK"]
         headers = {"Content-Type": "application/json"}

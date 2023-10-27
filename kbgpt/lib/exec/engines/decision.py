@@ -132,7 +132,8 @@ class DecisionTreeEngine(DecisionEngine):
             completion = await self.make_request(rendered)
             hit_key = await self.extract_result(completion.content)
             logging.info(
-                "decision tree level %d, result %s, extracted key %s",
+                "%s decision tree level %d, result %s, extracted key %s",
+                invoke_id,
                 level,
                 completion.content,
                 hit_key,
