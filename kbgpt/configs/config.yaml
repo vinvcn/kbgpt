@@ -13,7 +13,7 @@ DEFAULT:
     API_BASE_URL: http://api.openai.com/v1
     UNPROXIED_URL: https://api.openai.com/v1
   AZUREAI:
-    - api_base: "https://bullsmart-japan-east.openai.azure.com"
+    - api_base: "https://openai.bullsmart.in/"
       api_version: "2023-05-15"
       env_key_name: "JAPAN_EAST_AZUREAI_API_KEY"
       deployments:
