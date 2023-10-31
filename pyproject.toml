@@ -54,7 +54,6 @@ sanic-testing = "^23.3.0"
 
 [[tool.poetry.source]]
 name = "ali"
-url = "http://mirrors.aliyun.com/pypi/simple/"
 default = true
 secondary = false
 
