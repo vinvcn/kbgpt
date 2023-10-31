@@ -31,7 +31,7 @@ def predefined_output():
             engine=TestMod(
                 input_keys=[],
                 output={
-                    "answer": "What type of funds What type of funds are you interested in investing in?",
+                    "answer": "What type of funds are you interested in investing in?",
                     "recommend": 1,
                 },
             ),
