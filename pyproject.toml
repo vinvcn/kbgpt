@@ -52,10 +52,7 @@ sanic-testing = "^23.3.0"
 
 
 
-[[tool.poetry.source]]
-name = "ali"
-default = true
-secondary = false
+
 
 [tool.pylint.'MESSAGES CONTROL']
 extension-pkg-whitelist = ["pydantic"]
