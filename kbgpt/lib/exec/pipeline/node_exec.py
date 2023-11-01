@@ -1,4 +1,5 @@
 import logging
+import traceback
 
 import kbgpt.lib.exec.engines.factory
 from kbgpt.lib.exec.pipeline.checker_exec import CheckerExec, CheckerFailedException
@@ -64,7 +65,7 @@ class NodeExecutor:
                 **engine_in, invoke_id=ctx.invoke_id, envs=ctx.envs
             )
 
-            logging.debug("map keys for output")
+            logging.debug("%s map keys for output", ctx.invoke_id)
             engine_result = engine_out.copy()
             for f_k, to_k in self.node.node.sel.items():
                 if f_k in engine_out:
@@ -76,7 +77,7 @@ class NodeExecutor:
 
             # save output to context
             ctx.outputs[self.node.id] = engine_result
-            logging.info("execution done for node:\n%s", self.node)
+            logging.info("%s execution done for node:\n%s", ctx.invoke_id, self.node)
             # logging.info("inputs:\n%s", json.dumps(engine_in, indent=4))
             # logging.info("outputs:\n%s", json.dumps(engine_result, indent=4))
         except CheckerFailedException as e:

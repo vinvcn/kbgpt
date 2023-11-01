@@ -4,13 +4,16 @@ DEFAULT:
   DB_URL: mysql+pymysql://user:password@localhost:3306/db
   BASEURL: http://localhost:8081
   GENERATIVE_MODEL: "gpt-3.5-turbo"
+  OPS:
+    ALERT:
+      DINGTALK_GROUP: False
   OPENAI:
     PROXIED: True
-    PROXY_URL: http://18.139.228.114:81
+    PROXY_URL: http://3.6.141.226:8080
     API_BASE_URL: http://api.openai.com/v1
     UNPROXIED_URL: https://api.openai.com/v1
   AZUREAI:
-    - api_base: "https://bullsmart-japan-east.openai.azure.com"
+    - api_base: "https://openai.bullsmart.in/"
       api_version: "2023-05-15"
       env_key_name: "JAPAN_EAST_AZUREAI_API_KEY"
       deployments:
@@ -43,12 +46,17 @@ DEFAULT:
     words_limit: 25
     redis_index: bullsmart-customer-services
     recomm:
-      - "gpt-4-0314"
+      # - "gpt-4-0314"
       - "gpt-4"
   PRODUCT_CATALOG:
     vector_store_class: redis_no_lock
     product_retrieval_k: 10
     redis_index_name: bullsmart-product-catalog
+  AMC_CATALOG:
+    vector_store_class: redis_no_lock
+    product_retrieval_k: 3
+    redis_index_name: bullsmart-amc-catalog
+    redis_qa_index_name: "bullsmart-amc-qa"
   # ----- DOCUMENT EMBEDDING CONFIG -----
   EMBEDDING:
     EMBEDDING_DIMENSIONS: 1536
@@ -68,18 +76,27 @@ DEFAULT:
     CUSTOMER_SERVICE_CACHE_INDEX: cache-bullsmart-customer-services
     FRESH_BATCH_SIZE: 10
     COOL_DOWN_SECONDS: 100
+    global_enabled: False
 
 FAT:
   BASEURL: http://py-kbgpt.testbs.surfin.sg
+  OPS:
+    ALERT:
+      DINGTALK_GROUP: True
   OPENAI:
     PROXIED: False
   SANIC:
     DEBUG: True
   VECTOR_STORE:
     REDIS_URL: "redis://redis-stack.ops:6379"
+  CACHE:
+    global_enabled: TRUE
 
 PRE:
   BASEURL: http://py-kbgpt-pre.bullsmart.in
+  OPS:
+    ALERT:
+      DINGTALK_GROUP: True
   OPENAI:
     PROXIED: False
   SANIC:
@@ -89,9 +106,14 @@ PRE:
   REPORT:
     BACKEND_ADMIN_URL: "http://backend-admin-pre.bullsmart.in/v1/internal/aigc/create"
     TRENDING_URL: "https://mb-api-gateway-pre.bullsmart.in"
+  CACHE:
+    global_enabled: TRUE
 
 PROD:
   BASEURL: http://py-kbgpt.bullsmart.in
+  OPS:
+    ALERT:
+      DINGTALK_GROUP: True
   OPENAI:
     PROXIED: False
   SANIC:
@@ -101,3 +123,5 @@ PROD:
   REPORT:
     BACKEND_ADMIN_URL: "https://backend-admin.bullsmart.in/v1/internal/aigc/create"
     TRENDING_URL: "https://mb-api-gateway.bullsmart.in"
+  CACHE:
+    global_enabled: TRUE

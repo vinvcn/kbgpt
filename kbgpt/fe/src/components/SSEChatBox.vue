@@ -90,7 +90,7 @@
 
 
 <script>
-import { get_base_url } from '@/utils/utils';
+import { get_base_url } from "@/utils/utils";
 export default {
   name: "SSEChatBox",
   data: function () {
@@ -349,16 +349,15 @@ export default {
       },
     };
   },
-  created: function(){
-    const historyString = localStorage.getItem("chatHistory")
-    if (historyString){
+  created: function () {
+    const historyString = localStorage.getItem("chatHistory");
+    if (historyString) {
       this.messages = JSON.parse(historyString);
     }
-    window.addEventListener('beforeunload', this.persistMessage)
-
+    window.addEventListener("beforeunload", this.persistMessage);
   },
-  beforeRouteLeave: function(){
-    this.persistMessage()
+  beforeRouteLeave: function () {
+    this.persistMessage();
   },
   methods: {
     appendMessage: function (sender, message) {
@@ -369,7 +368,7 @@ export default {
 
       this.scrollToBottom();
     },
-    persistMessage: function(){
+    persistMessage: function () {
       const historyString = JSON.stringify(this.messages);
       localStorage.setItem("chatHistory", historyString);
     },
@@ -389,8 +388,8 @@ export default {
         chatElement.scrollTop = chatElement.scrollHeight;
       });
     },
-    toggleSendBtn: function(){
-      this.$refs.sendBtn.disabled = !(this.$refs.sendBtn.disabled)
+    toggleSendBtn: function () {
+      this.$refs.sendBtn.disabled = !this.$refs.sendBtn.disabled;
     },
     sendMessage: async function () {
       const userInput = this.$refs.userInput;
@@ -400,7 +399,7 @@ export default {
         return;
       }
 
-      this.toggleSendBtn()
+      this.toggleSendBtn();
 
       this.appendMessage("User", { message: message });
       const body = {
@@ -408,7 +407,7 @@ export default {
         recomm_type: this.selectedOption,
         athreshold: this.asliderValue,
         cthreshold: this.csliderValue,
-        temperature: this.temperature
+        temperature: this.temperature,
       };
       const response = await fetch(
         `${get_base_url()}/api/v1/aigc/qa/stream_qa`,
@@ -441,14 +440,13 @@ export default {
                 this.streaming = true;
                 this.streamText = this.streamText + obj.token;
                 this.scrollToBottom();
-              } else if (obj.success === false){
+              } else if (obj.success === false) {
                 alert("ERROR: " + obj.error);
-              }
-              else if (obj.answer) {
+              } else if (obj.answer) {
                 console.log(obj.answer);
                 this.streaming = false;
-                this.streamText = ""
-                this.appendMessage("Bot", {message: obj.answer})
+                this.streamText = "";
+                this.appendMessage("Bot", { message: obj.answer });
               }
               if (obj.intents && obj.intents.length > 0) {
                 console.log(obj);
@@ -466,10 +464,15 @@ export default {
                   .join("\n");
                 this.appendMessage("Bot", { message: toAttach });
               }
+              if (obj.recommend) {
+                this.appendMessage("Bot", {
+                  message: `function ${obj.recommend} triggered`,
+                });
+              }
             }
           });
       }
-      this.toggleSendBtn()
+      this.toggleSendBtn();
     },
     handleKeyPress: function (event) {
       if (event.keyCode === 13) {

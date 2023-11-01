@@ -30,6 +30,8 @@ class BusinessType(Enum):
 
     QA = "qa"
     PRODUCT_CATALOG = "product"
+    AMC = "amc"
+    AMC_QA = "amc_qa"
 
 
 class VectorStoreStrategy(metaclass=abc.ABCMeta):
@@ -179,6 +181,12 @@ STORE_STG = {
     ),
     BusinessType.PRODUCT_CATALOG: RedisVectorStoreStrategy(
         embeddings=get_embeddings(), index=profile.product_catalog.redis_index_name
+    ),
+    BusinessType.AMC: RedisVectorStoreStrategy(
+        embeddings=get_embeddings(), index=profile.amc_catalog.redis_index_name
+    ),
+    BusinessType.AMC_QA: RedisVectorStoreStrategy(
+        embeddings=get_embeddings(), index=profile.amc_catalog.redis_qa_index_name
     ),
 }
 

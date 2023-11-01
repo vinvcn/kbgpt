@@ -101,6 +101,7 @@ class Cache(SuperConfig):
     customer_service_cache_index: str
     cool_down_seconds: int
     fresh_batch_size: int
+    global_enabled: bool
 
 
 class Sentiment(SuperConfig):
@@ -124,6 +125,19 @@ class ProductCatalog(SuperConfig):
     vector_store_class: str
     product_retrieval_k: int
     redis_index_name: str
+    redis_qa_index_name: Optional[str]
+
+
+class Alert(SuperConfig):
+    """alert config"""
+
+    dingtalk_group: bool
+
+
+class OPS(SuperConfig):
+    """operation config"""
+
+    alert: Alert
 
 
 class Profile(SuperConfig):
@@ -135,6 +149,7 @@ class Profile(SuperConfig):
     report: Report
     qa: QA
     product_catalog: ProductCatalog
+    amc_catalog: ProductCatalog
     embedding: Embedding
     vector_store: VectorStore
     cache: Cache
@@ -143,4 +158,5 @@ class Profile(SuperConfig):
     openai: OpenAI
     azureai: List[AzureAI]
     baseurl: AnyUrl
+    ops: OPS
     name: str = Field("DEFAULT")

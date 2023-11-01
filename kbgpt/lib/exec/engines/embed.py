@@ -20,6 +20,8 @@ class Embed(Engine):
             f"{l}:\n {kwargs[k]}" if l else kwargs[k]
             for k, l in self.config.key_and_labels.items()
         )
-        logging.debug("getting embeddings for content of length %d", len(content))
+        logging.debug(
+            "%s getting embeddings for content of length %d", invoke_id, len(content)
+        )
         embedding = await self.openai.embed(content)
         return {"result": embedding}

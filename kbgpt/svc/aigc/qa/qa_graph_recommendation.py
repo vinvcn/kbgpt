@@ -138,7 +138,6 @@ def recommend_sub_graph():
             frm=SelectorMultiplexer(
                 selectors=[
                     Selector(node="recommend_products", key="result", to_key="recomm"),
-                    Selector(node="search_products", key="result", to_key="products"),
                 ]
             ),
             pre=EvalCheckerMod(key="recomm", eval_exp="recomm.lower() != 'n/a'"),

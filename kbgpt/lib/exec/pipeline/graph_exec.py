@@ -1,10 +1,10 @@
 import asyncio
-import json
 import logging
 from typing import Any, Dict
 
 from kbgpt.lib.exec.pipeline.checker_exec import CheckerFailedException
 from kbgpt.lib.exec.pipeline.constants import K_SEED
+from kbgpt.lib.exec.pipeline.exceptions import DingtalkAlertHandler
 from kbgpt.lib.exec.pipeline.graph_models import (
     ExecutionContext,
     ExecutionException,
@@ -21,6 +21,7 @@ class GraphExecutor:
 
     def __init__(self, graph: Graph) -> None:
         self.graph = graph
+        self.node_excep_handlers = [DingtalkAlertHandler()]
 
     async def exec(
         self,
@@ -50,16 +51,35 @@ class GraphExecutor:
                         *[NodeExecutor(node=n).exec(ctx) for n in ls_nodes],
                         return_exceptions=True,
                     )
+
+                    exception_nodes = [
+                        (rst, nod)
+                        for rst, nod in zip(node_results, ls_nodes)
+                        if isinstance(rst, Exception)
+                        and not isinstance(rst, CheckerFailedException)
+                    ]
+
                     excepts = [
                         node_results[i]
                         for i, r in enumerate(node_results)
                         if isinstance(r, Exception)
                         and not isinstance(r, CheckerFailedException)
                     ]
-                    if excepts:
+                    if exception_nodes:
+                        try:
+                            for exce, nod in exception_nodes:
+                                for handler in self.node_excep_handlers:
+                                    await handler.handle(
+                                        invoke_id=invoke_id,
+                                        node=nod,
+                                        envs=envs,
+                                        exce=exce,
+                                    )
+                        except Exception as e:
+                            logging.exception(e)
                         raise ExecutionException(
-                            f"execution encountered exceptions for node {[n.node.id for n in ls_nodes]}",
-                            excepts,
+                            f"execution encountered exceptions for node {[nod.node.id for _, nod in exception_nodes]}",
+                            [exp for exp, _ in exception_nodes],
                         )
 
                     excepts = [

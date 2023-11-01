@@ -1,6 +1,8 @@
 """
 web app
 """
+import json
+
 from jinja2 import FileSystemLoader
 from redis import Redis
 from sanic import Sanic
@@ -16,14 +18,16 @@ from kbgpt.fe.fe import FE
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql import Crud
 from kbgpt.lib.exec.clients.redis import REDIS_CLIENT
-from kbgpt.lib.exec.qa.utils import get_cache_index_from_graph
+from kbgpt.lib.exec.qa.utils import get_cache_index_from_graph, get_lru_cache_from_graph
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.lib.tasks.manager import TaskManager
 from kbgpt.lib.templates.rendering.models import RedisTemplateProvider, TemplateRepo
+from kbgpt.svc.aigc.kb import UpdateKBFromDB
 from kbgpt.svc.aigc.qa.file_services import WarmupTask
 from kbgpt.svc.aigc.qa.qa_graph import QA_GRAPH
 from kbgpt.svc.aigc.qa.qa_graph_fetch_context import CONTEXT_GRAPH
 from kbgpt.svc.aigc.qa.qa_graph_wizout_tailor import RECOMMEND_GRAPH
+from kbgpt.svc.aigc.qa.qa_top import QA_TOP_GRAPH
 
 from .admin import ADMIN
 from .aigc import AIGC
@@ -54,6 +58,12 @@ app.ctx.jinja = SanicJinja2(
     enable_async=True,
 )
 
+if profile.openai.proxied:
+    import openai
+
+    openai.api_base = str(profile.openai.api_base_url)
+    openai.proxy = str(profile.openai.proxy_url)
+
 
 @app.before_server_start
 async def setup_resources(sanic_app: Sanic, loop):
@@ -71,6 +81,7 @@ async def setup_resources(sanic_app: Sanic, loop):
     task_manager.register_task_name_handle(DailyReport, DailyReport.__name__)
     task_manager.register_task_name_handle(WeeklyReport, WeeklyReport.__name__)
     task_manager.register_task_name_handle(WarmupTask, WarmupTask.__name__)
+    task_manager.register_task_name_handle(UpdateKBFromDB, UpdateKBFromDB.__name__)
 
     mgr.add(task_manager)
 
@@ -84,10 +95,8 @@ async def setup_resources(sanic_app: Sanic, loop):
     sanic_app.add_task(sql_emitter.aloop_drain(), name="sql_emitter_drain_loop")
     sanic_app.add_task(task_manager.schedule, name="task_scheduler_loop")
 
-    cache_indexes = []
-    cache_indexes.extend(get_cache_index_from_graph(QA_GRAPH))
-    cache_indexes.extend(get_cache_index_from_graph(CONTEXT_GRAPH))
-    cache_indexes.extend(get_cache_index_from_graph(RECOMMEND_GRAPH))
+    all_caches = get_cache_index_from_graph(QA_TOP_GRAPH)
+    cache_indexes = set([cac.index_name for cac in all_caches])
     sanic_app.ctx.cache = {"indexes": cache_indexes}
     REDIS_CLIENT.init_all_indexes(cache_indexes)
 
