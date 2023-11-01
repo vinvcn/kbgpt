@@ -37,4 +37,8 @@ class SimilaritySearch(Engine):
             for m, s in matchings
             if s < (self.config.min_threshold if self.config.min_threshold else 1)
         ]
-        return {"result": limited}
+        result = []
+        for rst, scr in limited:
+            rst["similarity"] = scr
+            result.append(rst)
+        return {"result": result}

@@ -3,11 +3,13 @@ indexers
 """
 import abc
 import logging
+import os
 import re
 from csv import DictReader
 from typing import List, Tuple
 
 import numpy as np
+import openai
 from aiofiles import open as aopen
 from langchain.docstore.document import Document
 from langchain.document_loaders import (
@@ -22,7 +24,11 @@ from pydantic import BaseModel
 
 from config import profile
 from kbgpt.lib.db.vector_store import create_vector_store_strategy
-from kbgpt.lib.indexing.csv_loader_and_spliter import CSVJSONLoader, CSVTextLoader
+from kbgpt.lib.indexing.csv_loader_and_spliter import (
+    CSVJSONLoader,
+    CSVTextLoader,
+    ExcelJSONLoader,
+)
 from kbgpt.lib.indexing.double_line_breaks_splitter import PondAstonPondSplitter
 from kbgpt.lib.utils import calculate_hash
 from kbgpt.svc.utils.openai import token_counts
@@ -51,6 +57,10 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         r".*\.shtml": (UnstructuredHTMLLoader, RECR_SPL),
         r".*\.docx": (UnstructuredWordDocumentLoader, RECR_SPL),
         r".*\.doc": (UnstructuredWordDocumentLoader, RECR_SPL),
+        r".*\.xlsx": (
+            ExcelJSONLoader,
+            RecursiveCharacterTextSplitter(chunk_size=200000),
+        ),
         r".*\.kb\.csv": (CSVTextLoader, None),
         r".*\.csv": (CSVJSONLoader, None),
     }
@@ -89,6 +99,18 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         store = create_vector_store_strategy(**kwargs)
         await store.transctional_write_to_store(documents, flush_index, **kwargs)
 
+    def get_decorated_openai(self):
+        openai.api_key = os.environ["OPENAI_API_KEY"]
+        openai.api_type = "open_ai"
+        openai.api_version = None
+        if profile.openai.proxied:
+            openai.api_base = str(profile.openai.api_base_url)
+            openai.proxy = str(profile.openai.proxy_url)
+        else:
+            openai.api_base = str(profile.openai.unproxied_url)
+            openai.proxy = None
+        return openai
+
     async def transactional_add_to_index(
         self,
         paths: List[str],
@@ -98,6 +120,7 @@ class AbstractIndexer(metaclass=abc.ABCMeta):
         """
         add a file to the given index
         """
+        self.get_decorated_openai()
         # with UniqueFilePerIndex(path, db_url, index_name):
         logging.debug("embedding the file")
         # load the data

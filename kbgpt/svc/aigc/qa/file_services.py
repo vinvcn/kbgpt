@@ -1,4 +1,5 @@
 import logging
+import uuid
 from os import listdir, pardir
 from os.path import abspath, dirname, isfile, join
 from typing import Any, List
@@ -6,18 +7,21 @@ from uuid import uuid4
 
 from aiofiles import open as aopen
 from aiofiles import tempfile
+from async_lru import alru_cache
 from redis.exceptions import LockError
 from sanic import Request, Sanic
 from sanic.response import JSONResponse
 
 from config import profile
 from kbgpt.api.admin.models import TaskStatusResponse
-from kbgpt.api.aigc.qa_models import FileProcessResponse
+from kbgpt.api.aigc.qa_models import FileProcessResponse, UpdateFromDb
 from kbgpt.api.libs.base_model import ErrorResponse, OpenAIResponseBase
 from kbgpt.api.libs.utils import jtext
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql.process_file_record import ProcessFileRecord
 from kbgpt.lib.exec.clients.redis import REDIS_CLIENT
+from kbgpt.lib.exec.qa.engines import RecommOutTransform
+from kbgpt.lib.exec.qa.utils import find_classes, find_methods_with_annotation
 from kbgpt.lib.indexing.indexer import CustomerServiceFilesIndexer
 from kbgpt.lib.logging import alog
 from kbgpt.lib.tasks.manager import FuncWrapper, TaskManager, TaskRecord
@@ -91,6 +95,33 @@ class ProxiedDocAgent:
     """
     Wrapper for all Doc and Cache logic
     """
+
+    async def process_request_and_refresh_cache(
+        self, sanic_app: Sanic, update_db: UpdateFromDb, is_refresh: bool = False
+    ):
+        try:
+            async with tempfile.TemporaryDirectory() as temp_dir:
+                paths = []
+                for txt_mtl in update_db.items:
+                    fname = str(uuid.uuid4())
+                    path = f"{temp_dir}/{fname}.txt"
+                    async with aopen(path, "w", encoding="utf-8") as f:
+                        await f.write(txt_mtl.text_content)
+                        await f.flush()
+                        paths.append(path)
+                await add_files_to_customer_service(
+                    paths, flush_index=True, ctx=None, business_type="qa"
+                )
+                indexes = sanic_app.ctx.cache["indexes"]
+                REDIS_CLIENT.reset_all_indexes(indexes=indexes)
+            return jtext(
+                FileProcessResponse(
+                    success=True, msg="Indexes reset" + ",".join(indexes)
+                )
+            )
+        except Exception as e:
+            logging.exception(e)
+            return jtext(ErrorResponse(success=False, error=str(e)))
 
     async def process_file_and_refresh_cache(
         self, sanic_app: Sanic, request: Request, is_refresh: bool = False

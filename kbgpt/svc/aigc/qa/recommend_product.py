@@ -2,10 +2,9 @@ from config import profile
 from kbgpt.lib.exec.engines.configs.models import (
     CacheMod,
     ClientStyle,
-    EmbedMod,
     JinjaMod,
+    RecomOutMod,
     RecomOutTransMod,
-    SimilaritySearchMod,
 )
 from kbgpt.lib.exec.pipeline.checker_models import EvalCheckerMod
 from kbgpt.lib.exec.pipeline.constants import K_SEED
@@ -16,59 +15,16 @@ from kbgpt.lib.exec.pipeline.selector_models import (
     Selector,
     SelectorMultiplexer,
 )
+from kbgpt.lib.exec.pipeline.utils import create_nodes_and_update_callbacks
 
 
-def recommend_sub_graph_without_tailor():
-    embed_question_answer_context = GraphNode(
-        node=Node(
-            id="embed_question_answer_context",
-            engine=EmbedMod(
-                key_and_labels={
-                    "context": "Context",
-                    "question": "Question",
-                    "answer": "Answer",
-                }
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(node=K_SEED, key="question"),
-                    Selector(node=K_SEED, key="context"),
-                    Selector(
-                        node=K_SEED,
-                        key="answer",
-                    ),
-                ]
-            ),
-        ),
-        src=[],
-    )
-
-    search_products = GraphNode(
-        node=Node(
-            id="search_products",
-            engine=SimilaritySearchMod(
-                index=profile.product_catalog.redis_index_name,
-                k=profile.product_catalog.product_retrieval_k,
-            ),
-            frm=SelectorMultiplexer(
-                selectors=[
-                    Selector(
-                        node="embed_question_answer_context",
-                        key="result",
-                        to_key="embedding",
-                    ),
-                ]
-            ),
-        ),
-        src=[embed_question_answer_context],
-    )
-
+def recommend_product():
     recommend_products = GraphNode(
         node=Node(
             id="recommend_products",
             engine=JinjaMod(
-                name="qa.recommend_products",
-                keys_in=["question", "answer", "context", "products"],
+                name="qa.recommend_products_immediate",
+                keys_in=["question", "answer", "context", "product"],
                 models=[profile.generative_model, profile.qa.generative_model],
                 client_style=ClientStyle.ROUNDROBIN.value,
                 cache=CacheMod(
@@ -85,15 +41,15 @@ def recommend_sub_graph_without_tailor():
                         key="answer",
                     ),
                     Selector(node=K_SEED, key="context"),
+                    Selector(node=K_SEED, key="embedding"),
                     Selector(
-                        node="search_products",
-                        key="result",
-                        to_key="products",
+                        node=K_SEED,
+                        key="product",
                     ),
                 ]
             ),
         ),
-        src=[search_products],
+        src=[],
     )
 
     transform_recommend2 = GraphNode(
@@ -127,11 +83,11 @@ def recommend_sub_graph_without_tailor():
             frm=SelectorMultiplexer(
                 selectors=[
                     Selector(node=K_SEED, key="question"),
-                    Selector(node=K_SEED, key="callbacks"),
                     Selector(
                         node=K_SEED,
                         key="answer",
                     ),
+                    Selector(node=K_SEED, key="embedding"),
                     Selector(
                         node="transform_recommend2",
                         key="result",
@@ -143,13 +99,35 @@ def recommend_sub_graph_without_tailor():
         src=[transform_recommend2],
     )
 
-    nodes = [v for k, v in locals().items() if isinstance(v, GraphNode)]
+    recommend_output = GraphNode(
+        node=Node(
+            id="recommend_output",
+            engine=RecomOutMod(stream=True),
+            frm=SelectorMultiplexer(
+                selectors=[
+                    Selector(
+                        node="transform_recommend2", key="result", to_key="products"
+                    ),
+                    Selector(
+                        node="say_recommendation_hooks", key="result", to_key="hook"
+                    ),
+                ],
+                mode=MultiplexerType.NONE,
+            ),
+            pre=EvalCheckerMod(key="products", eval_exp="bool(products)"),
+        ),
+        src=[say_recommendation_hooks],
+    )
+
+    nodes = create_nodes_and_update_callbacks(locals().items())
+
     graph = Graph(
         nodes=nodes,
         sel=SelectorMultiplexer(
             selectors=[
-                Selector(node="transform_recommend2", key="result", to_key="products"),
-                Selector(node="say_recommendation_hooks", key="result", to_key="hook"),
+                Selector(
+                    node="say_recommendation_hooks", key="result", to_key="answer"
+                ),
             ],
             mode=MultiplexerType.NONE,
         ),
@@ -157,4 +135,4 @@ def recommend_sub_graph_without_tailor():
     return graph
 
 
-RECOMMEND_GRAPH = recommend_sub_graph_without_tailor()
+RECOMMEND_GRAPH = recommend_product()

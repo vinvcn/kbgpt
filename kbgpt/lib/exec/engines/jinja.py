@@ -4,6 +4,7 @@ from typing import Any, Dict, List
 
 from jinja2 import Environment
 
+from config import profile
 from kbgpt.api.libs.callbacks import StreamingAsyncHandler
 from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.lib.db.mysql import Crud
@@ -11,7 +12,8 @@ from kbgpt.lib.db.mysql.jinja_engine_record import JinjaTemplateRecord
 from kbgpt.lib.exec.clients import CLIENT
 from kbgpt.lib.exec.clients.redis import REDIS_CLIENT
 from kbgpt.lib.exec.engines.configs.models import ClientStyle, JinjaMod, PersistLevel
-from kbgpt.lib.exec.template_factory import TemplateFactory
+from kbgpt.lib.exec.engines.decor.redis_cache import rediscache
+from kbgpt.lib.exec.template_factory import JINJA_ENV, TemplateFactory
 from kbgpt.lib.llm.openai import Message, OpenAI
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
 from kbgpt.lib.templates.rendering.models import Jinja2RedisLoader
@@ -31,22 +33,8 @@ class Jinja(Engine):
     def __init__(self, config: JinjaMod):
         super().__init__(config)
         self.tmp_repo = TemplateFactory().create()
-        self.jinja_env = Environment(
-            trim_blocks=True,
-            lstrip_blocks=True,
-            auto_reload=True,
-            loader=Jinja2RedisLoader(),
-        )
+        self.jinja_env = JINJA_ENV
         self.openai = OpenAI()
-
-        def split_lists_str(lst_str: List[str]):
-            return "\n---\n".join(lst_str)
-
-        def json_loads(json_str: str):
-            return json.loads(json_str)
-
-        self.jinja_env.filters["split_lists_str"] = split_lists_str
-        self.jinja_env.filters["json_loads"] = json_loads
 
     async def _persist_content(self, envs: Dict[str, Any], **kwargs):
         if self.config.persist_level != PersistLevel.NONE.value:
@@ -65,6 +53,7 @@ class Jinja(Engine):
                 JinjaTemplateRecord, filter_params={**kwargs}, order_col="timestamp"
             )
 
+    @rediscache
     async def agenerate(self, *, invoke_id=None, envs=None, **kwargs) -> Dict[str, Any]:
         assert all(
             [k in kwargs for k in self.config.keys_in]
@@ -82,24 +71,7 @@ class Jinja(Engine):
         if load_from_db and load_from_db.prompt == rendered:
             result, usage = load_from_db.result, load_from_db.usage
         else:
-            cache_doc = None
-            if self.config.cache and self.config.cache.enabled:
-                cache_index = self.config.cache.index_name
-                cache_doc = await REDIS_CLIENT.retrieve(
-                    query=kwargs[self.config.cache.query_key], index_name=cache_index
-                )
-
-            if cache_doc:
-                result = cache_doc.metadata.answer
-                usage = "{}"
-            else:
-                result, usage = await self.make_request(kwargs, rendered)
-                if self.config.cache and self.config.cache.enabled:
-                    await REDIS_CLIENT.write_to_store(
-                        question=kwargs[self.config.cache.query_key],
-                        answer=result,
-                        index_name=cache_index,
-                    )
+            result, usage = await self.make_request(kwargs, rendered)
 
         if not load_from_db:
             await self._persist_content(

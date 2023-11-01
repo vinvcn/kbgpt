@@ -1,3 +1,4 @@
+import json
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
@@ -48,7 +49,33 @@ class ClientStyle(Enum):
 class CacheMod(BaseModel):
     enabled: bool = Field(False)
     query_key: str = Field("question")
+    clear_on_init: bool = Field(False)
     index_name: Optional[str]
+
+
+class DecisionMod(EngineMod):
+    type: Literal["decision_engine"] = Field("decision_engine")
+    model: str
+    client_style: str = Field(ClientStyle.NATIVE.value)
+    temperature: float = Field(0.0)
+    cache: Optional[CacheMod]
+    rst_regex: Optional[str]
+
+
+class ClassificationMod(DecisionMod):
+    type: Literal["classification_engine"] = Field("classification_engine")
+    mapping: List[Tuple[str, str]]
+
+
+class DTreeNode(BaseModel):
+    template: str
+    mapping: List[Tuple[str, str]]
+    children: Dict[str, "DTreeNode"] = Field(dict())
+
+
+class DecisionTreeMod(DecisionMod):
+    type: Literal["decision_tree_engine"] = Field("decision_tree_engine")
+    root: DTreeNode
 
 
 class TemplateMod(EngineMod):
@@ -101,15 +128,23 @@ class RecomOutMod(OutputMod):
     stream: bool = Field(False)
 
 
+class FunctionOutMod(OutputMod):
+    type: Literal["function_output"] = Field("function_output")
+    stream: bool = Field(False)
+
+
 EngineTypes = Union[
     SimpleMod,
     EmbedMod,
     JinjaMod,
     GraphExecMod,
     SimilaritySearchMod,
+    ClassificationMod,
+    DecisionTreeMod,
     MapperMod,
     TestMod,
     QAOutputMod,
+    FunctionOutMod,
     RecomOutTransMod,
     RecomOutMod,
 ]
