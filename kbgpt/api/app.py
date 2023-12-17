@@ -17,6 +17,7 @@ from kbgpt.api.libs.resources import ResourceMgr
 from kbgpt.fe.fe import FE
 from kbgpt.lib.db.cache_store import RedisCacheStoreStrategy
 from kbgpt.lib.db.mysql import Crud
+from kbgpt.lib.db.mysql.mutual_funds import MutualFund, NewsArticle
 from kbgpt.lib.exec.clients.redis import REDIS_CLIENT
 from kbgpt.lib.exec.qa.utils import get_cache_index_from_graph, get_lru_cache_from_graph
 from kbgpt.lib.logging.mysql_emitter import MySqlEmitter
@@ -34,6 +35,10 @@ from .aigc import AIGC
 from .legacy.apis import LEGACY
 from .senti import SENSHIP
 from .tune import TUNE
+
+fm = MutualFund()
+na = NewsArticle()
+
 
 app = Sanic(
     profile.sanic.app_name,

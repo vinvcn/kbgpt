@@ -133,6 +133,17 @@ class FunctionOutMod(OutputMod):
     stream: bool = Field(False)
 
 
+class FindRecentReportMod(EngineMod):
+    type: Literal["find_recent_report"] = Field("find_recent_report")
+    connection_string: str
+
+
+class MFSearchMod(EngineMod):
+    type: Literal["mutual_fund_search"] = Field("mutual_fund_search")
+    serpapi_key: str
+    connection_string: str
+
+
 EngineTypes = Union[
     SimpleMod,
     EmbedMod,
@@ -147,4 +158,5 @@ EngineTypes = Union[
     FunctionOutMod,
     RecomOutTransMod,
     RecomOutMod,
+    FindRecentReportMod,
 ]
